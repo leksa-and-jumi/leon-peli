@@ -4,20 +4,21 @@ export const GAME_HEIGHT = 600;
 
 export const COLORS = {
   background: 0x1d1f2b,
-  player: 0x4fc3f7,
-  star: 0xffd54f,
   text: '#ffffff',
 } as const;
 
-/** Every text in the game is shown in English and Finnish. */
-export const HINT_TEXT =
-  'Move with the arrow keys and collect stars! ⭐\nLiiku nuolilla ja kerää tähtiä! ⭐';
-
-export const PLAYER_SIZE = 40;
-export const PLAYER_SPEED = 300; // pixels per second
-
-export const STAR_SIZE = 20;
-export const POINTS_PER_STAR = 1;
+/** Leo's player: a black stick figure with a gun, standing still in the bottom-left corner. */
+export const PLAYER = {
+  x: 70,
+  feetY: 555,
+  height: 120,
+  lineWidth: 5,
+  color: 0x000000,
+  /** A thin pale edge (moonlight) so the black figure shows on the dark ground. */
+  outlineColor: 0xd8cfe0,
+  outlineAlpha: 0.45,
+  gun: { body: 0x1e1e1e, shine: 0x8a8a8a },
+} as const;
 
 /** Ruins background. Same seed = same ruins every time. */
 export const RUINS = {
