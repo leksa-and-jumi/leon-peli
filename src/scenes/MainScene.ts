@@ -1,7 +1,17 @@
 import Phaser from 'phaser';
-import { BULLET, COLORS, CROUCH_HINT, ENEMY, GAME_OVER, GAME_WIDTH, PLAYER } from '../config';
+import {
+  BULLET,
+  COLORS,
+  CROUCH_HINT,
+  ENEMY,
+  GAME_OVER,
+  GAME_WIDTH,
+  PLAYER,
+  RELOAD_BAR,
+} from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
+import { canShoot, reloadProgress } from '../logic/reload';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Enemy } from '../objects/Enemy';
 import { showGameOverSign } from '../objects/GameOverSign';
@@ -19,6 +29,8 @@ export class MainScene extends Phaser.Scene {
   private lives = 0;
   private livesText!: Phaser.GameObjects.Text;
   private playerAlive = true;
+  private lastShotMs: number | null = null;
+  private reloadBar!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('MainScene');
@@ -30,6 +42,7 @@ export class MainScene extends Phaser.Scene {
     this.enemyBullets = [];
     this.lives = PLAYER.lives;
     this.playerAlive = true;
+    this.lastShotMs = null;
 
     new RuinsBackground(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
@@ -41,6 +54,8 @@ export class MainScene extends Phaser.Scene {
     this.spawnEnemy();
     this.bulletGraphics = this.add.graphics();
     this.add.text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text });
+    this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' });
+    this.reloadBar = this.add.graphics();
     this.livesText = this.add
       .text(GAME_WIDTH - 16, 16, formatLives(this.lives, PLAYER.lives), { fontSize: '26px' })
       .setOrigin(1, 0);
@@ -54,6 +69,9 @@ export class MainScene extends Phaser.Scene {
     // Left mouse click shoots
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.leftButtonDown() || !this.playerAlive) return;
+      // The gun has to reload between shots
+      if (!canShoot(this.time.now, this.lastShotMs, BULLET.cooldownMs)) return;
+      this.lastShotMs = this.time.now;
       const muzzle = this.player.muzzlePosition();
       this.shoot(muzzle, 1);
       // Shots from a crouch are always jumped over
@@ -98,6 +116,17 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.drawBullets();
+    this.drawReloadBar();
+  }
+
+  private drawReloadBar(): void {
+    const { x, y, width, height, empty, filling, ready } = RELOAD_BAR;
+    const progress = reloadProgress(this.time.now, this.lastShotMs, BULLET.cooldownMs);
+    this.reloadBar.clear();
+    this.reloadBar.fillStyle(empty, 1);
+    this.reloadBar.fillRect(x, y, width, height);
+    this.reloadBar.fillStyle(progress >= 1 ? ready : filling, 1);
+    this.reloadBar.fillRect(x, y, width * progress, height);
   }
 
   private spawnEnemy(): void {
