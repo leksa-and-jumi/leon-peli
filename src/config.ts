@@ -84,29 +84,44 @@ export const BOSS = {
 
 /** How a hit white stick figure breaks in two. */
 export const BREAK = {
-  topFlyX: 10,
+  /** The top piece is thrown this far, in the direction the bullet flew. */
+  topFlyX: 30,
+  /** How high the top piece flies before it falls. */
+  topArcHeight: 45,
   /** How high above the ground the top piece's turning point stops. */
-  restHeight: 6,
-  topSpin: -85, // degrees, falls toward the player so it stays on screen
-  topFallMs: 550,
-  bottomTip: 80, // degrees
-  bottomDelayMs: 120,
-  bottomFallMs: 650,
-  fadeDelayMs: 1500,
-  fadeMs: 500,
+  restHeight: 4,
+  topSpin: -90, // degrees, so it lies flat on the ground
+  topFallMs: 650,
+  /** A small bounce when it hits the ground. */
+  bounceHeight: 7,
+  bounceMs: 110,
+  bottomTip: 90, // degrees, legs fall flat
+  bottomDelayMs: 150,
+  bottomFallMs: 750,
+  /** How long the pieces lie on the ground before fading away. */
+  fadeDelayMs: 3200,
+  fadeMs: 700,
 } as const;
 
 /** Red drops that spray out of a hit. */
 export const BLOOD = {
   color: 0xc62828,
-  drops: 16,
+  dark: 0x8e1b1b,
+  drops: 40,
+  /** More drops squirt out a few times after the hit. */
+  squirts: 3,
+  squirtDrops: 8,
+  squirtEveryMs: 140,
   minRadius: 1.5,
-  maxRadius: 3.5,
-  spread: 90,
+  maxRadius: 4,
+  spread: 120,
+  /** How high the drops fly before falling. */
+  maxArcHeight: 60,
   /** Drops land a little in front of or behind the feet line. */
-  landingDepth: 12,
-  minFlightMs: 300,
-  extraFlightMs: 350,
+  landingDepth: 14,
+  minFlightMs: 350,
+  extraFlightMs: 450,
+  pool: { width: 56, height: 9, alpha: 0.85, growMs: 900 },
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
@@ -128,10 +143,10 @@ export const BULLET = {
 /** The guns. `muzzleX` is how far in front of the hand the bullet comes out. */
 export const WEAPONS = {
   pistol: { muzzleX: 30, cooldownMs: BULLET.cooldownMs },
-  /** From the shop: no reloading, shoot as fast as you can click. */
+  /** From the shop: reloads in just one second. */
   rifle: {
     muzzleX: 52,
-    cooldownMs: 0,
+    cooldownMs: 1000,
     colors: { body: 0x1e1e1e, wood: 0x6d4c41, shine: 0x8a8a8a },
   },
   /** The boss's axe. It doesn't shoot. */

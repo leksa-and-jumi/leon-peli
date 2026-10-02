@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BLOOD, BREAK, PLAYER, type Weapon } from '../config';
+import { arcPoint } from '../logic/arc';
 import { cutSegments, figureSegments, type Segment } from '../logic/cut';
 import type { Pose } from '../logic/pose';
 import { drawGun, drawHead, drawSegments, headCenter, type StickFigureLook } from './StickFigure';
@@ -28,43 +29,88 @@ export class BrokenFigure {
     const headOnTop = headCenter(pose).y < cutY;
     const gunOnTop = pose.gunHand.y < cutY;
 
+    // Blood pools grow where the pieces land. Made first, so they lie under the pieces.
+    const topLandX = x + push * BREAK.topFlyX;
+    const legsLandX = x + push * pose.hip.y * -0.5;
+    const pools = [topLandX, legsLandX].map((poolX) => {
+      const { width, height, alpha } = BLOOD.pool;
+      return scene.add.ellipse(poolX, groundY, width, height, BLOOD.dark, alpha).setScale(0);
+    });
+
     // The top piece turns around the cut, the bottom piece around the feet
     const top = scene.add.graphics({ x, y: hit.y });
     this.drawPiece(top, upper, pose, look, headOnTop, gunOnTop ? weapon : null, cutY, -cutY);
     const bottom = scene.add.graphics({ x, y: feetY });
     this.drawPiece(bottom, lower, pose, look, !headOnTop, gunOnTop ? null : weapon, cutY, 0);
 
-    // The legs tip away from the bullet, the top tumbles down in front of them
+    // The top piece is thrown up a little, spins and lands flat with a small bounce
+    const flight = { t: 0 };
+    const start = { x, y: hit.y };
+    const land = { x: topLandX, y: groundY - BREAK.restHeight };
     scene.tweens.add({
-      targets: top,
-      x: x + push * BREAK.topFlyX,
-      y: groundY - BREAK.restHeight,
-      angle: push * BREAK.topSpin,
+      targets: flight,
+      t: 1,
       duration: BREAK.topFallMs,
-      ease: 'Quad.easeIn',
+      ease: 'Linear',
+      onUpdate: () => {
+        const p = arcPoint(start, land, BREAK.topArcHeight, flight.t);
+        top.setPosition(p.x, p.y);
+        top.setAngle(push * BREAK.topSpin * flight.t);
+      },
+      onComplete: () => {
+        scene.tweens.add({
+          targets: top,
+          y: land.y - BREAK.bounceHeight,
+          duration: BREAK.bounceMs,
+          yoyo: true,
+          ease: 'Sine.easeOut',
+        });
+        this.growPool(scene, pools[0]);
+      },
     });
+
+    // The legs fall over flat and bounce a little on the ground
     scene.tweens.add({
       targets: bottom,
       angle: push * BREAK.bottomTip,
       y: groundY,
       delay: BREAK.bottomDelayMs,
       duration: BREAK.bottomFallMs,
-      ease: 'Quad.easeIn',
+      ease: 'Bounce.easeOut',
+      onComplete: () => {
+        this.growPool(scene, pools[1]);
+      },
     });
 
-    const drops = this.sprayBlood(scene, hit, groundY, push);
+    const drops = this.sprayBlood(scene, hit, groundY, push, BLOOD.drops);
+    for (let i = 1; i <= BLOOD.squirts; i++) {
+      scene.time.delayedCall(i * BLOOD.squirtEveryMs, () => {
+        drops.push(...this.sprayBlood(scene, hit, groundY, push, BLOOD.squirtDrops));
+      });
+    }
+
+    scene.time.delayedCall(BREAK.fadeDelayMs, () => {
+      const all = [top, bottom, ...pools, ...drops];
+      scene.tweens.add({
+        targets: all,
+        alpha: 0,
+        duration: BREAK.fadeMs,
+        onComplete: () => {
+          all.forEach((o) => {
+            o.destroy();
+          });
+        },
+      });
+    });
+  }
+
+  private growPool(scene: Phaser.Scene, pool: Phaser.GameObjects.Ellipse | undefined): void {
+    if (!pool) return;
     scene.tweens.add({
-      targets: [top, bottom, ...drops],
-      alpha: 0,
-      delay: BREAK.fadeDelayMs,
-      duration: BREAK.fadeMs,
-      onComplete: () => {
-        top.destroy();
-        bottom.destroy();
-        drops.forEach((d) => {
-          d.destroy();
-        });
-      },
+      targets: pool,
+      scale: 1,
+      duration: BLOOD.pool.growMs,
+      ease: 'Sine.easeOut',
     });
   }
 
@@ -105,27 +151,40 @@ export class BrokenFigure {
     }
   }
 
-  /** Red drops fly out of the hit spot and land on the ground. */
+  /** Red drops fly out of the hit spot in arcs and land on the ground as little splats. */
   private sprayBlood(
     scene: Phaser.Scene,
     hit: { x: number; y: number },
     groundY: number,
     push: 1 | -1,
+    count: number,
   ): Phaser.GameObjects.Arc[] {
     const drops: Phaser.GameObjects.Arc[] = [];
-    for (let i = 0; i < BLOOD.drops; i++) {
+    for (let i = 0; i < count; i++) {
       const radius = BLOOD.minRadius + Math.random() * (BLOOD.maxRadius - BLOOD.minRadius);
       const drop = scene.add.circle(hit.x, hit.y, radius, BLOOD.color);
       drops.push(drop);
       // Most drops fly forward (the way the bullet went), a few backward
       const forward = Math.random() < 0.8 ? push : -push;
-      scene.tweens.add({
-        targets: drop,
+      const from = { x: hit.x, y: hit.y };
+      const to = {
         x: hit.x + forward * (10 + Math.random() * BLOOD.spread),
         y: groundY - Math.random() * BLOOD.landingDepth,
-        scaleY: 0.5,
+      };
+      const arcHeight = Math.random() * BLOOD.maxArcHeight;
+      const flight = { t: 0 };
+      scene.tweens.add({
+        targets: flight,
+        t: 1,
         duration: BLOOD.minFlightMs + Math.random() * BLOOD.extraFlightMs,
-        ease: 'Quad.easeIn',
+        onUpdate: () => {
+          const p = arcPoint(from, to, arcHeight, flight.t);
+          drop.setPosition(p.x, p.y);
+        },
+        onComplete: () => {
+          // Flatten into a splat on the ground
+          drop.setScale(1.6, 0.5).setFillStyle(BLOOD.dark);
+        },
       });
     }
     return drops;
