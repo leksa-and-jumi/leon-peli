@@ -47,6 +47,53 @@ export function cutSegments(
   return { upper, lower };
 }
 
+/**
+ * A piece of one of the figure's lines after cutting: line number `source`,
+ * from `t0` to `t1` along it (0 = its start, 1 = its end). `cutAt` tells which
+ * end of the piece is where it broke, if any.
+ */
+export interface TrackedPiece {
+  source: number;
+  t0: number;
+  t1: number;
+  cutAt: 'from' | 'to' | null;
+}
+
+/**
+ * Like `cutSegments`, but remembers which line each piece came from. Then the
+ * pieces can follow the figure when its pose changes (going limp while falling).
+ */
+export function cutTracked(
+  segments: readonly Segment[],
+  cutY: number,
+): { upper: TrackedPiece[]; lower: TrackedPiece[] } {
+  const upper: TrackedPiece[] = [];
+  const lower: TrackedPiece[] = [];
+  segments.forEach((s, source) => {
+    const fromAbove = s.from.y < cutY;
+    const toAbove = s.to.y < cutY;
+    if (fromAbove === toAbove) {
+      (fromAbove ? upper : lower).push({ source, t0: 0, t1: 1, cutAt: null });
+      return;
+    }
+    const t = (cutY - s.from.y) / (s.to.y - s.from.y);
+    (fromAbove ? upper : lower).push({ source, t0: 0, t1: t, cutAt: 'to' });
+    (toAbove ? upper : lower).push({ source, t0: t, t1: 1, cutAt: 'from' });
+  });
+  return { upper, lower };
+}
+
+/** The actual line of a tracked piece, for a figure's current lines. */
+export function pieceSegment(segments: readonly Segment[], piece: TrackedPiece): Segment {
+  const s = segments[piece.source];
+  if (!s) throw new RangeError(`No line number ${String(piece.source)}`);
+  const at = (t: number): Point => ({
+    x: s.from.x + (s.to.x - s.from.x) * t,
+    y: s.from.y + (s.to.y - s.from.y) * t,
+  });
+  return { from: at(piece.t0), to: at(piece.t1) };
+}
+
 /** A point where lines meet or end. `end` is true for hands, feet and cut ends. */
 export interface Joint {
   x: number;
