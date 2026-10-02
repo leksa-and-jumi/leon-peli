@@ -14,11 +14,13 @@ import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatScore } from '../logic/score';
+import { buy, type ShopItem } from '../logic/shop';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Enemy } from '../objects/Enemy';
 import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
 import { StickFigure } from '../objects/StickFigure';
+import type { ShopData } from './ShopScene';
 
 /** Leo's game: the black stick figure in the ruins against the white ones. */
 export class MainScene extends Phaser.Scene {
@@ -33,6 +35,7 @@ export class MainScene extends Phaser.Scene {
   private playerAlive = true;
   private lastShotMs: number | null = null;
   private score = 0;
+  private shopClosedKeyTime: number | null = null;
   private scoreText!: Phaser.GameObjects.Text;
   private reloadBar!: Phaser.GameObjects.Graphics;
 
@@ -77,6 +80,11 @@ export class MainScene extends Phaser.Scene {
       throw new Error('Keyboard input is not available');
     }
     this.crouchKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    keyboard.on('keydown-S', (event: KeyboardEvent) => {
+      // The same S press that closed the shop must not open it again
+      if (event.timeStamp === this.shopClosedKeyTime) return;
+      this.openShop();
+    });
 
     // Left mouse click shoots
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -141,6 +149,33 @@ export class MainScene extends Phaser.Scene {
     this.reloadBar.fillRect(x, y, width, height);
     this.reloadBar.fillStyle(progress >= 1 ? ready : filling, 1);
     this.reloadBar.fillRect(x, y, width * progress, height);
+  }
+
+  /** S opens the shop. The game waits until the shop closes. */
+  private openShop(): void {
+    if (!this.playerAlive) return;
+    const data: ShopData = {
+      getScore: () => this.score,
+      purchase: (item) => this.purchase(item),
+      onClose: (keyTime) => {
+        this.shopClosedKeyTime = keyTime ?? null;
+        this.scene.resume();
+      },
+    };
+    this.scene.launch('ShopScene', data);
+    this.scene.pause();
+  }
+
+  private purchase(item: ShopItem): boolean {
+    const result = buy(this.score, item);
+    if (!result.ok) return false;
+    this.score = result.score;
+    this.scoreText.setText(formatScore(this.score));
+    if (item.id === 'life') {
+      this.lives += 1;
+      this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+    }
+    return true;
   }
 
   private spawnEnemy(): void {
