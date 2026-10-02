@@ -16,7 +16,6 @@ export class Boss implements Foe {
   readonly figure: StickFigure;
   readonly points = BOSS.points;
   private readonly healthBar: Phaser.GameObjects.Graphics;
-  private walkTimeMs = 0;
   private chopping = false;
   private alive = true;
   private canChop = true;
@@ -101,16 +100,15 @@ export class Boss implements Foe {
     );
     this.drawHealthBar();
 
+    if (!this.chopping) this.figure.setStance('raise');
     if (x !== target) {
       // Still walking: swing the legs
-      this.walkTimeMs += deltaMs;
-      const step = Math.floor(this.walkTimeMs / BOSS.stepMs);
-      if (!this.chopping) this.figure.setStance(step % 2 === 0 ? 'raise' : 'raiseStride');
+      this.figure.setWalking(BOSS.stepMs);
       return;
     }
 
     // Next to the player: chop right away, then again after every pause
-    if (!this.chopping) this.figure.setStance('raise');
+    this.figure.setWalking(null);
     if (this.canChop && canShoot(this.scene.time.now, this.lastChopMs, BOSS.chopIntervalMs)) {
       this.lastChopMs = this.scene.time.now;
       this.chop();

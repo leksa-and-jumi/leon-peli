@@ -1,17 +1,21 @@
 import Phaser from 'phaser';
 import {
   BULLET,
+  MOTION,
   OUTFIT_PIECE_LENGTH,
   PLAYER,
   RAINBOW_PIECE_LENGTH,
+  ROUND_ENDS,
   WEAPONS,
   type Weapon,
 } from '../config';
 import type { Box } from '../logic/bullets';
-import { figureSegments, type Segment } from '../logic/cut';
+import { figureSegments, joints, type Segment } from '../logic/cut';
 import { outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from '../logic/outfit';
 import {
+  lerpPose,
   poseBounds,
+  smoothingStep,
   stickFigurePose,
   type Facing,
   type Point,
@@ -42,6 +46,11 @@ export class StickFigure {
   private weapon: Weapon = 'pistol';
   /** How high above the ground the feet are (when jumping). */
   private lift = 0;
+  /** The pose drawn right now. It glides toward the stance's pose every frame. */
+  private current: Pose;
+  /** Walking: how far through the step cycle, and how long one step takes. */
+  private walkPhase = 0;
+  private walkStepMs: number | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -52,7 +61,43 @@ export class StickFigure {
   ) {
     this.stance = stance;
     this.g = scene.add.graphics({ x, y: feetY });
+    this.current = this.targetPose();
     this.draw();
+    scene.events.on('update', this.tick, this);
+    // Playing again restarts the scene: stop listening, the old figure is gone
+    scene.events.once('shutdown', this.stopTicking, this);
+  }
+
+  private stopTicking(): void {
+    this.scene.events.off('update', this.tick, this);
+    this.scene.events.off('shutdown', this.stopTicking, this);
+  }
+
+  /** Every frame: walk the legs and glide softly toward the wanted pose. */
+  private tick(_time: number, deltaMs: number): void {
+    if (this.walkStepMs !== null) this.walkPhase += (Math.PI * deltaMs) / this.walkStepMs;
+    const step = smoothingStep(deltaMs, MOTION.smoothSpeed);
+    this.current = lerpPose(this.current, this.targetPose(), step);
+    this.draw();
+  }
+
+  /**
+   * Walk (legs swing, one step every `stepMs`) or stand still (null).
+   * The upper body keeps doing what the stance says.
+   */
+  setWalking(stepMs: number | null): void {
+    if (stepMs === null && this.walkStepMs !== null) this.walkPhase = 0;
+    this.walkStepMs = stepMs;
+  }
+
+  /** The pose the figure wants to be in right now. */
+  private targetPose(): Pose {
+    return stickFigurePose(
+      this.look.height ?? PLAYER.height,
+      this.stance,
+      this.look.facing,
+      this.walkStepMs !== null ? this.walkPhase : undefined,
+    );
   }
 
   getX(): number {
@@ -70,11 +115,9 @@ export class StickFigure {
     this.g.y = this.feetY - lift;
   }
 
-  /** Change the pose. Only redraws when the pose really changes. */
+  /** Change the pose. The figure glides into it over the next frames. */
   setStance(stance: Stance): void {
-    if (stance === this.stance) return;
     this.stance = stance;
-    this.draw();
   }
 
   /** Where bullets come out of the gun, on the screen. */
@@ -118,6 +161,8 @@ export class StickFigure {
   setFacing(facing: Facing): void {
     if (facing === this.look.facing) return;
     this.look = { ...this.look, facing };
+    // Turn around at once (mirror), so the gun doesn't slide through the body
+    this.current = { ...this.targetPose() };
     this.draw();
   }
 
@@ -146,11 +191,13 @@ export class StickFigure {
   }
 
   destroy(): void {
+    this.stopTicking();
     this.g.destroy();
   }
 
+  /** The pose as it is drawn right now. */
   pose(): Pose {
-    return stickFigurePose(this.look.height ?? PLAYER.height, this.stance, this.look.facing);
+    return this.current;
   }
 
   private draw(): void {
@@ -204,6 +251,15 @@ export function drawOutfit(
       index += 1;
     }
   }
+  // Round joints, and round hands and feet, in the outfit's colors
+  for (const j of joints(segments)) {
+    const color =
+      outfit.kind === 'rainbow'
+        ? stripeAt(j.y, outfit.colors)
+        : outfitColor(outfit, Math.round(Math.abs(j.x) + Math.abs(j.y)));
+    g.fillStyle(color, 1);
+    g.fillCircle(j.x, j.y, roundEnd(PLAYER.lineWidth, j.end));
+  }
   if (!withHead) return;
 
   const c = headCenter(pose);
@@ -246,6 +302,16 @@ export function drawSegments(
   for (const { from, to } of segments) {
     g.lineBetween(from.x, from.y, to.x, to.y);
   }
+  // Round knees and elbows, and round balls for hands and feet
+  g.fillStyle(color, alpha);
+  for (const j of joints(segments)) {
+    g.fillCircle(j.x, j.y, roundEnd(lineWidth, j.end));
+  }
+}
+
+/** How big the round end of a line is: hands and feet are a bit bigger than knees. */
+function roundEnd(lineWidth: number, end: boolean): number {
+  return end ? lineWidth / 2 + PLAYER.lineWidth * ROUND_ENDS.handGrow : lineWidth / 2;
 }
 
 /** Where the middle of the head is. */
@@ -266,7 +332,149 @@ export function drawHead(
   g.fillCircle(center.x, center.y, pose.headRadius + (lineWidth - PLAYER.lineWidth) / 2);
 }
 
-/** Draws the gun in the gun hand, pointing the way the figure faces. */
+/** A filled shape of a weapon: points measured forward from the hand (x) and down (y). */
+interface GunPart {
+  points: readonly (readonly [number, number])[];
+  color: number;
+}
+
+/** A rectangle as a weapon part. */
+function box(x: number, y: number, w: number, h: number, color: number): GunPart {
+  return {
+    points: [
+      [x, y],
+      [x + w, y],
+      [x + w, y + h],
+      [x, y + h],
+    ],
+    color,
+  };
+}
+
+/** The parts of each weapon, drawn in order. Facing right, hand at (0, 0). */
+function weaponParts(weapon: Weapon): GunPart[] {
+  if (weapon === 'axe') {
+    const { handle, blade, edge } = WEAPONS.axe.colors;
+    return [
+      // Wooden handle with a knob at the bottom
+      box(-2.5, -44, 5, 54, handle),
+      box(-3.5, 8, 7, 4, 0x4e342e),
+      // Metal collar where the head sits on the handle
+      box(-3.5, -46, 7, 8, 0x424242),
+      // The head: thick at the back, flaring out to a wide curved edge
+      {
+        points: [
+          [3, -44],
+          [12, -47],
+          [20, -54],
+          [25, -50],
+          [25, -28],
+          [20, -24],
+          [12, -31],
+          [3, -36],
+        ],
+        color: blade,
+      },
+      // Shiny sharpened edge
+      {
+        points: [
+          [21, -53],
+          [25, -50],
+          [25, -28],
+          [21, -25],
+          [23, -39],
+        ],
+        color: edge,
+      },
+    ];
+  }
+
+  if (weapon === 'rifle') {
+    const { body, dark, metal, shine } = WEAPONS.rifle.colors;
+    return [
+      // Stock against the shoulder, and the tube it sits on
+      {
+        points: [
+          [-32, -9],
+          [-14, -7],
+          [-14, 1],
+          [-32, 5],
+          [-33, -2],
+        ],
+        color: body,
+      },
+      box(-15, -6, 9, 4, dark),
+      // Receiver (the middle) and the rail on top
+      box(-7, -9, 22, 10, body),
+      box(-6, -12, 20, 3, dark),
+      // Handguard with cooling slots
+      box(15, -8, 22, 8, body),
+      box(18, -6, 3, 3, dark),
+      box(24, -6, 3, 3, dark),
+      box(30, -6, 3, 3, dark),
+      // Front sight, barrel and muzzle brake
+      box(33, -14, 3, 6, dark),
+      box(37, -6, 13, 3, metal),
+      box(50, -7.5, 5, 6, dark),
+      // Pistol grip under the hand
+      {
+        points: [
+          [-2, 1],
+          [5, 1],
+          [3, 12],
+          [-4, 11],
+        ],
+        color: dark,
+      },
+      // Curved magazine
+      {
+        points: [
+          [6, 1],
+          [13, 1],
+          [16, 9],
+          [14, 17],
+          [7, 15],
+          [8, 8],
+        ],
+        color: dark,
+      },
+      // Light catching the top edge
+      box(-7, -9, 44, 1.2, shine),
+    ];
+  }
+
+  const { body, shine } = PLAYER.gun;
+  return [
+    // Slide on top, with grip lines at the back
+    box(-4, -9, 33, 7, body),
+    box(-2, -8, 1, 5, 0x0d0d0d),
+    box(1, -8, 1, 5, 0x0d0d0d),
+    box(4, -8, 1, 5, 0x0d0d0d),
+    // Frame under the slide and the barrel tip
+    box(4, -2, 22, 3, 0x262626),
+    box(29, -7, 2, 4, 0x0d0d0d),
+    // Sights
+    box(-2, -11, 3, 2, 0x0d0d0d),
+    box(26, -11, 2, 2, 0x0d0d0d),
+    // Angled grip in the hand
+    {
+      points: [
+        [-4, -2],
+        [5, -2],
+        [3, 13],
+        [-6, 12],
+      ],
+      color: 0x2b2b2b,
+    },
+    // Light catching the top of the slide
+    box(-4, -9, 33, 1.2, shine),
+  ];
+}
+
+/**
+ * Draws the gun in the gun hand, pointing the way the figure faces.
+ * First a pale edge around every part, then the parts themselves.
+ */
 export function drawGun(
   g: Phaser.GameObjects.Graphics,
   pose: Pose,
@@ -275,60 +483,31 @@ export function drawGun(
 ): void {
   const { x: handX, y: handY } = pose.gunHand;
   const { facing, outlineColor, outlineAlpha } = look;
-  // Rectangles measured forward from the hand, mirrored when facing left
-  const rect = (dx: number, dy: number, w: number, h: number): void => {
-    const left = facing === 1 ? handX + dx : handX - dx - w;
-    g.fillRect(left, handY + dy, w, h);
-  };
+  const parts = weaponParts(weapon);
+  const toScreen = ([dx, dy]: readonly [number, number]): Phaser.Math.Vector2 =>
+    new Phaser.Math.Vector2(handX + facing * dx, handY + dy);
 
-  if (weapon === 'axe') {
-    const { handle, blade, edge } = WEAPONS.axe.colors;
-    g.fillStyle(outlineColor, outlineAlpha);
-    rect(-4, -46, 9, 58);
-    rect(3, -48, 22, 24);
-    // Long wooden handle going up from the hand
-    g.fillStyle(handle, 1);
-    rect(-2, -44, 5, 54);
-    // Heavy blade at the top, facing forward, with a shiny edge
-    g.fillStyle(blade, 1);
-    rect(3, -46, 16, 20);
-    g.fillStyle(edge, 1);
-    rect(19, -46, 4, 20);
-    return;
-  }
-
-  if (weapon === 'rifle') {
-    const { body, wood, shine } = WEAPONS.rifle.colors;
-    g.fillStyle(outlineColor, outlineAlpha);
-    rect(-28, -10, 82, 13);
-    rect(-4, -2, 26, 20);
-    // Stock against the shoulder side, behind the hand
-    g.fillStyle(wood, 1);
-    rect(-26, -7, 22, 9);
-    g.fillStyle(body, 1);
-    // Body of the rifle
-    rect(-6, -8, 32, 10);
-    // Long barrel
-    rect(26, -6, 26, 5);
-    // Grip under the hand and a curved-looking magazine in front of it
-    rect(-2, 0, 7, 12);
-    rect(11, 1, 8, 9);
-    rect(13, 9, 8, 7);
-    g.fillStyle(shine, 1);
-    rect(-4, -8, 54, 2);
-    return;
-  }
-
-  const { body, shine } = PLAYER.gun;
+  // Pale edge: each part pushed out a little from its middle
   g.fillStyle(outlineColor, outlineAlpha);
-  rect(-4, -9, 34, 12);
-  rect(-4, -4, 12, 18);
-  g.fillStyle(body, 1);
-  // Barrel pointing forward
-  rect(-2, -7, 30, 8);
-  // Handle going down from the hand
-  rect(-2, -2, 8, 14);
-  // A little shine on top of the barrel
-  g.fillStyle(shine, 1);
-  rect(0, -7, 26, 2);
+  for (const part of parts) {
+    const cx = part.points.reduce((sum, [x]) => sum + x, 0) / part.points.length;
+    const cy = part.points.reduce((sum, [, y]) => sum + y, 0) / part.points.length;
+    const grown = part.points.map(([x, y]): [number, number] => {
+      const dx = x - cx;
+      const dy = y - cy;
+      const length = Math.hypot(dx, dy) || 1;
+      return [x + (dx / length) * 1.5, y + (dy / length) * 1.5];
+    });
+    g.fillPoints(grown.map(toScreen), true);
+  }
+  for (const part of parts) {
+    g.fillStyle(part.color, 1);
+    g.fillPoints(part.points.map(toScreen), true);
+  }
+
+  // Trigger guard: a little ring in front of the grip
+  if (weapon !== 'axe') {
+    g.lineStyle(1.5, 0x1a1a1a, 1);
+    g.strokeCircle(handX + facing * 7, handY + 3, 3.5);
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cutSegments, figureSegments } from './cut';
+import { cutSegments, figureSegments, joints } from './cut';
 import { stickFigurePose } from './pose';
 
 describe('figureSegments', () => {
@@ -31,5 +31,24 @@ describe('cutSegments', () => {
     expect(lower.every((s) => s.from.y >= -45 && s.to.y >= -45)).toBe(true);
     // Only the body crosses the belly, so one extra line appears
     expect(all).toHaveLength(8);
+  });
+});
+
+describe('joints', () => {
+  it('finds the knee as a joint and the hip and foot as ends of a single leg', () => {
+    const leg = [
+      { from: { x: 0, y: -40 }, to: { x: 5, y: -20 } },
+      { from: { x: 5, y: -20 }, to: { x: 0, y: 0 } },
+    ];
+    const found = joints(leg);
+    expect(found).toHaveLength(3);
+    expect(found.find((j) => j.y === -20)?.end).toBe(false);
+    expect(found.filter((j) => j.end)).toHaveLength(2);
+  });
+
+  it('a whole stick figure has hands, feet and a neck as ends', () => {
+    const ends = joints(figureSegments(stickFigurePose(100, 'stand'))).filter((j) => j.end);
+    // two feet, two hands and the top of the neck
+    expect(ends).toHaveLength(5);
   });
 });

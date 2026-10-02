@@ -92,12 +92,81 @@ export type Facing = 1 | -1;
 
 const HEAD_RADIUS = 0.11;
 
-/** The stick figure's pose for a stance. Facing left mirrors it. */
-export function stickFigurePose(height: number, stance: Stance, facing: Facing = 1): Pose {
+/** Stances where the legs can walk (the rest of the body stays as it is). */
+const WALKABLE: ReadonlySet<Stance> = new Set<Stance>(['stand', 'aim', 'raise']);
+
+/**
+ * Shuffling forward while crouching: small steps, knees and feet move a little,
+ * but the body and head stay just as low (so bullets still fly over).
+ */
+function crouchWalkingParts(parts: typeof STAND, phase: number): typeof STAND {
+  const swing = Math.sin(phase);
+  const forward = Math.cos(phase);
+  const step = 0.07;
+  const lift = 0.03;
+  const shift = (p: Point, dx: number, dy = 0): Point => ({ x: p.x + dx, y: p.y + dy });
+  return {
+    ...parts,
+    frontFoot: shift(parts.frontFoot, step * swing, -lift * Math.max(0, forward)),
+    frontKnee: shift(parts.frontKnee, step * swing * 0.6),
+    backFoot: shift(parts.backFoot, -step * swing, -lift * Math.max(0, -forward)),
+    // The back knee comes off the ground a little as it moves
+    backKnee: shift(parts.backKnee, -step * swing * 0.6, -lift * (0.5 + 0.5 * Math.abs(swing))),
+    backHand: shift(parts.backHand, -0.04 * swing),
+  };
+}
+
+/**
+ * Legs and back arm in the middle of a walking step, as parts of the height.
+ * `phase` goes round and round (in radians): one full turn is two steps.
+ * The foot swinging forward lifts off the ground, the body bobs a little.
+ */
+function walkingParts(parts: typeof STAND, phase: number): typeof STAND {
+  const swing = Math.sin(phase);
+  const forward = Math.cos(phase);
+  const stride = 0.17;
+  const footLift = 0.07;
+  const bob = 0.015 * Math.abs(forward);
+  const up = (p: Point): Point => ({ x: p.x, y: p.y - bob });
+  const hip = up(parts.hip);
+  const frontFoot = { x: stride * swing, y: -footLift * Math.max(0, forward) };
+  const backFoot = { x: -stride * swing, y: -footLift * Math.max(0, -forward) };
+  // Knees sit between hip and foot, bent a little forward
+  const knee = (foot: Point): Point => ({
+    x: (hip.x + foot.x) / 2 + 0.05,
+    y: (hip.y + foot.y) / 2,
+  });
+  return {
+    hip,
+    neck: up(parts.neck),
+    shoulder: up(parts.shoulder),
+    gunHand: up(parts.gunHand),
+    // The free arm swings the other way from the front leg
+    backHand: { x: parts.backHand.x - 0.08 * swing, y: parts.backHand.y - bob },
+    frontFoot,
+    backFoot,
+    frontKnee: knee(frontFoot),
+    backKnee: knee(backFoot),
+  };
+}
+
+/**
+ * The stick figure's pose for a stance. Facing left mirrors it.
+ * Give `walkPhase` to make the legs walk (or shuffle, when crouching).
+ */
+export function stickFigurePose(
+  height: number,
+  stance: Stance,
+  facing: Facing = 1,
+  walkPhase?: number,
+): Pose {
   if (height <= 0) {
     throw new RangeError('Height must be positive');
   }
-  const parts = STANCES[stance];
+  const base = STANCES[stance];
+  let parts = base;
+  if (walkPhase !== undefined && WALKABLE.has(stance)) parts = walkingParts(base, walkPhase);
+  if (walkPhase !== undefined && stance === 'crouch') parts = crouchWalkingParts(base, walkPhase);
   const scale = (p: Point): Point => ({ x: p.x * height * facing, y: p.y * height });
   return {
     hip: scale(parts.hip),
@@ -111,6 +180,37 @@ export function stickFigurePose(height: number, stance: Stance, facing: Facing =
     gunHand: scale(parts.gunHand),
     headRadius: HEAD_RADIUS * height,
   };
+}
+
+/**
+ * Moves pose `from` part of the way toward pose `to`. `t` = 0 keeps `from`, 1 gives `to`.
+ * Doing this a little every frame makes figures move softly instead of jumping.
+ */
+export function lerpPose(from: Pose, to: Pose, t: number): Pose {
+  if (t <= 0) return from;
+  if (t >= 1) return to;
+  const k = t;
+  const mix = (a: Point, b: Point): Point => ({
+    x: a.x + (b.x - a.x) * k,
+    y: a.y + (b.y - a.y) * k,
+  });
+  return {
+    hip: mix(from.hip, to.hip),
+    neck: mix(from.neck, to.neck),
+    shoulder: mix(from.shoulder, to.shoulder),
+    backKnee: mix(from.backKnee, to.backKnee),
+    backFoot: mix(from.backFoot, to.backFoot),
+    frontKnee: mix(from.frontKnee, to.frontKnee),
+    frontFoot: mix(from.frontFoot, to.frontFoot),
+    backHand: mix(from.backHand, to.backHand),
+    gunHand: mix(from.gunHand, to.gunHand),
+    headRadius: from.headRadius + (to.headRadius - from.headRadius) * k,
+  };
+}
+
+/** How much to move toward the target pose this frame, so it feels the same at any frame rate. */
+export function smoothingStep(deltaMs: number, speed: number): number {
+  return 1 - Math.exp((-speed * deltaMs) / 1000);
 }
 
 /** How tall the figure is from feet to the top of the head. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BULLET, PLAYER } from '../config';
-import { poseBounds, poseHeight, stickFigurePose } from './pose';
+import { lerpPose, poseBounds, poseHeight, smoothingStep, stickFigurePose } from './pose';
 
 describe('stickFigurePose', () => {
   it('stands as tall as the height', () => {
@@ -70,5 +70,75 @@ describe('dodging by crouching', () => {
 
   it('the bullet flies over a crouching player', () => {
     expect(bulletBottom).toBeLessThan(poseBounds(stickFigurePose(PLAYER.height, 'crouch')).top);
+  });
+});
+
+describe('walking', () => {
+  it('keeps the upper body like the stance', () => {
+    const stand = stickFigurePose(100, 'stand');
+    const walk = stickFigurePose(100, 'stand', 1, 1);
+    expect(walk.gunHand.x).toBeCloseTo(stand.gunHand.x);
+    expect(Math.abs(walk.neck.y - stand.neck.y)).toBeLessThan(3);
+  });
+
+  it('moves the feet opposite ways', () => {
+    const walk = stickFigurePose(100, 'stand', 1, Math.PI / 2);
+    expect(walk.frontFoot.x).toBeGreaterThan(0);
+    expect(walk.backFoot.x).toBeLessThan(0);
+  });
+
+  it('never puts a foot below the ground', () => {
+    for (let phase = 0; phase < Math.PI * 2; phase += 0.3) {
+      const walk = stickFigurePose(100, 'stand', 1, phase);
+      expect(walk.frontFoot.y).toBeLessThanOrEqual(0);
+      expect(walk.backFoot.y).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it('shuffles the legs while crouching but keeps the head just as low', () => {
+    const crouch = stickFigurePose(100, 'crouch');
+    const shuffle = stickFigurePose(100, 'crouch', 1, Math.PI / 2);
+    expect(shuffle.frontFoot.x).not.toBeCloseTo(crouch.frontFoot.x);
+    expect(poseHeight(shuffle)).toBeCloseTo(poseHeight(crouch));
+  });
+
+  it('never puts a crouching foot or knee below the ground', () => {
+    for (let phase = 0; phase < Math.PI * 2; phase += 0.3) {
+      const shuffle = stickFigurePose(100, 'crouch', 1, phase);
+      expect(shuffle.frontFoot.y).toBeLessThanOrEqual(0);
+      expect(shuffle.backFoot.y).toBeLessThanOrEqual(0);
+      expect(shuffle.backKnee.y).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it('does not walk in the air', () => {
+    expect(stickFigurePose(100, 'jump', 1, 1)).toEqual(stickFigurePose(100, 'jump'));
+  });
+});
+
+describe('lerpPose', () => {
+  const stand = stickFigurePose(100, 'stand');
+  const crouch = stickFigurePose(100, 'crouch');
+
+  it('gives the start at 0 and the end at 1', () => {
+    expect(lerpPose(stand, crouch, 0)).toEqual(stand);
+    expect(lerpPose(stand, crouch, 1)).toEqual(crouch);
+  });
+
+  it('is half way at 0.5', () => {
+    expect(lerpPose(stand, crouch, 0.5).neck.y).toBeCloseTo((stand.neck.y + crouch.neck.y) / 2);
+  });
+});
+
+describe('smoothingStep', () => {
+  it('is 0 with no time and close to 1 after a long time', () => {
+    expect(smoothingStep(0, 15)).toBe(0);
+    expect(smoothingStep(5000, 15)).toBeCloseTo(1);
+  });
+
+  it('two short steps equal one long step', () => {
+    const one = smoothingStep(32, 15);
+    const two = 1 - (1 - smoothingStep(16, 15)) ** 2;
+    expect(two).toBeCloseTo(one);
   });
 });

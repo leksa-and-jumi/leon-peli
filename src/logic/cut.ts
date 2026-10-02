@@ -46,3 +46,27 @@ export function cutSegments(
   }
   return { upper, lower };
 }
+
+/** A point where lines meet or end. `end` is true for hands, feet and cut ends. */
+export interface Joint {
+  x: number;
+  y: number;
+  end: boolean;
+}
+
+/**
+ * Every place the lines start or stop. A point used by only one line is an end
+ * (a hand, a foot or where it broke); points shared by lines are joints like knees.
+ */
+export function joints(segments: readonly Segment[]): Joint[] {
+  const found = new Map<string, Joint & { count: number }>();
+  for (const { from, to } of segments) {
+    for (const p of [from, to]) {
+      const key = `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+      const seen = found.get(key);
+      if (seen) seen.count += 1;
+      else found.set(key, { x: p.x, y: p.y, end: false, count: 1 });
+    }
+  }
+  return [...found.values()].map(({ x, y, count }) => ({ x, y, end: count === 1 }));
+}

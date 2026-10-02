@@ -28,7 +28,6 @@ export interface Foe {
 export class Enemy implements Foe {
   readonly figure: StickFigure;
   readonly points = POINTS_PER_KILL;
-  private walkTimeMs = 0;
   private arrived = false;
   private alive = true;
   private lives: number = ENEMY.lives;
@@ -145,13 +144,12 @@ export class Enemy implements Foe {
     const x = walkTowards(this.figure.getX(), ENEMY.stopX, ENEMY.walkSpeed, deltaMs);
     this.figure.setX(x);
 
-    // Switch legs every step so it looks like walking
-    this.walkTimeMs += deltaMs;
-    const step = Math.floor(this.walkTimeMs / ENEMY.stepMs);
-    if (!this.isAirborne()) this.figure.setStance(step % 2 === 0 ? 'aim' : 'stride');
+    // Legs swing while walking in
+    this.figure.setWalking(ENEMY.stepMs);
 
     if (x === ENEMY.stopX && this.canShoot) {
       this.arrived = true;
+      this.figure.setWalking(null);
       if (!this.isAirborne()) this.figure.setStance('aim');
       this.shootTimer = this.scene.time.addEvent({
         startAt: ENEMY.shootIntervalMs - ENEMY.firstShotMs,
