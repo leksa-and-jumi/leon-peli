@@ -24,6 +24,9 @@ export const PLAYER = {
   lives: 4,
 } as const;
 
+/** Points for breaking one white stick figure. */
+export const POINTS_PER_KILL = 1;
+
 /** The white stick figures that walk in from the right and shoot. */
 export const ENEMY = {
   color: 0xffffff,

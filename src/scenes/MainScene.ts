@@ -7,11 +7,13 @@ import {
   GAME_OVER,
   GAME_WIDTH,
   PLAYER,
+  POINTS_PER_KILL,
   RELOAD_BAR,
 } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
+import { addPoints, formatScore } from '../logic/score';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Enemy } from '../objects/Enemy';
 import { showGameOverSign } from '../objects/GameOverSign';
@@ -30,6 +32,8 @@ export class MainScene extends Phaser.Scene {
   private livesText!: Phaser.GameObjects.Text;
   private playerAlive = true;
   private lastShotMs: number | null = null;
+  private score = 0;
+  private scoreText!: Phaser.GameObjects.Text;
   private reloadBar!: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -43,6 +47,7 @@ export class MainScene extends Phaser.Scene {
     this.lives = PLAYER.lives;
     this.playerAlive = true;
     this.lastShotMs = null;
+    this.score = 0;
 
     new RuinsBackground(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
@@ -56,6 +61,13 @@ export class MainScene extends Phaser.Scene {
     this.add.text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text });
     this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' });
     this.reloadBar = this.add.graphics();
+    this.scoreText = this.add
+      .text(GAME_WIDTH / 2, 16, formatScore(this.score), {
+        fontSize: '28px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0);
     this.livesText = this.add
       .text(GAME_WIDTH - 16, 16, formatLives(this.lives, PLAYER.lives), { fontSize: '26px' })
       .setOrigin(1, 0);
@@ -95,6 +107,8 @@ export class MainScene extends Phaser.Scene {
         this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
         const broke = this.enemy.takeHit({ x: this.enemy.figure.getX(), y: hitBullet.y });
         if (broke) {
+          this.score = addPoints(this.score, POINTS_PER_KILL);
+          this.scoreText.setText(formatScore(this.score));
           this.time.delayedCall(ENEMY.respawnMs, () => {
             this.spawnEnemy();
           });
