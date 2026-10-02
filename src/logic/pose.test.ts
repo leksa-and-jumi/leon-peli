@@ -62,6 +62,12 @@ describe('dodging by crouching', () => {
     expect(bulletTop).toBeGreaterThan(poseBounds(stickFigurePose(PLAYER.height, 'stand')).top);
   });
 
+  it('the white figures hold the gun as high as the player does', () => {
+    expect(stickFigurePose(PLAYER.height, 'aim').gunHand.y).toBe(
+      stickFigurePose(PLAYER.height, 'stand').gunHand.y,
+    );
+  });
+
   it('the bullet flies over a crouching player', () => {
     expect(bulletBottom).toBeLessThan(poseBounds(stickFigurePose(PLAYER.height, 'crouch')).top);
   });
