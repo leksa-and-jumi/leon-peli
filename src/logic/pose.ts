@@ -44,15 +44,34 @@ const CROUCH: typeof STAND = {
   gunHand: { x: 0.33, y: -0.47 },
 };
 
+/** Standing, but the gun arm points a bit up, at the other figure's head. */
+const AIM: typeof STAND = { ...STAND, gunHand: { x: 0.3, y: -0.84 } };
+
+/** A walking step: legs wide apart. Switching between AIM and STRIDE looks like walking. */
+const STRIDE: typeof STAND = {
+  ...AIM,
+  backKnee: { x: -0.12, y: -0.22 },
+  backFoot: { x: -0.24, y: 0 },
+  frontKnee: { x: 0.14, y: -0.22 },
+  frontFoot: { x: 0.22, y: 0 },
+};
+
+const STANCES = { stand: STAND, crouch: CROUCH, aim: AIM, stride: STRIDE };
+
+export type Stance = keyof typeof STANCES;
+
+/** Which way the figure looks: 1 = right, -1 = left. */
+export type Facing = 1 | -1;
+
 const HEAD_RADIUS = 0.11;
 
-/** The stick figure's pose: standing up, or crouching while C is held. */
-export function stickFigurePose(height: number, crouching: boolean): Pose {
+/** The stick figure's pose for a stance. Facing left mirrors it. */
+export function stickFigurePose(height: number, stance: Stance, facing: Facing = 1): Pose {
   if (height <= 0) {
     throw new RangeError('Height must be positive');
   }
-  const parts = crouching ? CROUCH : STAND;
-  const scale = (p: Point): Point => ({ x: p.x * height, y: p.y * height });
+  const parts = STANCES[stance];
+  const scale = (p: Point): Point => ({ x: p.x * height * facing, y: p.y * height });
   return {
     hip: scale(parts.hip),
     neck: scale(parts.neck),
@@ -70,4 +89,31 @@ export function stickFigurePose(height: number, crouching: boolean): Pose {
 /** How tall the figure is from feet to the top of the head. */
 export function poseHeight(pose: Pose): number {
   return -(pose.neck.y - pose.headRadius * 2);
+}
+
+/** The box around the figure (feet to head, back foot to gun hand), measured from its feet. */
+export function poseBounds(pose: Pose): {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+} {
+  const points = [
+    pose.hip,
+    pose.neck,
+    pose.shoulder,
+    pose.backKnee,
+    pose.backFoot,
+    pose.frontKnee,
+    pose.frontFoot,
+    pose.backHand,
+    pose.gunHand,
+  ];
+  const xs = points.map((p) => p.x);
+  return {
+    left: Math.min(...xs, pose.neck.x - pose.headRadius),
+    right: Math.max(...xs, pose.neck.x + pose.headRadius),
+    top: -poseHeight(pose),
+    bottom: 0,
+  };
 }
