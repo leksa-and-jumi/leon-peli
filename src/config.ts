@@ -95,7 +95,7 @@ export const BULLET = {
   muzzleOffset: { x: 30, y: -3 },
   flash: { color: 0xfff3b0, radius: 9, durationMs: 60 },
   /** The player's gun reloads this long between shots. */
-  cooldownMs: 5000,
+  cooldownMs: 3000,
 } as const;
 
 /** Bar under the hints that fills up while the gun reloads. */
