@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buy, canAfford, type ShopItem } from './shop';
 
 const life: ShopItem = { id: 'life', emoji: '❤️', name: 'Extra life', price: 3 };
-const rifle: ShopItem = { id: 'rifle', emoji: '🔫', name: 'Rifle', price: 10, comingSoon: true };
+const hat: ShopItem = { id: 'hat', emoji: '🎩', name: 'Hat', price: 5, comingSoon: true };
+const rifle: ShopItem = { id: 'rifle', emoji: '🔫', name: 'Rifle', price: 15, onlyOnce: true };
 
 describe('buy', () => {
   it('takes the price from the points', () => {
@@ -18,7 +19,16 @@ describe('buy', () => {
   });
 
   it('does not sell things that are coming later', () => {
-    expect(buy(100, rifle)).toEqual({ ok: false, reason: 'not-for-sale' });
+    expect(buy(100, hat)).toEqual({ ok: false, reason: 'not-for-sale' });
+  });
+
+  it('sells a one-time item once', () => {
+    expect(buy(20, rifle, false)).toEqual({ ok: true, score: 5 });
+    expect(buy(20, rifle, true)).toEqual({ ok: false, reason: 'already-owned' });
+  });
+
+  it('lets you buy lives again and again', () => {
+    expect(buy(10, life, true)).toEqual({ ok: true, score: 7 });
   });
 });
 

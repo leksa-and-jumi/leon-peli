@@ -9,6 +9,7 @@ import {
   PLAYER,
   POINTS_PER_KILL,
   RELOAD_BAR,
+  WEAPONS,
 } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
@@ -90,7 +91,7 @@ export class MainScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.leftButtonDown() || !this.playerAlive) return;
       // The gun has to reload between shots
-      if (!canShoot(this.time.now, this.lastShotMs, BULLET.cooldownMs)) return;
+      if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
       this.lastShotMs = this.time.now;
       const muzzle = this.player.muzzlePosition();
       this.shoot(muzzle, 1);
@@ -141,9 +142,14 @@ export class MainScene extends Phaser.Scene {
     this.drawReloadBar();
   }
 
+  /** The pistol needs to reload, the rifle doesn't. */
+  private cooldownMs(): number {
+    return WEAPONS[this.player.getWeapon()].cooldownMs;
+  }
+
   private drawReloadBar(): void {
     const { x, y, width, height, empty, filling, ready } = RELOAD_BAR;
-    const progress = reloadProgress(this.time.now, this.lastShotMs, BULLET.cooldownMs);
+    const progress = reloadProgress(this.time.now, this.lastShotMs, this.cooldownMs());
     this.reloadBar.clear();
     this.reloadBar.fillStyle(empty, 1);
     this.reloadBar.fillRect(x, y, width, height);
@@ -156,6 +162,7 @@ export class MainScene extends Phaser.Scene {
     if (!this.playerAlive) return;
     const data: ShopData = {
       getScore: () => this.score,
+      owns: (item) => item.id === 'rifle' && this.player.getWeapon() === 'rifle',
       purchase: (item) => this.purchase(item),
       onClose: (keyTime) => {
         this.shopClosedKeyTime = keyTime ?? null;
@@ -167,7 +174,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   private purchase(item: ShopItem): boolean {
-    const result = buy(this.score, item);
+    const owned = item.id === 'rifle' && this.player.getWeapon() === 'rifle';
+    const result = buy(this.score, item, owned);
     if (!result.ok) return false;
     this.score = result.score;
     this.scoreText.setText(formatScore(this.score));
@@ -175,6 +183,7 @@ export class MainScene extends Phaser.Scene {
       this.lives += 1;
       this.livesText.setText(formatLives(this.lives, PLAYER.lives));
     }
+    if (item.id === 'rifle') this.player.setWeapon('rifle');
     return true;
   }
 
@@ -199,6 +208,7 @@ export class MainScene extends Phaser.Scene {
       { x: p.getX(), y: hitY },
       PLAYER.feetY,
       -1,
+      p.getWeapon(),
     );
     p.destroy();
 

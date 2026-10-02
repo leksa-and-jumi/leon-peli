@@ -96,12 +96,25 @@ export const BULLET = {
   width: 12,
   height: 4,
   color: 0xffd54f,
-  /** Where the bullet leaves the gun, measured from the hand. */
-  muzzleOffset: { x: 30, y: -3 },
+  /** How far above the hand the bullet leaves the gun. How far in front is in `WEAPONS`. */
+  muzzleOffset: { y: -3 },
   flash: { color: 0xfff3b0, radius: 9, durationMs: 60 },
   /** The player's gun reloads this long between shots. */
   cooldownMs: 3000,
 } as const;
+
+/** The guns. `muzzleX` is how far in front of the hand the bullet comes out. */
+export const WEAPONS = {
+  pistol: { muzzleX: 30, cooldownMs: BULLET.cooldownMs },
+  /** From the shop: no reloading, shoot as fast as you can click. */
+  rifle: {
+    muzzleX: 52,
+    cooldownMs: 0,
+    colors: { body: 0x1e1e1e, wood: 0x6d4c41, shine: 0x8a8a8a },
+  },
+} as const;
+
+export type Weapon = keyof typeof WEAPONS;
 
 /** Bar under the hints that fills up while the gun reloads. */
 export const RELOAD_BAR = {
@@ -128,7 +141,7 @@ export const GAME_OVER = {
 /** Things in the shop. Prices are in ⭐ points. */
 export const SHOP_ITEMS = [
   { id: 'life', emoji: '❤️', name: 'Extra life\nLisäelämä', price: 3 },
-  { id: 'rifle', emoji: '🔫', name: 'Assault rifle\nRynnäkkökivääri', price: 10, comingSoon: true },
+  { id: 'rifle', emoji: '🔫', name: 'Assault rifle\nRynnäkkökivääri', price: 15, onlyOnce: true },
   { id: 'clothes', emoji: '👕', name: 'Clothes\nVaatteet', price: 5, comingSoon: true },
 ] as const satisfies readonly ShopItem[];
 
