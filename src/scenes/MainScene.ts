@@ -8,7 +8,6 @@ import {
   GAME_OVER,
   GAME_WIDTH,
   PLAYER,
-  POINTS_PER_KILL,
   RELOAD_BAR,
   WEAPONS,
 } from '../config';
@@ -121,7 +120,7 @@ export class MainScene extends Phaser.Scene {
         this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
         const broke = this.enemy.takeHit({ x: this.enemy.figure.getX(), y: hitBullet.y });
         if (broke) {
-          this.score = addPoints(this.score, POINTS_PER_KILL);
+          this.score = addPoints(this.score, this.enemy.points);
           this.scoreText.setText(formatScore(this.score));
           this.time.delayedCall(ENEMY.respawnMs, () => {
             this.spawnEnemy();

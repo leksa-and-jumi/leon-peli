@@ -13,6 +13,7 @@ import { StickFigure } from './StickFigure';
  */
 export class Boss implements Foe {
   readonly figure: StickFigure;
+  readonly points = BOSS.points;
   private readonly healthBar: Phaser.GameObjects.Graphics;
   private walkTimeMs = 0;
   private arrived = false;

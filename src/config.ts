@@ -67,9 +67,12 @@ export const BOSS = {
   color: 0x7f1d1d,
   outlineColor: 0xf3e6c4,
   outlineAlpha: 0.5,
-  walkSpeed: ENEMY.walkSpeed,
-  stepMs: ENEMY.stepMs,
+  /** A bit slower than the white ones, so there's time to break him. */
+  walkSpeed: 60,
+  stepMs: 240,
   lives: 5,
+  /** Points for breaking him. */
+  points: 3,
   /** Stops this far in front of the player, close enough to chop. */
   reach: 85,
   /** Time between axe chops once it's close. */

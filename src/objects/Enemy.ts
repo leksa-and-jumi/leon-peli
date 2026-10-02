@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ENEMY, JUMP, PLAYER } from '../config';
+import { ENEMY, JUMP, PLAYER, POINTS_PER_KILL } from '../config';
 import { jumpDelayMs } from '../logic/jump';
 import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
@@ -9,6 +9,8 @@ import { StickFigure } from './StickFigure';
 /** Anything the player can shoot at: a white stick figure or the boss. */
 export interface Foe {
   readonly figure: StickFigure;
+  /** Points the player gets for breaking it. */
+  readonly points: number;
   update(deltaMs: number): void;
   isAlive(): boolean;
   /** Returns true if this hit broke it. */
@@ -25,6 +27,7 @@ export interface Foe {
  */
 export class Enemy implements Foe {
   readonly figure: StickFigure;
+  readonly points = POINTS_PER_KILL;
   private walkTimeMs = 0;
   private arrived = false;
   private alive = true;
