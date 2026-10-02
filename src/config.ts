@@ -18,6 +18,25 @@ export const PLAYER = {
   outlineColor: 0xd8cfe0,
   outlineAlpha: 0.45,
   gun: { body: 0x1e1e1e, shine: 0x8a8a8a },
+  /** Blink red for a moment when a bullet hits. */
+  hitColor: 0xe53935,
+  hitFlashMs: 250,
+} as const;
+
+/** The white stick figures that walk in from the right and shoot. */
+export const ENEMY = {
+  color: 0xffffff,
+  outlineColor: 0x000000,
+  outlineAlpha: 0.5,
+  startX: GAME_WIDTH + 40,
+  /** Stops as far from the right edge as the player is from the left edge. */
+  stopX: GAME_WIDTH - PLAYER.x,
+  walkSpeed: 90, // pixels per second
+  stepMs: 180,
+  /** Time after stopping before the first shot. */
+  firstShotMs: 1200,
+  shootIntervalMs: 2000,
+  bulletSpeed: 450, // slower than the player's, so there's time to crouch
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
