@@ -97,11 +97,11 @@ export class MainScene extends Phaser.Scene {
     if (!keyboard) {
       throw new Error('Keyboard input is not available');
     }
-    this.crouchKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.crouchKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
     this.leftKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
     this.rightKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-    keyboard.on('keydown-S', (event: KeyboardEvent) => {
-      // The same S press that closed the shop must not open it again
+    keyboard.on('keydown-K', (event: KeyboardEvent) => {
+      // The same K press that closed the shop must not open it again
       if (event.timeStamp === this.shopClosedKeyTime) return;
       this.openShop();
     });
@@ -161,7 +161,7 @@ export class MainScene extends Phaser.Scene {
     this.drawReloadBar();
   }
 
-  /** A and D walk left and right. C crouches while held down. */
+  /** A and D walk left and right. S crouches while held down. */
   private movePlayer(delta: number): void {
     const direction = moveDirection(this.leftKey.isDown, this.rightKey.isDown);
     // Turn the way you walk (and the gun turns too)
@@ -196,7 +196,7 @@ export class MainScene extends Phaser.Scene {
     this.reloadBar.fillRect(x, y, width * progress, height);
   }
 
-  /** S opens the shop. The game waits until the shop closes. */
+  /** K opens the shop. The game waits until the shop closes. */
   private openShop(): void {
     if (!this.playerAlive) return;
     const data: ShopData = {

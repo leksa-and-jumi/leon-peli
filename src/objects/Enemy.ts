@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { ENEMY, JUMP, PLAYER, POINTS_PER_KILL } from '../config';
-import { jumpDelayMs } from '../logic/jump';
+import { BULLET, ENEMY, JUMP, PLAYER, POINTS_PER_KILL } from '../config';
+import { dodgeWindow, nextLift, wantsToBeUp, type JumpWindow } from '../logic/jump';
 import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
 import { BrokenFigure } from './BrokenFigure';
@@ -33,8 +33,9 @@ export class Enemy implements Foe {
   private lives: number = ENEMY.lives;
   private canShoot = true;
   private shootTimer: Phaser.Time.TimerEvent | null = null;
-  private jumpTween: Phaser.Tweens.Tween | null = null;
-  private readonly jumpState = { lift: 0 };
+  /** Times it must be in the air, one for every low bullet coming. */
+  private jumpWindows: JumpWindow[] = [];
+  private lift = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -65,43 +66,34 @@ export class Enemy implements Foe {
     return this.alive;
   }
 
-  private isAirborne(): boolean {
-    return this.jumpTween?.isPlaying() ?? false;
-  }
-
   /**
-   * The player shot from a crouch: jump so the top of the jump comes
-   * just as the bullet arrives, and it flies under the feet.
+   * The player shot from a crouch: plan to be up in the air when the bullet
+   * arrives, and stay up until it has passed under the feet.
    */
   dodge(bulletX: number, bulletSpeed: number): void {
     if (!this.alive) return;
-    const distance = this.figure.bounds().left - bulletX;
-    const delay = jumpDelayMs(distance, bulletSpeed, JUMP.riseMs);
-    this.scene.time.delayedCall(delay, () => {
-      this.jump();
-    });
+    const box = this.figure.bounds();
+    this.jumpWindows.push(
+      dodgeWindow(
+        this.scene.time.now,
+        box.left - bulletX,
+        bulletSpeed,
+        box.right - box.left + BULLET.width,
+        JUMP.riseMs,
+        JUMP.marginMs,
+      ),
+    );
   }
 
-  private jump(): void {
-    if (!this.alive) return;
-    // A new jump starts from wherever it is now, even in the air
-    this.jumpTween?.stop();
-    this.figure.setStance('jump');
-    this.jumpTween = this.scene.tweens.add({
-      targets: this.jumpState,
-      lift: JUMP.height,
-      duration: JUMP.riseMs,
-      hold: JUMP.hangMs,
-      yoyo: true,
-      ease: 'Sine.easeOut',
-      onUpdate: () => {
-        this.figure.setLift(this.jumpState.lift);
-      },
-      onComplete: () => {
-        this.figure.setLift(0);
-        this.figure.setStance('aim');
-      },
-    });
+  /** Go up while any bullet is coming under, then land softly when they're gone. */
+  private updateJump(deltaMs: number): void {
+    const now = this.scene.time.now;
+    this.jumpWindows = this.jumpWindows.filter((w) => w.end >= now);
+    const wantUp = wantsToBeUp(this.jumpWindows, now);
+    this.lift = nextLift(this.lift, wantUp, deltaMs, JUMP.height, JUMP.riseMs);
+    this.figure.setLift(this.lift);
+    if (wantUp || this.lift > 0) this.figure.setStance('jump');
+    else this.figure.setStance('aim');
   }
 
   /**
@@ -124,7 +116,6 @@ export class Enemy implements Foe {
     if (!this.alive) return;
     this.alive = false;
     this.shootTimer?.remove();
-    this.jumpTween?.stop();
     const f = this.figure;
     new BrokenFigure(
       this.scene,
@@ -140,7 +131,9 @@ export class Enemy implements Foe {
   }
 
   update(deltaMs: number): void {
-    if (this.arrived || !this.alive) return;
+    if (!this.alive) return;
+    this.updateJump(deltaMs);
+    if (this.arrived) return;
     const x = walkTowards(this.figure.getX(), ENEMY.stopX, ENEMY.walkSpeed, deltaMs);
     this.figure.setX(x);
 
@@ -150,7 +143,6 @@ export class Enemy implements Foe {
     if (x === ENEMY.stopX && this.canShoot) {
       this.arrived = true;
       this.figure.setWalking(null);
-      if (!this.isAirborne()) this.figure.setStance('aim');
       this.shootTimer = this.scene.time.addEvent({
         startAt: ENEMY.shootIntervalMs - ENEMY.firstShotMs,
         delay: ENEMY.shootIntervalMs,

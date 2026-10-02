@@ -17,9 +17,9 @@
 | Key / Näppäin       | 🇬🇧     | 🇫🇮       |
 | ------------------- | ------ | -------- |
 | A / D               | move   | liiku    |
-| C                   | crouch | kyykisty |
+| S                   | crouch | kyykisty |
 | 🖱️ click / klikkaus | shoot  | ammu     |
-| S                   | shop   | kauppa   |
+| K                   | shop   | kauppa   |
 
 _🇬🇧 The game is just starting. Leo decides what comes next!_
 _🇫🇮 Peli on vasta alussa. Leo päättää, mitä siihen tulee!_
