@@ -6,7 +6,7 @@
 
 ## Graphics and sounds / Grafiikat ja äänet
 
-_None yet. / Ei vielä._
+- All graphics are drawn with code from Leo's ideas (no image files). / Kaikki grafiikat on piirretty koodilla Leon ideoista (ei kuvatiedostoja).
 
 <!-- Format / Muoto: - Name – author – license – link -->
 
