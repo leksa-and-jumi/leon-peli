@@ -21,6 +21,7 @@ export const PLAYER = {
   /** Blink red for a moment when a bullet hits. */
   hitColor: 0xe53935,
   hitFlashMs: 250,
+  lives: 4,
 } as const;
 
 /** The white stick figures that walk in from the right and shoot. */
