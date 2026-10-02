@@ -69,7 +69,7 @@ export const BOSS = {
   outlineAlpha: 0.5,
   walkSpeed: ENEMY.walkSpeed,
   stepMs: ENEMY.stepMs,
-  lives: 10,
+  lives: 5,
   /** Stops this far in front of the player, close enough to chop. */
   reach: 85,
   /** Time between axe chops once it's close. */
