@@ -44,8 +44,8 @@ const CROUCH: typeof STAND = {
   gunHand: { x: 0.36, y: -0.2 },
 };
 
-/** Standing, with the gun arm pointing a bit down, at the other figure's belly. */
-const AIM: typeof STAND = { ...STAND, gunHand: { x: 0.3, y: -0.5 } };
+/** Standing and aiming, the gun hand at the same height as the player's. */
+const AIM: typeof STAND = { ...STAND };
 
 /** A walking step: legs wide apart. Switching between AIM and STRIDE looks like walking. */
 const STRIDE: typeof STAND = {
