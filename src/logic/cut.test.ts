@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cutSegments, figureSegments, joints } from './cut';
+import { cutSegments, cutTracked, figureSegments, joints, pieceSegment } from './cut';
 import { stickFigurePose } from './pose';
 
 describe('figureSegments', () => {
@@ -50,5 +50,33 @@ describe('joints', () => {
     const ends = joints(figureSegments(stickFigurePose(100, 'stand'))).filter((j) => j.end);
     // two feet, two hands and the top of the neck
     expect(ends).toHaveLength(5);
+  });
+});
+
+describe('cutTracked', () => {
+  const segments = figureSegments(stickFigurePose(100, 'stand'));
+
+  it('gives the same pieces as cutSegments', () => {
+    const plain = cutSegments(segments, -45);
+    const tracked = cutTracked(segments, -45);
+    const upper = tracked.upper.map((p) => pieceSegment(segments, p));
+    expect(upper).toHaveLength(plain.upper.length);
+    upper.forEach((seg, i) => {
+      expect(seg.from.x).toBeCloseTo(plain.upper[i]?.from.x ?? NaN);
+      expect(seg.to.y).toBeCloseTo(plain.upper[i]?.to.y ?? NaN);
+    });
+  });
+
+  it('marks the ends where it broke', () => {
+    const tracked = cutTracked(segments, -45);
+    expect(tracked.upper.filter((p) => p.cutAt !== null)).toHaveLength(1);
+    expect(tracked.lower.filter((p) => p.cutAt !== null)).toHaveLength(1);
+  });
+
+  it('pieces follow the lines when the pose changes', () => {
+    const piece = { source: 4, t0: 0.5, t1: 1, cutAt: 'from' as const };
+    const crouch = figureSegments(stickFigurePose(100, 'crouch'));
+    const seg = pieceSegment(crouch, piece);
+    expect(seg.to).toEqual(crouch[4]?.to);
   });
 });

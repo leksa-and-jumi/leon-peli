@@ -244,3 +244,34 @@ export function poseBounds(pose: Pose): {
     bottom: 0,
   };
 }
+
+/**
+ * A limp body, like after falling over: the body stays as it is, but the arms
+ * hang along it and the legs stretch out straight in line with it.
+ */
+export function limpPose(pose: Pose): Pose {
+  const dx = pose.hip.x - pose.neck.x;
+  const dy = pose.hip.y - pose.neck.y;
+  const bodyLength = Math.hypot(dx, dy) || 1;
+  // Direction from the neck down to the hip
+  const ux = dx / bodyLength;
+  const uy = dy / bodyLength;
+  // Sideways direction, to keep the two legs and arms a little apart
+  const sx = -uy;
+  const sy = ux;
+  const legLength = Math.hypot(pose.frontFoot.x - pose.hip.x, pose.frontFoot.y - pose.hip.y);
+  const along = (from: Point, distance: number, side: number): Point => ({
+    x: from.x + ux * distance + sx * side,
+    y: from.y + uy * distance + sy * side,
+  });
+  const armLength = bodyLength * 0.55;
+  return {
+    ...pose,
+    backKnee: along(pose.hip, legLength * 0.5, -2),
+    backFoot: along(pose.hip, legLength, -4),
+    frontKnee: along(pose.hip, legLength * 0.5, 2),
+    frontFoot: along(pose.hip, legLength, 3),
+    backHand: along(pose.shoulder, armLength, -5),
+    gunHand: along(pose.shoulder, armLength, 5),
+  };
+}

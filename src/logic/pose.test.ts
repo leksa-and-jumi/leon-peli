@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BULLET, PLAYER } from '../config';
-import { lerpPose, poseBounds, poseHeight, smoothingStep, stickFigurePose } from './pose';
+import { limpPose, lerpPose, poseBounds, poseHeight, smoothingStep, stickFigurePose } from './pose';
 
 describe('stickFigurePose', () => {
   it('stands as tall as the height', () => {
@@ -140,5 +140,27 @@ describe('smoothingStep', () => {
     const one = smoothingStep(32, 15);
     const two = 1 - (1 - smoothingStep(16, 15)) ** 2;
     expect(two).toBeCloseTo(one);
+  });
+});
+
+describe('limpPose', () => {
+  it('keeps the body where it is', () => {
+    const pose = stickFigurePose(100, 'crouch');
+    const limp = limpPose(pose);
+    expect(limp.hip).toEqual(pose.hip);
+    expect(limp.neck).toEqual(pose.neck);
+  });
+
+  it('stretches the legs out in line with the body', () => {
+    const limp = limpPose(stickFigurePose(100, 'stand'));
+    // Standing straight: the body points down, so the feet go straight down from the hip
+    expect(limp.frontFoot.y).toBeGreaterThan(limp.hip.y);
+    expect(Math.abs(limp.frontFoot.x - limp.hip.x)).toBeLessThan(6);
+  });
+
+  it('lets the arms hang down along the body', () => {
+    const limp = limpPose(stickFigurePose(100, 'stand'));
+    expect(limp.gunHand.y).toBeGreaterThan(limp.shoulder.y);
+    expect(Math.abs(limp.gunHand.x - limp.shoulder.x)).toBeLessThan(8);
   });
 });

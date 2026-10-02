@@ -109,41 +109,47 @@ export const BREAK = {
   /** The top piece is thrown this far, in the direction the bullet flew. */
   topFlyX: 30,
   /** How high the top piece flies before it falls. */
-  topArcHeight: 45,
+  topArcHeight: 35,
   /** How high above the ground the top piece's turning point stops. */
   restHeight: 4,
   topSpin: -90, // degrees, so it lies flat on the ground
-  topFallMs: 650,
-  /** A small bounce when it hits the ground. */
-  bounceHeight: 7,
-  bounceMs: 110,
+  topFallMs: 500,
   bottomTip: 90, // degrees, legs fall flat
-  bottomDelayMs: 150,
-  bottomFallMs: 750,
+  bottomDelayMs: 100,
+  bottomFallMs: 550,
+  /** How long it takes for arms and legs to go limp. */
+  limpMs: 600,
+  /** After landing, rocks back this much (degrees) and settles. */
+  settleRock: 6,
+  settleMs: 180,
   /** How long the pieces lie on the ground before fading away. */
-  fadeDelayMs: 3200,
-  fadeMs: 700,
+  fadeDelayMs: 4500,
+  fadeMs: 800,
 } as const;
 
 /** Red drops that spray out of a hit. */
 export const BLOOD = {
   color: 0xc62828,
   dark: 0x8e1b1b,
-  drops: 40,
+  drops: 70,
   /** More drops squirt out a few times after the hit. */
-  squirts: 3,
-  squirtDrops: 8,
-  squirtEveryMs: 140,
+  squirts: 6,
+  squirtDrops: 12,
+  squirtEveryMs: 120,
+  /** The broken ends drip blood while the pieces fall. */
+  dripEveryMs: 60,
+  dripForMs: 1400,
+  dripDrops: 2,
   minRadius: 1.5,
-  maxRadius: 4,
-  spread: 120,
+  maxRadius: 4.5,
+  spread: 140,
   /** How high the drops fly before falling. */
-  maxArcHeight: 60,
+  maxArcHeight: 70,
   /** Drops land a little in front of or behind the feet line. */
   landingDepth: 14,
   minFlightMs: 350,
-  extraFlightMs: 450,
-  pool: { width: 56, height: 9, alpha: 0.85, growMs: 900 },
+  extraFlightMs: 500,
+  pool: { width: 90, height: 12, alpha: 0.85, growMs: 1400 },
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
