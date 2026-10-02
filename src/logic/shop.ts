@@ -9,6 +9,8 @@ export interface ShopItem {
   comingSoon?: boolean;
   /** Can be bought only once, like a gun. */
   onlyOnce?: boolean;
+  /** Clothes: which outfit you get. */
+  outfit?: string;
 }
 
 export type BuyResult =

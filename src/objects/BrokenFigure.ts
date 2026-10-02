@@ -3,7 +3,15 @@ import { BLOOD, BREAK, PLAYER, type Weapon } from '../config';
 import { arcPoint } from '../logic/arc';
 import { cutSegments, figureSegments, type Segment } from '../logic/cut';
 import type { Pose } from '../logic/pose';
-import { drawGun, drawHead, drawSegments, headCenter, type StickFigureLook } from './StickFigure';
+import {
+  drawGun,
+  drawHead,
+  drawOutfit,
+  drawSegments,
+  headCenter,
+  lookOutfit,
+  type StickFigureLook,
+} from './StickFigure';
 
 /**
  * A stick figure cut in two where the bullet hit. The top falls off, the legs
@@ -138,8 +146,7 @@ export class BrokenFigure {
     const edge = PLAYER.lineWidth + 3;
     drawSegments(g, shifted, edge, look.outlineColor, look.outlineAlpha);
     if (withHead) drawHead(g, shiftedPose, edge, look.outlineColor, look.outlineAlpha);
-    drawSegments(g, shifted, PLAYER.lineWidth, look.color, 1);
-    if (withHead) drawHead(g, shiftedPose, PLAYER.lineWidth, look.color, 1);
+    drawOutfit(g, shifted, shiftedPose, lookOutfit(look), withHead);
     if (gun) drawGun(g, shiftedPose, look, gun);
 
     // Red at the ends where it broke
