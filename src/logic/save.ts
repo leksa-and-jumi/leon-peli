@@ -1,6 +1,8 @@
 /** What the game remembers on this computer, even after dying or closing the page. */
 export interface SaveData {
   rifle: boolean;
+  /** Sounds turned off with M. */
+  muted: boolean;
 }
 
 /** The bit of browser storage the save needs (localStorage fits). */
@@ -10,7 +12,7 @@ export interface SaveStorage {
 }
 
 const SAVE_KEY = 'leon-peli-save';
-const EMPTY: SaveData = { rifle: false };
+const EMPTY: SaveData = { rifle: false, muted: false };
 
 /** Reads the save. Anything broken or missing means a fresh save. */
 export function loadSave(storage: SaveStorage | null): SaveData {
@@ -19,9 +21,10 @@ export function loadSave(storage: SaveStorage | null): SaveData {
     const raw = storage.getItem(SAVE_KEY);
     if (!raw) return { ...EMPTY };
     const parsed: unknown = JSON.parse(raw);
-    const rifle =
-      typeof parsed === 'object' && parsed !== null && 'rifle' in parsed && parsed.rifle === true;
-    return { rifle };
+    if (typeof parsed !== 'object' || parsed === null) return { ...EMPTY };
+    const rifle = 'rifle' in parsed && parsed.rifle === true;
+    const muted = 'muted' in parsed && parsed.muted === true;
+    return { rifle, muted };
   } catch {
     return { ...EMPTY };
   }

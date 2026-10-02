@@ -10,6 +10,7 @@ import {
   type Weapon,
 } from '../config';
 import type { Box } from '../logic/bullets';
+import { stepsBetween } from '../logic/steps';
 import { figureSegments, joints, type Segment } from '../logic/cut';
 import { outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from '../logic/outfit';
 import {
@@ -51,6 +52,8 @@ export class StickFigure {
   /** Walking: how far through the step cycle, and how long one step takes. */
   private walkPhase = 0;
   private walkStepMs: number | null = null;
+  /** Called on every footstep, for the step sound. */
+  private onStep: (() => void) | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -75,7 +78,11 @@ export class StickFigure {
 
   /** Every frame: walk the legs and glide softly toward the wanted pose. */
   private tick(_time: number, deltaMs: number): void {
-    if (this.walkStepMs !== null) this.walkPhase += (Math.PI * deltaMs) / this.walkStepMs;
+    if (this.walkStepMs !== null) {
+      const before = this.walkPhase;
+      this.walkPhase += (Math.PI * deltaMs) / this.walkStepMs;
+      if (stepsBetween(before, this.walkPhase) > 0) this.onStep?.();
+    }
     const step = smoothingStep(deltaMs, MOTION.smoothSpeed);
     this.current = lerpPose(this.current, this.targetPose(), step);
     this.draw();
@@ -88,6 +95,11 @@ export class StickFigure {
   setWalking(stepMs: number | null): void {
     if (stepMs === null && this.walkStepMs !== null) this.walkPhase = 0;
     this.walkStepMs = stepMs;
+  }
+
+  /** Something to do on every footstep, like playing a step sound. */
+  setOnStep(onStep: (() => void) | null): void {
+    this.onStep = onStep;
   }
 
   /** The pose the figure wants to be in right now. */

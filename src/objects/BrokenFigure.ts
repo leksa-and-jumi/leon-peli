@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BLOOD, BREAK, GAME_WIDTH, PLAYER, type Weapon } from '../config';
 import { arcPoint } from '../logic/arc';
+import { dropShape, stepDrop, type Drop } from '../logic/blood';
 import { cutTracked, figureSegments, pieceSegment, type Segment } from '../logic/cut';
 import { lerpPose, limpPose, type Pose } from '../logic/pose';
 import {
@@ -139,6 +140,7 @@ export class BrokenFigure {
 
     scene.time.delayedCall(BREAK.fadeDelayMs, () => {
       dripper.remove();
+      this.stopBlood();
       const all = [top, bottom, ...pools, ...drops];
       scene.tweens.add({
         targets: all,
@@ -221,47 +223,116 @@ export class BrokenFigure {
     if (first) this.cutEnds.set(g, { x: first.x, y: first.y + shiftY });
   }
 
+  /** Blood drops still in the air. They fall with gravity every frame until they land. */
+  private readonly flying: {
+    drop: Drop;
+    shape: Phaser.GameObjects.Ellipse;
+    landY: number;
+  }[] = [];
+
+  private bloodScene: Phaser.Scene | null = null;
+
+  /** Every frame: move the flying drops, stretch them the way they fly, splat them on landing. */
+  private updateBlood(_time: number, deltaMs: number): void {
+    const scene = this.bloodScene;
+    if (!scene) return;
+    for (let i = this.flying.length - 1; i >= 0; i--) {
+      const f = this.flying[i];
+      if (!f) continue;
+      if (!f.shape.active) {
+        this.flying.splice(i, 1);
+        continue;
+      }
+      f.drop = stepDrop(f.drop, deltaMs, BLOOD.gravity);
+      if (f.drop.y >= f.landY) {
+        // Splat: flat and dark on the ground
+        f.shape
+          .setPosition(f.drop.x, f.landY)
+          .setRotation(0)
+          .setScale(1.5 + Math.random(), 0.4)
+          .setFillStyle(BLOOD.dark);
+        this.flying.splice(i, 1);
+        continue;
+      }
+      const { angle, stretch } = dropShape(f.drop.vx, f.drop.vy, BLOOD.maxStretch);
+      f.shape.setPosition(f.drop.x, f.drop.y).setRotation(angle).setScale(stretch, 0.8);
+    }
+  }
+
+  private startBlood(scene: Phaser.Scene): void {
+    this.bloodScene = scene;
+    scene.events.on('update', this.updateBlood, this);
+    scene.events.once('shutdown', this.stopBlood, this);
+  }
+
+  private stopBlood(): void {
+    const scene = this.bloodScene;
+    if (!scene) return;
+    scene.events.off('update', this.updateBlood, this);
+    scene.events.off('shutdown', this.stopBlood, this);
+    this.bloodScene = null;
+  }
+
   /**
-   * Red drops fly out in arcs and land on the ground as little splats.
-   * `power` below 1 makes small drips instead of a big spray.
+   * Blood shoots out of `from`: drops fly with gravity and splat on the ground,
+   * and a fine red mist puffs out and fades. `power` below 1 makes small drips.
    */
   private sprayBlood(
     scene: Phaser.Scene,
-    hit: { x: number; y: number },
+    from: { x: number; y: number },
     groundY: number,
     push: 1 | -1,
     count: number,
     power = 1,
-  ): Phaser.GameObjects.Arc[] {
-    const drops: Phaser.GameObjects.Arc[] = [];
+  ): Phaser.GameObjects.Shape[] {
+    if (!this.bloodScene) this.startBlood(scene);
+    const made: Phaser.GameObjects.Shape[] = [];
     for (let i = 0; i < count; i++) {
       const radius = BLOOD.minRadius + Math.random() * (BLOOD.maxRadius - BLOOD.minRadius);
-      const drop = scene.add.circle(hit.x, hit.y, radius, BLOOD.color);
-      drops.push(drop);
+      // Darker and lighter reds, like real blood
+      const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.ValueToColor(BLOOD.color),
+        Phaser.Display.Color.ValueToColor(BLOOD.dark),
+        100,
+        Math.random() * 70,
+      );
+      const shape = scene.add.ellipse(
+        from.x,
+        from.y,
+        radius * 2,
+        radius * 2,
+        Phaser.Display.Color.GetColor(color.r, color.g, color.b),
+      );
+      made.push(shape);
       // Most drops fly forward (the way the bullet went), a few backward
       const forward = Math.random() < 0.8 ? push : -push;
-      const from = { x: hit.x, y: hit.y };
-      const to = {
-        x: hit.x + forward * (5 + Math.random() * BLOOD.spread * power),
-        y: groundY - Math.random() * BLOOD.landingDepth,
-      };
-      const arcHeight = Math.random() * BLOOD.maxArcHeight * power;
-      const flight = { t: 0 };
-      scene.tweens.add({
-        targets: flight,
-        t: 1,
-        duration: BLOOD.minFlightMs + Math.random() * BLOOD.extraFlightMs,
-        ease: 'Sine.easeIn',
-        onUpdate: () => {
-          const p = arcPoint(from, to, arcHeight, flight.t);
-          drop.setPosition(p.x, p.y);
-        },
-        onComplete: () => {
-          // Flatten into a splat on the ground
-          drop.setScale(1.7, 0.5).setFillStyle(BLOOD.dark);
+      this.flying.push({
+        shape,
+        landY: groundY - Math.random() * BLOOD.landingDepth,
+        drop: {
+          x: from.x,
+          y: from.y,
+          vx: forward * (40 + Math.random() * BLOOD.speed) * power,
+          vy: -(Math.random() * BLOOD.upSpeed) * power + 30,
         },
       });
     }
-    return drops;
+    // Fine mist: lots of tiny see-through drops that puff out and fade fast
+    const mistCount = Math.round(BLOOD.mist * power);
+    for (let i = 0; i < mistCount; i++) {
+      const puff = scene.add.circle(from.x, from.y, 0.8 + Math.random() * 1.6, BLOOD.color, 0.6);
+      made.push(puff);
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 10 + Math.random() * BLOOD.mistSpread;
+      scene.tweens.add({
+        targets: puff,
+        x: from.x + Math.cos(angle) * distance + push * distance * 0.5,
+        y: from.y + Math.sin(angle) * distance * 0.6,
+        alpha: 0,
+        duration: BLOOD.mistMs * (0.6 + Math.random() * 0.8),
+        ease: 'Quad.easeOut',
+      });
+    }
+    return made;
   }
 }
