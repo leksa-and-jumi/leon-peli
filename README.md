@@ -10,9 +10,9 @@
 
 ## How to play / Miten pelataan
 
-🇬🇧 Move with the **arrow keys** and collect stars ⭐.
+🇬🇧 Your black stick figure stands ready in the old ruins with a gun 🔫🏛️.
 
-🇫🇮 Liiku **nuolinäppäimillä** ja kerää tähtiä ⭐.
+🇫🇮 Musta tikku-ukkosi seisoo valmiina vanhoissa raunioissa pyssy kädessä 🔫🏛️.
 
 _🇬🇧 The game is just starting. Leo decides what comes next!_
 _🇫🇮 Peli on vasta alussa. Leo päättää, mitä siihen tulee!_
