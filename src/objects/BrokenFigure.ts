@@ -16,6 +16,8 @@ export class BrokenFigure {
     x: number,
     feetY: number,
     hit: { x: number; y: number },
+    /** Where the ground is. Lower than `feetY` if it was hit in the air. */
+    groundY: number,
   ) {
     // Cut height measured from the feet, like the pose
     const cutY = hit.y - feetY;
@@ -33,7 +35,7 @@ export class BrokenFigure {
     scene.tweens.add({
       targets: top,
       x: x + BREAK.topFlyX,
-      y: feetY - BREAK.restHeight,
+      y: groundY - BREAK.restHeight,
       angle: BREAK.topSpin,
       duration: BREAK.topFallMs,
       ease: 'Quad.easeIn',
@@ -41,12 +43,13 @@ export class BrokenFigure {
     scene.tweens.add({
       targets: bottom,
       angle: BREAK.bottomTip,
+      y: groundY,
       delay: BREAK.bottomDelayMs,
       duration: BREAK.bottomFallMs,
       ease: 'Quad.easeIn',
     });
 
-    const drops = this.sprayBlood(scene, hit, feetY);
+    const drops = this.sprayBlood(scene, hit, groundY);
     scene.tweens.add({
       targets: [top, bottom, ...drops],
       alpha: 0,
@@ -102,7 +105,7 @@ export class BrokenFigure {
   private sprayBlood(
     scene: Phaser.Scene,
     hit: { x: number; y: number },
-    feetY: number,
+    groundY: number,
   ): Phaser.GameObjects.Arc[] {
     const drops: Phaser.GameObjects.Arc[] = [];
     for (let i = 0; i < BLOOD.drops; i++) {
@@ -114,7 +117,7 @@ export class BrokenFigure {
       scene.tweens.add({
         targets: drop,
         x: hit.x + forward * (10 + Math.random() * BLOOD.spread),
-        y: feetY - Math.random() * BLOOD.landingDepth,
+        y: groundY - Math.random() * BLOOD.landingDepth,
         scaleY: 0.5,
         duration: BLOOD.minFlightMs + Math.random() * BLOOD.extraFlightMs,
         ease: 'Quad.easeIn',

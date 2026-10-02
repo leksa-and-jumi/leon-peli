@@ -27,6 +27,8 @@ export class StickFigure {
   private readonly g: Phaser.GameObjects.Graphics;
   private stance: Stance;
   private hitColor: number | null = null;
+  /** How high above the ground the feet are (when jumping). */
+  private lift = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -49,6 +51,12 @@ export class StickFigure {
     this.g.x = x;
   }
 
+  /** Raise the figure off the ground, for jumping. */
+  setLift(lift: number): void {
+    this.lift = lift;
+    this.g.y = this.feetY - lift;
+  }
+
   /** Change the pose. Only redraws when the pose really changes. */
   setStance(stance: Stance): void {
     if (stance === this.stance) return;
@@ -61,7 +69,7 @@ export class StickFigure {
     const hand = this.pose().gunHand;
     return {
       x: this.x + hand.x + this.look.facing * BULLET.muzzleOffset.x,
-      y: this.feetY + hand.y + BULLET.muzzleOffset.y,
+      y: this.feetY - this.lift + hand.y + BULLET.muzzleOffset.y,
     };
   }
 
@@ -71,8 +79,8 @@ export class StickFigure {
     return {
       left: this.x + box.left,
       right: this.x + box.right,
-      top: this.feetY + box.top,
-      bottom: this.feetY + box.bottom,
+      top: this.feetY - this.lift + box.top,
+      bottom: this.feetY - this.lift + box.bottom,
     };
   }
 
@@ -86,8 +94,9 @@ export class StickFigure {
     });
   }
 
+  /** Where the feet are now (higher while jumping). */
   getFeetY(): number {
-    return this.feetY;
+    return this.feetY - this.lift;
   }
 
   getLook(): StickFigureLook {

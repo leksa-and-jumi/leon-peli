@@ -41,6 +41,17 @@ export const ENEMY = {
   respawnMs: 1500,
 } as const;
 
+/**
+ * White stick figures jump over shots fired from a crouch.
+ * High enough to clear a crouch shot, low enough that a standing shot still hits.
+ */
+export const JUMP = {
+  height: 70,
+  riseMs: 260,
+  /** Time spent at the top, so the whole bullet passes under. */
+  hangMs: 140,
+} as const;
+
 /** How a hit white stick figure breaks in two. */
 export const BREAK = {
   topFlyX: 10,
