@@ -83,7 +83,8 @@ export const BOSS = {
   points: 3,
   /** Stops this far in front of the player, close enough to chop. */
   reach: 85,
-  /** Never walks further right than this, so he stays on the screen. */
+  /** Stays between these, so he's always on the screen. */
+  minX: 40,
   maxX: 740,
   /** Time between axe chops once it's close. */
   chopIntervalMs: 1200,

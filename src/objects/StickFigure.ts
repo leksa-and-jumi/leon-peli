@@ -114,6 +114,17 @@ export class StickFigure {
     return this.feetY - this.lift;
   }
 
+  /** Turn to look left (-1) or right (1). The gun turns too. */
+  setFacing(facing: Facing): void {
+    if (facing === this.look.facing) return;
+    this.look = { ...this.look, facing };
+    this.draw();
+  }
+
+  getFacing(): Facing {
+    return this.look.facing;
+  }
+
   /** Put on different clothes. */
   setOutfit(outfit: OutfitLook): void {
     this.look = { ...this.look, outfit };
