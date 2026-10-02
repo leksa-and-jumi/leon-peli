@@ -8,7 +8,7 @@ export function showGameOverSign(scene: Phaser.Scene, onOk: () => void): void {
   const cy = GAME_HEIGHT / 2;
 
   // Darken the whole game a little so the sign stands out
-  scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, GAME_OVER.dimAlpha);
+  const dim = scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, GAME_OVER.dimAlpha);
 
   const box = scene.add.graphics();
   box.fillStyle(panel.color, panel.alpha);
@@ -16,8 +16,8 @@ export function showGameOverSign(scene: Phaser.Scene, onOk: () => void): void {
   box.lineStyle(4, panel.border, 1);
   box.strokeRoundedRect(cx - panel.width / 2, cy - panel.height / 2, panel.width, panel.height, 18);
 
-  scene.add.text(cx, cy - 70, '💀', { fontSize: '56px' }).setOrigin(0.5);
-  scene.add
+  const skull = scene.add.text(cx, cy - 70, '💀', { fontSize: '56px' }).setOrigin(0.5);
+  const text = scene.add
     .text(cx, cy + 5, GAME_OVER.text, {
       fontSize: '30px',
       color: GAME_OVER.textColor,
@@ -31,9 +31,11 @@ export function showGameOverSign(scene: Phaser.Scene, onOk: () => void): void {
     .rectangle(cx, buttonY, button.width, button.height, button.color)
     .setStrokeStyle(3, panel.border)
     .setInteractive({ useHandCursor: true });
-  scene.add
+  const okText = scene.add
     .text(cx, buttonY, 'OK', { fontSize: '28px', color: GAME_OVER.textColor, fontStyle: 'bold' })
     .setOrigin(0.5);
+  // Above everything else in the game, even the dark screen edges
+  for (const o of [dim, box, skull, text, ok, okText]) o.setDepth(GAME_OVER.depth);
   ok.on('pointerover', () => ok.setFillStyle(button.hoverColor));
   ok.on('pointerout', () => ok.setFillStyle(button.color));
   ok.on('pointerdown', onOk);

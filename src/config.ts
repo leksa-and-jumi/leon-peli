@@ -57,6 +57,16 @@ export const SOUND = {
   ],
 } as const;
 
+/** Shadows under the stick figures. */
+export const SHADOW = {
+  alpha: 0.4,
+  /** The shadow fades away by this height when jumping. */
+  fadeHeight: 120,
+} as const;
+
+/** Little puffs of dust when walking. */
+export const DUST = { color: 0x9e8f78, puffs: 3, alpha: 0.35, ms: 450 } as const;
+
 /** Round ends on the stick figures' lines. */
 export const ROUND_ENDS = {
   /** Hands and feet are round balls this much bigger than the line (part of the line width). */
@@ -243,9 +253,37 @@ export const BULLET = {
   color: 0xffd54f,
   /** How far above the hand the bullet leaves the gun. How far in front is in `WEAPONS`. */
   muzzleOffset: { y: -3 },
-  flash: { color: 0xfff3b0, radius: 9, durationMs: 60 },
   /** The player's gun reloads this long between shots. */
   cooldownMs: 3000,
+} as const;
+
+/** How shooting looks: flash, smoke, glowing trails and brass shells. */
+export const GUN_FX = {
+  flash: {
+    inner: 0xffffff,
+    outer: 0xffc94d,
+    glow: 0xffe9a8,
+    glowRadius: 22,
+    length: 26,
+    durationMs: 80,
+  },
+  smoke: { puffs: 4, color: 0xb0aaa0, alpha: 0.35, ms: 700 },
+  trail: { length: 70, width: 3, color: 0xffcc66, tip: 0xfff3c4 },
+  shell: {
+    width: 6,
+    height: 2.5,
+    color: 0xc9a227,
+    gravity: 1200,
+    bounciness: 0.35,
+    minBounce: 40,
+    /** Shells land a little in front of or behind the feet line. */
+    landingDepth: 10,
+    /** How long a shell lies on the ground before fading. */
+    lieMs: 6000,
+    fadeMs: 1000,
+    /** At most this many shells at once. */
+    max: 40,
+  },
 } as const;
 
 /** The guns. `muzzleX` is how far in front of the hand the bullet comes out. */
@@ -288,6 +326,8 @@ export const RELOAD_BAR = {
 export const GAME_OVER = {
   /** Time to watch yourself fall apart before the sign shows. */
   delayMs: 1300,
+  /** Drawn above the game and its texts. */
+  depth: 200,
   text: 'You died!\nSinä kuolit!',
   textColor: '#ffffff',
   dimAlpha: 0.35,
@@ -360,6 +400,16 @@ export const SHOP = {
   textColor: '#ffffff',
   dimTextColor: '#9e9e9e',
   dimAlpha: 0.5,
+} as const;
+
+/** Moving night: twinkling stars, clouds, ground mist and dark screen edges. */
+export const ATMOSPHERE = {
+  stars: { count: 14, maxY: 300 },
+  clouds: { count: 4, color: 0x2a1f3d, alpha: 0.55, minY: 60, maxY: 200 },
+  mist: { count: 3, color: 0xcfc2d8, alpha: 0.08 },
+  vignette: { size: 140, alpha: 0.55, depth: 50 },
+  /** Texts and bars stay above the dark edges. */
+  hudDepth: 100,
 } as const;
 
 /** Ruins background. Same seed = same ruins every time. */
