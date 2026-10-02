@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER } from '../config';
+import { stickFigurePose, type Pose } from '../logic/pose';
 
 /**
  * The player: a black stick figure holding a gun pointing right.
@@ -7,45 +8,56 @@ import { PLAYER } from '../config';
  */
 export class StickFigure {
   private readonly g: Phaser.GameObjects.Graphics;
+  private crouching = false;
 
   constructor(scene: Phaser.Scene, x: number, feetY: number) {
     this.g = scene.add.graphics({ x, y: feetY });
-    // Pale edge first, then the black figure on top of it
-    this.drawBody(PLAYER.lineWidth + 3, PLAYER.outlineColor, PLAYER.outlineAlpha);
-    this.drawBody(PLAYER.lineWidth, PLAYER.color, 1);
-    this.drawGun();
+    this.draw();
   }
 
-  /** Sizes are parts of the figure's height, so changing `PLAYER.height` scales everything. */
-  private drawBody(lineWidth: number, color: number, alpha: number): void {
-    const h = PLAYER.height;
-    const hip = { x: 0, y: -h * 0.42 };
-    const neck = { x: 0, y: -h * 0.78 };
-    const shoulder = { x: 0, y: -h * 0.72 };
-    const headRadius = h * 0.11;
+  /** Crouch down or stand up. Only redraws when the pose really changes. */
+  setCrouching(crouching: boolean): void {
+    if (crouching === this.crouching) return;
+    this.crouching = crouching;
+    this.draw();
+  }
 
+  private draw(): void {
+    const pose = stickFigurePose(PLAYER.height, this.crouching);
+    this.g.clear();
+    // Pale edge first, then the black figure on top of it
+    this.drawBody(pose, PLAYER.lineWidth + 3, PLAYER.outlineColor, PLAYER.outlineAlpha);
+    this.drawBody(pose, PLAYER.lineWidth, PLAYER.color, 1);
+    this.drawGun(pose);
+  }
+
+  private drawBody(pose: Pose, lineWidth: number, color: number, alpha: number): void {
+    const line = (from: { x: number; y: number }, to: { x: number; y: number }): void => {
+      this.g.lineBetween(from.x, from.y, to.x, to.y);
+    };
     this.g.lineStyle(lineWidth, color, alpha);
-    // Legs, standing a bit apart
-    this.g.lineBetween(hip.x, hip.y, -h * 0.15, 0);
-    this.g.lineBetween(hip.x, hip.y, h * 0.15, 0);
+    // Legs (bent at the knees when crouching)
+    line(pose.hip, pose.backKnee);
+    line(pose.backKnee, pose.backFoot);
+    line(pose.hip, pose.frontKnee);
+    line(pose.frontKnee, pose.frontFoot);
     // Body
-    this.g.lineBetween(hip.x, hip.y, neck.x, neck.y);
+    line(pose.hip, pose.neck);
     // Back arm hangs down, front arm holds the gun straight out
-    this.g.lineBetween(shoulder.x, shoulder.y, -h * 0.12, -h * 0.48);
-    this.g.lineBetween(shoulder.x, shoulder.y, h * 0.3, -h * 0.66);
+    line(pose.shoulder, pose.backHand);
+    line(pose.shoulder, pose.gunHand);
     // Head
+    const extra = (lineWidth - PLAYER.lineWidth) / 2;
     this.g.fillStyle(color, alpha);
     this.g.fillCircle(
-      0,
-      neck.y - headRadius + lineWidth / 2,
-      headRadius + (lineWidth - PLAYER.lineWidth) / 2,
+      pose.neck.x,
+      pose.neck.y - pose.headRadius + lineWidth / 2,
+      pose.headRadius + extra,
     );
   }
 
-  private drawGun(): void {
-    const h = PLAYER.height;
-    const handX = h * 0.3;
-    const handY = -h * 0.66;
+  private drawGun(pose: Pose): void {
+    const { x: handX, y: handY } = pose.gunHand;
     const { body, shine } = PLAYER.gun;
     // Pale edge around the gun, like the figure has
     this.g.fillStyle(PLAYER.outlineColor, PLAYER.outlineAlpha);
