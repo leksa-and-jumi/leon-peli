@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BULLET, PLAYER } from '../config';
+import { BULLET, PLAYER, WEAPONS, type Weapon } from '../config';
 import type { Box } from '../logic/bullets';
 import { figureSegments, type Segment } from '../logic/cut';
 import {
@@ -27,6 +27,7 @@ export class StickFigure {
   private readonly g: Phaser.GameObjects.Graphics;
   private stance: Stance;
   private hitColor: number | null = null;
+  private weapon: Weapon = 'pistol';
   /** How high above the ground the feet are (when jumping). */
   private lift = 0;
 
@@ -68,7 +69,7 @@ export class StickFigure {
   muzzlePosition(): { x: number; y: number } {
     const hand = this.pose().gunHand;
     return {
-      x: this.x + hand.x + this.look.facing * BULLET.muzzleOffset.x,
+      x: this.x + hand.x + this.look.facing * WEAPONS[this.weapon].muzzleX,
       y: this.feetY - this.lift + hand.y + BULLET.muzzleOffset.y,
     };
   }
@@ -101,6 +102,16 @@ export class StickFigure {
     return this.feetY - this.lift;
   }
 
+  /** Swap the gun in the hand, for example to the rifle from the shop. */
+  setWeapon(weapon: Weapon): void {
+    this.weapon = weapon;
+    this.draw();
+  }
+
+  getWeapon(): Weapon {
+    return this.weapon;
+  }
+
   getLook(): StickFigureLook {
     return this.look;
   }
@@ -123,7 +134,7 @@ export class StickFigure {
     drawHead(this.g, pose, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
     drawSegments(this.g, segments, PLAYER.lineWidth, this.hitColor ?? color, 1);
     drawHead(this.g, pose, PLAYER.lineWidth, this.hitColor ?? color, 1);
-    drawGun(this.g, pose, this.look);
+    drawGun(this.g, pose, this.look, this.weapon);
   }
 }
 
@@ -160,15 +171,43 @@ export function drawHead(
 }
 
 /** Draws the gun in the gun hand, pointing the way the figure faces. */
-export function drawGun(g: Phaser.GameObjects.Graphics, pose: Pose, look: StickFigureLook): void {
+export function drawGun(
+  g: Phaser.GameObjects.Graphics,
+  pose: Pose,
+  look: StickFigureLook,
+  weapon: Weapon = 'pistol',
+): void {
   const { x: handX, y: handY } = pose.gunHand;
   const { facing, outlineColor, outlineAlpha } = look;
-  const { body, shine } = PLAYER.gun;
   // Rectangles measured forward from the hand, mirrored when facing left
   const rect = (dx: number, dy: number, w: number, h: number): void => {
     const left = facing === 1 ? handX + dx : handX - dx - w;
     g.fillRect(left, handY + dy, w, h);
   };
+
+  if (weapon === 'rifle') {
+    const { body, wood, shine } = WEAPONS.rifle.colors;
+    g.fillStyle(outlineColor, outlineAlpha);
+    rect(-28, -10, 82, 13);
+    rect(-4, -2, 26, 20);
+    // Stock against the shoulder side, behind the hand
+    g.fillStyle(wood, 1);
+    rect(-26, -7, 22, 9);
+    g.fillStyle(body, 1);
+    // Body of the rifle
+    rect(-6, -8, 32, 10);
+    // Long barrel
+    rect(26, -6, 26, 5);
+    // Grip under the hand and a curved-looking magazine in front of it
+    rect(-2, 0, 7, 12);
+    rect(11, 1, 8, 9);
+    rect(13, 9, 8, 7);
+    g.fillStyle(shine, 1);
+    rect(-4, -8, 54, 2);
+    return;
+  }
+
+  const { body, shine } = PLAYER.gun;
   g.fillStyle(outlineColor, outlineAlpha);
   rect(-4, -9, 34, 12);
   rect(-4, -4, 12, 18);

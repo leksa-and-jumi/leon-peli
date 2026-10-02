@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BLOOD, BREAK, PLAYER } from '../config';
+import { BLOOD, BREAK, PLAYER, type Weapon } from '../config';
 import { cutSegments, figureSegments, type Segment } from '../logic/cut';
 import type { Pose } from '../logic/pose';
 import { drawGun, drawHead, drawSegments, headCenter, type StickFigureLook } from './StickFigure';
@@ -20,6 +20,7 @@ export class BrokenFigure {
     groundY: number,
     /** Which way the bullet flew: 1 = right, -1 = left. The pieces fall that way. */
     push: 1 | -1,
+    weapon: Weapon = 'pistol',
   ) {
     // Cut height measured from the feet, like the pose
     const cutY = hit.y - feetY;
@@ -29,9 +30,9 @@ export class BrokenFigure {
 
     // The top piece turns around the cut, the bottom piece around the feet
     const top = scene.add.graphics({ x, y: hit.y });
-    this.drawPiece(top, upper, pose, look, headOnTop, gunOnTop, cutY, -cutY);
+    this.drawPiece(top, upper, pose, look, headOnTop, gunOnTop ? weapon : null, cutY, -cutY);
     const bottom = scene.add.graphics({ x, y: feetY });
-    this.drawPiece(bottom, lower, pose, look, !headOnTop, !gunOnTop, cutY, 0);
+    this.drawPiece(bottom, lower, pose, look, !headOnTop, gunOnTop ? null : weapon, cutY, 0);
 
     // The legs tip away from the bullet, the top tumbles down in front of them
     scene.tweens.add({
@@ -74,7 +75,8 @@ export class BrokenFigure {
     pose: Pose,
     look: StickFigureLook,
     withHead: boolean,
-    withGun: boolean,
+    /** The gun this piece holds, or null. */
+    gun: Weapon | null,
     cutY: number,
     shiftY: number,
   ): void {
@@ -92,7 +94,7 @@ export class BrokenFigure {
     if (withHead) drawHead(g, shiftedPose, edge, look.outlineColor, look.outlineAlpha);
     drawSegments(g, shifted, PLAYER.lineWidth, look.color, 1);
     if (withHead) drawHead(g, shiftedPose, PLAYER.lineWidth, look.color, 1);
-    if (withGun) drawGun(g, shiftedPose, look);
+    if (gun) drawGun(g, shiftedPose, look, gun);
 
     // Red at the ends where it broke
     g.fillStyle(BLOOD.color, 1);

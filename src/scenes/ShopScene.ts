@@ -6,6 +6,8 @@ import { formatScore } from '../logic/score';
 /** What the shop needs from the game: the points, and a way to buy. */
 export interface ShopData {
   getScore: () => number;
+  /** Does the player already have this (for things you buy only once)? */
+  owns: (item: ShopItem) => boolean;
   /** Returns true if the item was bought. */
   purchase: (item: ShopItem) => boolean;
   /** `keyTime` is the time of the S press that closed the shop, if S was used. */
@@ -107,6 +109,13 @@ export class ShopScene extends Phaser.Scene {
       if (soon) {
         this.content.add(
           this.add.text(buttonX, y, '🔒 soon / pian', { fontSize: '16px', color }).setOrigin(0.5),
+        );
+        return;
+      }
+
+      if (item.onlyOnce === true && this.data_.owns(item)) {
+        this.content.add(
+          this.add.text(buttonX, y, '✅ yours / sinun', { fontSize: '16px', color }).setOrigin(0.5),
         );
         return;
       }
