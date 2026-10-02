@@ -38,7 +38,11 @@ export class MainScene extends Phaser.Scene {
 
     // Left mouse click shoots
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.leftButtonDown()) this.shoot(this.player.muzzlePosition(), 1);
+      if (!pointer.leftButtonDown()) return;
+      const muzzle = this.player.muzzlePosition();
+      this.shoot(muzzle, 1);
+      // Shots from a crouch are always jumped over
+      if (this.crouchKey.isDown) this.enemy.dodge(muzzle.x, BULLET.speed);
     });
   }
 

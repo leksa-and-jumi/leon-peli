@@ -56,7 +56,16 @@ const STRIDE: typeof STAND = {
   frontFoot: { x: 0.22, y: 0 },
 };
 
-const STANCES = { stand: STAND, crouch: CROUCH, aim: AIM, stride: STRIDE };
+/** In the air: knees pulled up. */
+const JUMP_POSE: typeof STAND = {
+  ...AIM,
+  backKnee: { x: -0.1, y: -0.3 },
+  backFoot: { x: -0.18, y: -0.12 },
+  frontKnee: { x: 0.12, y: -0.3 },
+  frontFoot: { x: 0.06, y: -0.1 },
+};
+
+const STANCES = { stand: STAND, crouch: CROUCH, aim: AIM, stride: STRIDE, jump: JUMP_POSE };
 
 export type Stance = keyof typeof STANCES;
 
