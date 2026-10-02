@@ -113,12 +113,12 @@ export const BREAK = {
   /** How high above the ground the top piece's turning point stops. */
   restHeight: 4,
   topSpin: -90, // degrees, so it lies flat on the ground
-  topFallMs: 800,
+  topFallMs: 500,
   bottomTip: 90, // degrees, legs fall flat
-  bottomDelayMs: 200,
-  bottomFallMs: 900,
+  bottomDelayMs: 100,
+  bottomFallMs: 550,
   /** How long it takes for arms and legs to go limp. */
-  limpMs: 1000,
+  limpMs: 600,
   /** After landing, rocks back this much (degrees) and settles. */
   settleRock: 6,
   settleMs: 180,
