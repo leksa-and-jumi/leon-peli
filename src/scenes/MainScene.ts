@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BULLET, COLORS, CROUCH_HINT, ENEMY, GAME_WIDTH, PLAYER } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
+import { formatLives, loseLife } from '../logic/lives';
 import { Enemy } from '../objects/Enemy';
 import { RuinsBackground } from '../objects/RuinsBackground';
 import { StickFigure } from '../objects/StickFigure';
@@ -13,6 +14,8 @@ export class MainScene extends Phaser.Scene {
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
   private bulletGraphics!: Phaser.GameObjects.Graphics;
+  private lives: number = PLAYER.lives;
+  private livesText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('MainScene');
@@ -29,6 +32,9 @@ export class MainScene extends Phaser.Scene {
     this.spawnEnemy();
     this.bulletGraphics = this.add.graphics();
     this.add.text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text });
+    this.livesText = this.add
+      .text(GAME_WIDTH - 16, 16, formatLives(this.lives, PLAYER.lives), { fontSize: '26px' })
+      .setOrigin(1, 0);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) {
@@ -73,6 +79,8 @@ export class MainScene extends Phaser.Scene {
     if (hit) {
       this.enemyBullets = this.enemyBullets.filter((b) => !bulletHits(b, BULLET, playerBox));
       this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
+      this.lives = loseLife(this.lives);
+      this.livesText.setText(formatLives(this.lives, PLAYER.lives));
     }
 
     this.drawBullets();

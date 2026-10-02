@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest';
+import { formatLives, loseLife } from './lives';
+
+describe('loseLife', () => {
+  it('takes one life', () => {
+    expect(loseLife(4)).toBe(3);
+  });
+
+  it('never goes below zero', () => {
+    expect(loseLife(0)).toBe(0);
+  });
+});
+
+describe('formatLives', () => {
+  it('shows a red heart for every life left', () => {
+    expect(formatLives(4, 4)).toBe('❤️❤️❤️❤️');
+  });
+
+  it('shows white hearts for lost lives', () => {
+    expect(formatLives(1, 4)).toBe('❤️🤍🤍🤍');
+  });
+
+  it('rejects more lives than the maximum', () => {
+    expect(() => formatLives(5, 4)).toThrow(RangeError);
+  });
+});
