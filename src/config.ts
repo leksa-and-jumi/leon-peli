@@ -38,6 +38,8 @@ export const ENEMY = {
   firstShotMs: 1200,
   shootIntervalMs: 2000,
   bulletSpeed: 450, // slower than the player's, so there's time to crouch
+  /** Hits it takes to break one. */
+  lives: 2,
   /** Time before a new one walks in after one is hit. */
   respawnMs: 1500,
 } as const;

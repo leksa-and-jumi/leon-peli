@@ -62,16 +62,18 @@ export class MainScene extends Phaser.Scene {
     this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
     this.enemyBullets = moveBullets(this.enemyBullets, ENEMY.bulletSpeed, delta, GAME_WIDTH);
 
-    // The player's bullets break a white figure in two where they hit
+    // The player's bullets hit a white figure: the second hit breaks it in two
     if (this.enemy.isAlive()) {
       const enemyBox = this.enemy.figure.bounds();
       const hitBullet = this.playerBullets.find((b) => bulletHits(b, BULLET, enemyBox));
       if (hitBullet) {
         this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
-        this.enemy.breakAt({ x: this.enemy.figure.getX(), y: hitBullet.y });
-        this.time.delayedCall(ENEMY.respawnMs, () => {
-          this.spawnEnemy();
-        });
+        const broke = this.enemy.takeHit({ x: this.enemy.figure.getX(), y: hitBullet.y });
+        if (broke) {
+          this.time.delayedCall(ENEMY.respawnMs, () => {
+            this.spawnEnemy();
+          });
+        }
       }
     }
 

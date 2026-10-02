@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ENEMY, JUMP, PLAYER } from '../config';
 import { jumpDelayMs } from '../logic/jump';
+import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
 import { BrokenFigure } from './BrokenFigure';
 import { StickFigure } from './StickFigure';
@@ -14,6 +15,7 @@ export class Enemy {
   private walkTimeMs = 0;
   private arrived = false;
   private alive = true;
+  private lives: number = ENEMY.lives;
   private canShoot = true;
   private shootTimer: Phaser.Time.TimerEvent | null = null;
   private jumpTween: Phaser.Tweens.Tween | null = null;
@@ -87,8 +89,23 @@ export class Enemy {
     });
   }
 
-  /** Hit by a bullet: stop shooting and break in two where it hit. */
-  breakAt(hit: { x: number; y: number }): void {
+  /**
+   * Hit by a bullet: blink red, or break in two when it was the last life.
+   * Returns true if it broke.
+   */
+  takeHit(hit: { x: number; y: number }): boolean {
+    if (!this.alive) return false;
+    this.lives = loseLife(this.lives);
+    if (this.lives > 0) {
+      this.figure.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
+      return false;
+    }
+    this.breakAt(hit);
+    return true;
+  }
+
+  /** Out of lives: stop shooting and break in two where it hit. */
+  private breakAt(hit: { x: number; y: number }): void {
     if (!this.alive) return;
     this.alive = false;
     this.shootTimer?.remove();
