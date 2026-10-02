@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { BULLET, COLORS, CROUCH_HINT, ENEMY, GAME_WIDTH, PLAYER } from '../config';
+import { BULLET, COLORS, CROUCH_HINT, ENEMY, GAME_OVER, GAME_WIDTH, PLAYER } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Enemy } from '../objects/Enemy';
+import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
 import { StickFigure } from '../objects/StickFigure';
 
@@ -15,7 +16,7 @@ export class MainScene extends Phaser.Scene {
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
   private bulletGraphics!: Phaser.GameObjects.Graphics;
-  private lives: number = PLAYER.lives;
+  private lives = 0;
   private livesText!: Phaser.GameObjects.Text;
   private playerAlive = true;
 
@@ -24,6 +25,12 @@ export class MainScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start fresh (also when playing again after the OK button)
+    this.playerBullets = [];
+    this.enemyBullets = [];
+    this.lives = PLAYER.lives;
+    this.playerAlive = true;
+
     new RuinsBackground(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
@@ -116,6 +123,12 @@ export class MainScene extends Phaser.Scene {
       -1,
     );
     p.destroy();
+
+    this.time.delayedCall(GAME_OVER.delayMs, () => {
+      showGameOverSign(this, () => {
+        this.scene.restart();
+      });
+    });
   }
 
   private drawBullets(): void {
