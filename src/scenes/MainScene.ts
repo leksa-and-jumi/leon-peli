@@ -38,7 +38,6 @@ export class MainScene extends Phaser.Scene {
   private crouchKey!: Phaser.Input.Keyboard.Key;
   private leftKey!: Phaser.Input.Keyboard.Key;
   private rightKey!: Phaser.Input.Keyboard.Key;
-  private walkTimeMs = 0;
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
   private bulletGraphics!: Phaser.GameObjects.Graphics;
@@ -177,19 +176,9 @@ export class MainScene extends Phaser.Scene {
     );
     this.player.setX(x);
 
-    if (this.crouchKey.isDown) {
-      this.player.setStance('crouch');
-      return;
-    }
-    if (direction === 0) {
-      this.walkTimeMs = 0;
-      this.player.setStance('stand');
-      return;
-    }
-    // Switch legs every step so it looks like walking
-    this.walkTimeMs += delta;
-    const step = Math.floor(this.walkTimeMs / PLAYER.stepMs);
-    this.player.setStance(step % 2 === 0 ? 'stride' : 'stand');
+    // Legs swing while walking, and shuffle while walking crouched
+    this.player.setStance(this.crouchKey.isDown ? 'crouch' : 'stand');
+    this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 
   /** The pistol needs to reload, the rifle doesn't. */

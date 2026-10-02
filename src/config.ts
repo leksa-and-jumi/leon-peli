@@ -10,6 +10,17 @@ export const COLORS = {
   text: '#ffffff',
 } as const;
 
+/** How softly figures move between poses. Bigger = snappier. */
+export const MOTION = {
+  smoothSpeed: 14,
+} as const;
+
+/** Round ends on the stick figures' lines. */
+export const ROUND_ENDS = {
+  /** Hands and feet are round balls this much bigger than the line (part of the line width). */
+  handGrow: 0.3,
+} as const;
+
 /** Leo's player: a black stick figure with a gun, standing still in the bottom-left corner. */
 export const PLAYER = {
   x: 70,
@@ -20,7 +31,7 @@ export const PLAYER = {
   /** A thin pale edge (moonlight) so the black figure shows on the dark ground. */
   outlineColor: 0xd8cfe0,
   outlineAlpha: 0.45,
-  gun: { body: 0x1e1e1e, shine: 0x8a8a8a },
+  gun: { body: 0x2a2a2a, shine: 0x9e9e9e },
   /** Blink red for a moment when a bullet hits. */
   hitColor: 0xe53935,
   hitFlashMs: 250,
@@ -157,15 +168,15 @@ export const WEAPONS = {
   pistol: { muzzleX: 30, cooldownMs: BULLET.cooldownMs },
   /** From the shop: reloads in just one second. */
   rifle: {
-    muzzleX: 52,
+    muzzleX: 55,
     cooldownMs: 1000,
-    colors: { body: 0x1e1e1e, wood: 0x6d4c41, shine: 0x8a8a8a },
+    colors: { body: 0x2f2f2f, dark: 0x1a1a1a, metal: 0x4a4a4a, shine: 0x9e9e9e },
   },
   /** The boss's axe. It doesn't shoot. */
   axe: {
     muzzleX: 0,
     cooldownMs: 0,
-    colors: { handle: 0x6d4c41, blade: 0x757575, edge: 0xe0e0e0 },
+    colors: { handle: 0x795548, blade: 0x616161, edge: 0xe0e0e0 },
   },
 } as const;
 
