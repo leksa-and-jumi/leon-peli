@@ -36,9 +36,10 @@ export class MainScene extends Phaser.Scene {
   private player!: StickFigure;
   private enemy!: Foe;
   private enemyCount = 0;
-  private crouchKey!: Phaser.Input.Keyboard.Key;
-  private leftKey!: Phaser.Input.Keyboard.Key;
-  private rightKey!: Phaser.Input.Keyboard.Key;
+  /** Each move has two keys: letters on the left hand, arrows on the right. */
+  private crouchKeys: Phaser.Input.Keyboard.Key[] = [];
+  private leftKeys: Phaser.Input.Keyboard.Key[] = [];
+  private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
   private bulletGraphics!: Phaser.GameObjects.Graphics;
@@ -106,30 +107,44 @@ export class MainScene extends Phaser.Scene {
     if (!keyboard) {
       throw new Error('Keyboard input is not available');
     }
-    this.crouchKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    const { KeyCodes } = Phaser.Input.Keyboard;
+    this.crouchKeys = [keyboard.addKey(KeyCodes.S), keyboard.addKey(KeyCodes.DOWN)];
     keyboard.on('keydown-M', () => {
       this.toggleSound();
     });
-    this.leftKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
-    this.rightKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    this.leftKeys = [keyboard.addKey(KeyCodes.A), keyboard.addKey(KeyCodes.LEFT)];
+    this.rightKeys = [keyboard.addKey(KeyCodes.D), keyboard.addKey(KeyCodes.RIGHT)];
+    // Space shoots too, handy on a laptop
+    keyboard.addKey(KeyCodes.SPACE).on('down', () => {
+      this.tryShoot();
+    });
     keyboard.on('keydown-K', (event: KeyboardEvent) => {
       // The same K press that closed the shop must not open it again
       if (event.timeStamp === this.shopClosedKeyTime) return;
       this.openShop();
     });
 
-    // Left mouse click shoots
+    // A mouse click or a tap on the laptop's touchpad shoots (not the right button)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.leftButtonDown() || !this.playerAlive) return;
-      // The gun has to reload between shots
-      if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
-      this.lastShotMs = this.time.now;
-      const muzzle = this.player.muzzlePosition();
-      const facing = this.player.getFacing();
-      this.shoot(muzzle, facing, 'player');
-      // Shots from a crouch toward the white ones are always jumped over
-      if (this.crouchKey.isDown && facing === 1) this.enemy.dodge(muzzle.x, BULLET.speed);
+      if (pointer.rightButtonDown() || pointer.middleButtonDown()) return;
+      this.tryShoot();
     });
+  }
+
+  private isCrouching(): boolean {
+    return this.crouchKeys.some((k) => k.isDown);
+  }
+
+  private tryShoot(): void {
+    if (!this.playerAlive) return;
+    // The gun has to reload between shots
+    if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
+    this.lastShotMs = this.time.now;
+    const muzzle = this.player.muzzlePosition();
+    const facing = this.player.getFacing();
+    this.shoot(muzzle, facing, 'player');
+    // Shots from a crouch toward the white ones are always jumped over
+    if (this.isCrouching() && facing === 1) this.enemy.dodge(muzzle.x, BULLET.speed);
   }
 
   update(_time: number, delta: number): void {
@@ -175,9 +190,12 @@ export class MainScene extends Phaser.Scene {
     this.drawReloadBar();
   }
 
-  /** A and D walk left and right. S crouches while held down. */
+  /** A/D or the arrows walk left and right. S or the down arrow crouches while held down. */
   private movePlayer(delta: number): void {
-    const direction = moveDirection(this.leftKey.isDown, this.rightKey.isDown);
+    const direction = moveDirection(
+      this.leftKeys.some((k) => k.isDown),
+      this.rightKeys.some((k) => k.isDown),
+    );
     // Turn the way you walk (and the gun turns too)
     if (direction !== 0) this.player.setFacing(direction);
     const x = moveX(
@@ -191,7 +209,7 @@ export class MainScene extends Phaser.Scene {
     this.player.setX(x);
 
     // Legs swing while walking, and shuffle while walking crouched
-    this.player.setStance(this.crouchKey.isDown ? 'crouch' : 'stand');
+    this.player.setStance(this.isCrouching() ? 'crouch' : 'stand');
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 

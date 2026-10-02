@@ -20,10 +20,17 @@ export const SOUND = {
   volume: 0.6,
   /** The white ones' guns are a bit quieter than yours. */
   enemyGunVolume: 0.55,
+  /** How long the hiss of a gun blast lasts. */
+  gunBlastSeconds: 0.28,
   screamVolume: 0.6,
-  screamLength: 0.9,
+  screamLength: 1.1,
+  /** Echo in the ruins: how long it rings and how loud it is. */
+  echoSeconds: 1.4,
+  echoLevel: 0.35,
   /** How rough the scream is (0 = smooth). */
-  screamRasp: 6,
+  screamRasp: 3,
+  /** How sharp the mouth shapes are: higher sounds more like a voice. */
+  screamFormantQ: 9,
   /** How much breathy hiss is in the scream. */
   screamBreath: 0.25,
   /** Screams slide from `start` down to `end` Hz: men's voices, deepest for the axe guy. */
@@ -155,7 +162,7 @@ export const BREAK = {
 /** Red drops that spray out of a hit. */
 export const BLOOD = {
   color: 0xc62828,
-  dark: 0x8e1b1b,
+  dark: 0x7f1414,
   drops: 70,
   /** More drops squirt out a few times after the hit. */
   squirts: 6,
@@ -165,21 +172,27 @@ export const BLOOD = {
   dripEveryMs: 60,
   dripForMs: 1400,
   dripDrops: 2,
-  minRadius: 1.5,
-  maxRadius: 4.5,
-  spread: 140,
-  /** How high the drops fly before falling. */
-  maxArcHeight: 70,
+  minRadius: 1.2,
+  maxRadius: 3.5,
+  /** How fast drops shoot out sideways and up (pixels per second). */
+  speed: 320,
+  upSpeed: 380,
+  /** Pulls the drops down (pixels per second²). */
+  gravity: 1100,
+  /** Fast drops look stretched, at most this many times longer. */
+  maxStretch: 3,
+  /** A fine red mist at the hit. */
+  mist: 30,
+  mistSpread: 45,
+  mistMs: 450,
   /** Drops land a little in front of or behind the feet line. */
   landingDepth: 14,
-  minFlightMs: 350,
-  extraFlightMs: 500,
   pool: { width: 90, height: 12, alpha: 0.85, growMs: 1400 },
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
 export const CROUCH_HINT =
-  'A/D = move 🏃 / liiku\nS = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
+  'A/D ←→ = move 🏃 / liiku\nS ↓ = crouch 🧎 / kyykisty\n🖱️ Space = shoot / ammu\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {
