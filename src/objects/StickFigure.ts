@@ -365,6 +365,33 @@ function box(x: number, y: number, w: number, h: number, color: number): GunPart
 
 /** The parts of each weapon, drawn in order. Facing right, hand at (0, 0). */
 function weaponParts(weapon: Weapon): GunPart[] {
+  if (weapon === 'club') {
+    const { wood, dark, knot } = WEAPONS.club.colors;
+    return [
+      // Handle with a leather-wrapped grip
+      box(-3, -30, 6, 42, wood),
+      box(-3.5, -4, 7, 12, dark),
+      // Big heavy end, wider at the top
+      {
+        points: [
+          [-5, -30],
+          [5, -30],
+          [11, -52],
+          [9, -70],
+          [0, -76],
+          [-9, -70],
+          [-11, -52],
+        ],
+        color: wood,
+      },
+      // Knots and bumps in the wood
+      box(-6, -60, 4, 4, knot),
+      box(3, -48, 4, 4, knot),
+      box(-2, -70, 4, 3, knot),
+      box(5, -64, 3, 5, dark),
+    ];
+  }
+
   if (weapon === 'axe') {
     const { handle, blade, edge } = WEAPONS.axe.colors;
     return [
@@ -518,7 +545,7 @@ export function drawGun(
   }
 
   // Trigger guard: a little ring in front of the grip
-  if (weapon !== 'axe') {
+  if (weapon === 'pistol' || weapon === 'rifle') {
     g.lineStyle(1.5, 0x1a1a1a, 1);
     g.strokeCircle(handX + facing * 7, handY + 3, 3.5);
   }

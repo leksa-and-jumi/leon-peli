@@ -7,6 +7,7 @@ import {
   ENEMY,
   GAME_OVER,
   GAME_WIDTH,
+  GIANT,
   OUTFITS,
   PLAYER,
   RELOAD_BAR,
@@ -21,7 +22,7 @@ import { addPoints, formatScore } from '../logic/score';
 import { moveDirection, moveX } from '../logic/move';
 import { loadSave, writeSave, type SaveStorage } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
-import { isBossTurn } from '../logic/spawn';
+import { enemyKind } from '../logic/spawn';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Sfx } from '../audio/Sfx';
 import { Boss } from '../objects/Boss';
@@ -292,16 +293,18 @@ export class MainScene extends Phaser.Scene {
     this.player.setOutfit(OUTFITS[outfit]);
   }
 
-  /** Every 15th one is the axe boss, the others are white stick figures. */
+  /** Every 30th one is the giant, every 15th the axe guy, the others white stick figures. */
   private spawnEnemy(): void {
     if (!this.playerAlive) return;
     this.enemyCount += 1;
-    if (isBossTurn(this.enemyCount, BOSS.every)) {
+    const kind = enemyKind(this.enemyCount, BOSS.every, GIANT.every);
+    if (kind !== 'white') {
       this.enemy = new Boss(
         this,
-        (hitY, push) => {
+        kind === 'giant' ? GIANT : BOSS,
+        (hitY, push, damage) => {
           this.sfx.chop();
-          if (this.playerAlive) this.hurtPlayer(hitY, push);
+          if (this.playerAlive) this.hurtPlayer(hitY, push, damage);
         },
         () => this.player.getX(),
       );
@@ -318,9 +321,9 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  /** A bullet or the axe hit the player: lose a life, and break on the last one. */
-  private hurtPlayer(hitY: number, push: 1 | -1): void {
-    this.lives = loseLife(this.lives);
+  /** A bullet, axe or club hit the player: lose lives, and break on the last one. */
+  private hurtPlayer(hitY: number, push: 1 | -1, damage = 1): void {
+    this.lives = loseLife(this.lives, damage);
     this.livesText.setText(formatLives(this.lives, PLAYER.lives));
     this.sfx[this.lives === 0 ? 'scream' : 'hurt']('player');
     if (this.lives === 0) this.breakPlayer(hitY, push);
