@@ -10,9 +10,16 @@
 
 ## How to play / Miten pelataan
 
-🇬🇧 Your black stick figure stands ready in the old ruins with a gun 🔫🏛️.
+🇬🇧 Your stick figure fights white stick figures in the old ruins 🏛️. Every 15th enemy is a big red guy with an axe 🪓.
 
-🇫🇮 Musta tikku-ukkosi seisoo valmiina vanhoissa raunioissa pyssy kädessä 🔫🏛️.
+🇫🇮 Tikku-ukkosi taistelee valkoisia tikku-ukkoja vastaan vanhoissa raunioissa 🏛️. Joka 15. vihollinen on iso punainen kirvesmies 🪓.
+
+| Key / Näppäin       | 🇬🇧     | 🇫🇮       |
+| ------------------- | ------ | -------- |
+| A / D               | move   | liiku    |
+| C                   | crouch | kyykisty |
+| 🖱️ click / klikkaus | shoot  | ammu     |
+| S                   | shop   | kauppa   |
 
 _🇬🇧 The game is just starting. Leo decides what comes next!_
 _🇫🇮 Peli on vasta alussa. Leo päättää, mitä siihen tulee!_

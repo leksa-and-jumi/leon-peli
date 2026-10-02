@@ -25,6 +25,13 @@ export const PLAYER = {
   hitColor: 0xe53935,
   hitFlashMs: 250,
   lives: 4,
+  /** Walking with A and D, in pixels per second. */
+  walkSpeed: 220,
+  /** How close to the left edge the player can walk. */
+  minX: 40,
+  /** How far right the player can walk, so you can't walk into the white ones. */
+  maxX: 600,
+  stepMs: 160,
 } as const;
 
 /** Points for breaking one white stick figure. */
@@ -71,11 +78,13 @@ export const BOSS = {
   /** A bit slower than the white ones, so there's time to break him. */
   walkSpeed: 60,
   stepMs: 240,
-  lives: 5,
+  lives: 10,
   /** Points for breaking him. */
   points: 3,
   /** Stops this far in front of the player, close enough to chop. */
   reach: 85,
+  /** Never walks further right than this, so he stays on the screen. */
+  maxX: 740,
   /** Time between axe chops once it's close. */
   chopIntervalMs: 1200,
   /** How long the axe stays down after a chop. */
@@ -126,7 +135,8 @@ export const BLOOD = {
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
-export const CROUCH_HINT = 'C = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nS = shop 🛒 / kauppa';
+export const CROUCH_HINT =
+  'A/D = move 🏃 / liiku\nC = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nS = shop 🛒 / kauppa';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {
@@ -163,7 +173,7 @@ export type Weapon = keyof typeof WEAPONS;
 /** Bar under the hints that fills up while the gun reloads. */
 export const RELOAD_BAR = {
   x: 52,
-  y: 100,
+  y: 122,
   width: 120,
   height: 10,
   empty: 0x3a332b,

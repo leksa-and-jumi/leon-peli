@@ -18,6 +18,7 @@ import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatScore } from '../logic/score';
+import { moveDirection, moveX } from '../logic/move';
 import { loadSave, writeSave, type SaveStorage } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
 import { isBossTurn } from '../logic/spawn';
@@ -35,6 +36,9 @@ export class MainScene extends Phaser.Scene {
   private enemy!: Foe;
   private enemyCount = 0;
   private crouchKey!: Phaser.Input.Keyboard.Key;
+  private leftKey!: Phaser.Input.Keyboard.Key;
+  private rightKey!: Phaser.Input.Keyboard.Key;
+  private walkTimeMs = 0;
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
   private bulletGraphics!: Phaser.GameObjects.Graphics;
@@ -95,6 +99,8 @@ export class MainScene extends Phaser.Scene {
       throw new Error('Keyboard input is not available');
     }
     this.crouchKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.leftKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+    this.rightKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     keyboard.on('keydown-S', (event: KeyboardEvent) => {
       // The same S press that closed the shop must not open it again
       if (event.timeStamp === this.shopClosedKeyTime) return;
@@ -115,8 +121,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    // Crouch only while C is held down
-    if (this.playerAlive) this.player.setStance(this.crouchKey.isDown ? 'crouch' : 'stand');
+    if (this.playerAlive) this.movePlayer(delta);
     this.enemy.update(delta);
 
     this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
@@ -151,6 +156,34 @@ export class MainScene extends Phaser.Scene {
 
     this.drawBullets();
     this.drawReloadBar();
+  }
+
+  /** A and D walk left and right. C crouches while held down. */
+  private movePlayer(delta: number): void {
+    const direction = moveDirection(this.leftKey.isDown, this.rightKey.isDown);
+    const x = moveX(
+      this.player.getX(),
+      direction,
+      PLAYER.walkSpeed,
+      delta,
+      PLAYER.minX,
+      PLAYER.maxX,
+    );
+    this.player.setX(x);
+
+    if (this.crouchKey.isDown) {
+      this.player.setStance('crouch');
+      return;
+    }
+    if (direction === 0) {
+      this.walkTimeMs = 0;
+      this.player.setStance('stand');
+      return;
+    }
+    // Switch legs every step so it looks like walking
+    this.walkTimeMs += delta;
+    const step = Math.floor(this.walkTimeMs / PLAYER.stepMs);
+    this.player.setStance(step % 2 === 0 ? 'stride' : 'stand');
   }
 
   /** The pistol needs to reload, the rifle doesn't. */
@@ -229,9 +262,13 @@ export class MainScene extends Phaser.Scene {
     if (!this.playerAlive) return;
     this.enemyCount += 1;
     if (isBossTurn(this.enemyCount, BOSS.every)) {
-      this.enemy = new Boss(this, (hitY) => {
-        if (this.playerAlive) this.hurtPlayer(hitY);
-      });
+      this.enemy = new Boss(
+        this,
+        (hitY) => {
+          if (this.playerAlive) this.hurtPlayer(hitY);
+        },
+        () => this.player.getX(),
+      );
       return;
     }
     this.enemy = new Enemy(this, (muzzle) => {

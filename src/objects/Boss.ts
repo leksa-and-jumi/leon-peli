@@ -8,15 +8,15 @@ import type { Foe } from './Enemy';
 import { StickFigure } from './StickFigure';
 
 /**
- * The big axe guy. Comes every 15th time, walks all the way up to the player
- * and chops with his axe. Takes 10 hits, and has a health bar over his head.
+ * The big axe guy. Comes every 15th time, follows the player wherever they go
+ * and chops with his axe when close. Takes 10 hits, and has a health bar over his head.
  */
 export class Boss implements Foe {
   readonly figure: StickFigure;
   readonly points = BOSS.points;
   private readonly healthBar: Phaser.GameObjects.Graphics;
   private walkTimeMs = 0;
-  private arrived = false;
+  private chopping = false;
   private alive = true;
   private canChop = true;
   private lives: number = BOSS.lives;
@@ -26,6 +26,8 @@ export class Boss implements Foe {
     private readonly scene: Phaser.Scene,
     /** Called when the axe lands on the player. */
     private readonly onChop: (hitY: number) => void,
+    /** Where the player is now, so he can follow. */
+    private readonly getPlayerX: () => number,
   ) {
     this.figure = new StickFigure(
       scene,
@@ -88,36 +90,43 @@ export class Boss implements Foe {
   }
 
   update(deltaMs: number): void {
-    if (this.arrived || !this.alive) return;
-    const stopX = PLAYER.x + BOSS.reach;
-    const x = walkTowards(this.figure.getX(), stopX, BOSS.walkSpeed, deltaMs);
+    if (!this.alive) return;
+    // Always follow the player, staying just in front of them (and on the screen)
+    const target = Math.min(this.getPlayerX() + BOSS.reach, BOSS.maxX);
+    const x = walkTowards(this.figure.getX(), target, BOSS.walkSpeed, deltaMs);
     this.figure.setX(x);
     this.drawHealthBar();
 
-    this.walkTimeMs += deltaMs;
-    const step = Math.floor(this.walkTimeMs / BOSS.stepMs);
-    this.figure.setStance(step % 2 === 0 ? 'raise' : 'raiseStride');
-
-    if (x === stopX) {
-      this.arrived = true;
-      this.figure.setStance('raise');
-      if (!this.canChop) return;
-      this.chopTimer = this.scene.time.addEvent({
-        delay: BOSS.chopIntervalMs,
-        loop: true,
-        callback: () => {
-          this.chop();
-        },
-      });
+    if (x !== target) {
+      // Still walking: no chopping, swing the legs
+      this.chopTimer?.remove();
+      this.chopTimer = null;
+      this.walkTimeMs += deltaMs;
+      const step = Math.floor(this.walkTimeMs / BOSS.stepMs);
+      if (!this.chopping) this.figure.setStance(step % 2 === 0 ? 'raise' : 'raiseStride');
+      return;
     }
+
+    // Close enough: stand and chop again and again
+    if (!this.chopping) this.figure.setStance('raise');
+    if (this.chopTimer || !this.canChop) return;
+    this.chopTimer = this.scene.time.addEvent({
+      delay: BOSS.chopIntervalMs,
+      loop: true,
+      callback: () => {
+        this.chop();
+      },
+    });
   }
 
   /** Swing the axe down, hurt the player, then raise it again. */
   private chop(): void {
     if (!this.alive || !this.canChop) return;
+    this.chopping = true;
     this.figure.setStance('chop');
     this.onChop(this.figure.muzzlePosition().y);
     this.scene.time.delayedCall(BOSS.chopDownMs, () => {
+      this.chopping = false;
       if (this.alive) this.figure.setStance('raise');
     });
   }
