@@ -75,8 +75,8 @@ export const ENEMY = {
 export const JUMP = {
   height: 70,
   riseMs: 260,
-  /** Time spent at the top, so the whole bullet passes under. */
-  hangMs: 140,
+  /** A little extra time in the air before and after each bullet, to be safe. */
+  marginMs: 60,
 } as const;
 
 /** The big axe guy who comes every 15th time and walks up to you. */
@@ -148,7 +148,7 @@ export const BLOOD = {
 
 /** Every text in the game is shown in English and Finnish. */
 export const CROUCH_HINT =
-  'A/D = move 🏃 / liiku\nC = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nS = shop 🛒 / kauppa';
+  'A/D = move 🏃 / liiku\nS = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nK = shop 🛒 / kauppa';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {

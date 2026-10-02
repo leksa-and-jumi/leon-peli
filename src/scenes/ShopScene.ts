@@ -22,13 +22,13 @@ export interface ShopData {
   wears: (item: ShopItem) => boolean;
   /** Put on clothes the player already owns. */
   wear: (item: ShopItem) => void;
-  /** `keyTime` is the time of the S press that closed the shop, if S was used. */
+  /** `keyTime` is the time of the K press that closed the shop, if K was used. */
   onClose: (keyTime?: number) => void;
 }
 
 /**
- * The shop opens on top of the game with S. The game waits while you shop.
- * Press S again or ✖ to go back.
+ * The shop opens on top of the game with K. The game waits while you shop.
+ * Press K again or ✖ to go back.
  */
 export class ShopScene extends Phaser.Scene {
   private data_!: ShopData;
@@ -69,7 +69,7 @@ export class ShopScene extends Phaser.Scene {
       this.close();
     });
     this.add
-      .text(cx, top + panel.height - 18, 'S = back / takaisin', {
+      .text(cx, top + panel.height - 18, 'K = back / takaisin', {
         fontSize: '16px',
         color: SHOP.dimTextColor,
       })
@@ -78,7 +78,7 @@ export class ShopScene extends Phaser.Scene {
     this.content = this.add.container(0, 0);
     this.drawContent();
 
-    this.input.keyboard?.on('keydown-S', (event: KeyboardEvent) => {
+    this.input.keyboard?.on('keydown-K', (event: KeyboardEvent) => {
       this.close(event.timeStamp);
     });
   }
