@@ -29,6 +29,15 @@ export const SOUND = {
   echoLevel: 0.35,
   /** How rough the scream is (0 = smooth). */
   screamRasp: 3,
+  /** The short "uh!" when hit. */
+  gruntVolume: 0.55,
+  gruntLength: 0.22,
+  /** A man's "uh" mouth shape: [Hz, loudness]. */
+  gruntFormants: [
+    [600, 1],
+    [1000, 0.6],
+    [2400, 0.2],
+  ],
   /** How sharp the mouth shapes are: higher sounds more like a voice. */
   screamFormantQ: 9,
   /** How much breathy hiss is in the scream. */
@@ -38,6 +47,7 @@ export const SOUND = {
     player: { start: 210, end: 105 },
     white: { start: 240, end: 120 },
     boss: { start: 140, end: 65 },
+    giant: { start: 95, end: 45 },
   },
   /** Mouth shapes of a man's "aaa" sliding to "ooo": [from Hz, to Hz, loudness]. */
   screamFormants: [
@@ -95,7 +105,7 @@ export const ENEMY = {
   shootIntervalMs: 2000,
   bulletSpeed: 450, // slower than the player's, so there's time to crouch
   /** Hits it takes to break one. */
-  lives: 2,
+  lives: 3,
   /** Time before a new one walks in after one is hit. */
   respawnMs: 1500,
 } as const;
@@ -114,6 +124,10 @@ export const JUMP = {
 /** The big axe guy who comes every 15th time and walks up to you. */
 export const BOSS = {
   every: 15,
+  weapon: 'axe',
+  voice: 'boss',
+  /** Hearts one chop takes. */
+  damage: 1,
   height: 170,
   color: 0x7f1d1d,
   outlineColor: 0xf3e6c4,
@@ -135,6 +149,33 @@ export const BOSS = {
   chopDownMs: 250,
   healthBar: { width: 70, height: 8, gap: 14, back: 0x3a332b, fill: 0xe53935 },
 } as const;
+
+/** The giant with a club: comes every 30th time, slow, huge and very tough. */
+export const GIANT = {
+  every: 30,
+  weapon: 'club',
+  voice: 'giant',
+  /** Hearts one smash takes. */
+  damage: 2,
+  height: 250,
+  color: 0x33402c,
+  outlineColor: 0xf3e6c4,
+  outlineAlpha: 0.55,
+  /** Even slower than the red axe guy. */
+  walkSpeed: 40,
+  stepMs: 340,
+  lives: 30,
+  points: 10,
+  reach: 120,
+  minX: 50,
+  maxX: 730,
+  chopIntervalMs: 1700,
+  chopDownMs: 320,
+  healthBar: { width: 100, height: 10, gap: 14, back: 0x3a332b, fill: 0x7cb342 },
+} as const;
+
+/** Everything that's different between the axe guy and the giant. */
+export type BigFoeKind = typeof BOSS | typeof GIANT;
 
 /** How a hit white stick figure breaks in two. */
 export const BREAK = {
@@ -215,6 +256,12 @@ export const WEAPONS = {
     muzzleX: 55,
     cooldownMs: 1000,
     colors: { body: 0x2f2f2f, dark: 0x1a1a1a, metal: 0x4a4a4a, shine: 0x9e9e9e },
+  },
+  /** The giant's big wooden club. */
+  club: {
+    muzzleX: 0,
+    cooldownMs: 0,
+    colors: { wood: 0x6d4c41, dark: 0x4e342e, knot: 0x3e2723 },
   },
   /** The boss's axe. It doesn't shoot. */
   axe: {

@@ -8,6 +8,11 @@ describe('loseLife', () => {
 
   it('never goes below zero', () => {
     expect(loseLife(0)).toBe(0);
+    expect(loseLife(1, 2)).toBe(0);
+  });
+
+  it('a giant smash takes two lives', () => {
+    expect(loseLife(4, 2)).toBe(2);
   });
 });
 

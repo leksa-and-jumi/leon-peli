@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { SOUND, type Weapon } from '../config';
 
 /** Whose voice: each kind of figure screams at a different pitch. */
-export type Voice = 'player' | 'white' | 'boss';
+export type Voice = 'player' | 'white' | 'boss' | 'giant';
 
 /**
  * All the game's sounds, made with code (no sound files): gun bangs, footsteps,
@@ -255,10 +255,56 @@ export class Sfx {
     osc.stop(at + length);
   }
 
-  /** A short "uh!" when someone gets hit but doesn't break. */
+  /**
+   * A short grunt "uh!" when someone gets hit but doesn't break: a quick breath,
+   * then a low voice through an "uh" mouth shape, dropping in pitch.
+   */
   hurt(voice: Voice): void {
+    const ctx = this.ctx;
+    const out = this.master;
+    if (!ctx || !out || !this.noise) return;
     const { start } = SOUND.screamPitch[voice];
-    this.tone('sawtooth', start * 0.7, start * 0.45, 0.16, 0.25, 700);
+    const pitch = start * 0.75;
+    const t = ctx.currentTime;
+    const length = SOUND.gruntLength;
+
+    const osc = ctx.createOscillator();
+    if (this.throat) osc.setPeriodicWave(this.throat);
+    osc.frequency.setValueAtTime(pitch * 1.15, t);
+    osc.frequency.exponentialRampToValueAtTime(pitch * 0.8, t + length);
+    const rasp = ctx.createWaveShaper();
+    rasp.curve = raspCurve(2);
+
+    // Air pushed out of the chest at the start of the grunt
+    const breath = ctx.createBufferSource();
+    breath.buffer = this.noise;
+    const breathGain = ctx.createGain();
+    breathGain.gain.setValueAtTime(0.5, t);
+    breathGain.gain.exponentialRampToValueAtTime(0.02, t + 0.08);
+
+    const mouth = ctx.createGain();
+    mouth.gain.setValueAtTime(0.0001, t);
+    mouth.gain.exponentialRampToValueAtTime(SOUND.gruntVolume, t + 0.02);
+    mouth.gain.exponentialRampToValueAtTime(0.0001, t + length);
+
+    osc.connect(rasp);
+    // "uh" mouth shape: first and second formants of a man's "uh"
+    for (const [hz, level] of SOUND.gruntFormants) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = hz;
+      filter.Q.value = SOUND.screamFormantQ;
+      const levelGain = ctx.createGain();
+      levelGain.gain.value = level;
+      rasp.connect(filter);
+      breath.connect(breathGain).connect(filter);
+      filter.connect(levelGain).connect(mouth);
+    }
+    mouth.connect(out);
+    osc.start(t);
+    osc.stop(t + length);
+    breath.start(t, Math.random() * 0.3);
+    breath.stop(t + length);
   }
 
   /** The axe: a whoosh through the air and a heavy thud. */

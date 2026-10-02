@@ -1,6 +1,6 @@
-/** One bullet hit takes one life. Lives never go below zero. */
-export function loseLife(lives: number): number {
-  return Math.max(lives - 1, 0);
+/** One bullet hit takes one life (a giant's smash takes more). Lives never go below zero. */
+export function loseLife(lives: number, amount = 1): number {
+  return Math.max(lives - amount, 0);
 }
 
 /**
