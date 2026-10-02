@@ -94,6 +94,19 @@ export const BULLET = {
   /** Where the bullet leaves the gun, measured from the hand. */
   muzzleOffset: { x: 30, y: -3 },
   flash: { color: 0xfff3b0, radius: 9, durationMs: 60 },
+  /** The player's gun reloads this long between shots. */
+  cooldownMs: 3000,
+} as const;
+
+/** Bar under the hints that fills up while the gun reloads. */
+export const RELOAD_BAR = {
+  x: 52,
+  y: 78,
+  width: 120,
+  height: 10,
+  empty: 0x3a332b,
+  filling: 0xffb74d,
+  ready: 0x66bb6a,
 } as const;
 
 /** The "you died" sign that comes after the player breaks. */
