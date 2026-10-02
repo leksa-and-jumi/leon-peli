@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { BOSS, ENEMY, PLAYER } from '../config';
 import { healthFraction } from '../logic/health';
 import { loseLife } from '../logic/lives';
-import { walkTowards } from '../logic/walk';
+import { canShoot } from '../logic/reload';
+import { facingToward, followTarget, walkTowards } from '../logic/walk';
 import { BrokenFigure } from './BrokenFigure';
 import type { Foe } from './Enemy';
 import { StickFigure } from './StickFigure';
@@ -20,12 +21,12 @@ export class Boss implements Foe {
   private alive = true;
   private canChop = true;
   private lives: number = BOSS.lives;
-  private chopTimer: Phaser.Time.TimerEvent | null = null;
+  private lastChopMs: number | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
-    /** Called when the axe lands on the player. */
-    private readonly onChop: (hitY: number) => void,
+    /** Called when the axe lands on the player. `push` is the way the swing goes. */
+    private readonly onChop: (hitY: number, push: 1 | -1) => void,
     /** Where the player is now, so he can follow. */
     private readonly getPlayerX: () => number,
   ) {
@@ -58,11 +59,9 @@ export class Boss implements Foe {
 
   stopShooting(): void {
     this.canChop = false;
-    this.chopTimer?.remove();
-    this.chopTimer = null;
   }
 
-  takeHit(hit: { x: number; y: number }): boolean {
+  takeHit(hit: { x: number; y: number }, push: 1 | -1): boolean {
     if (!this.alive) return false;
     this.lives = loseLife(this.lives);
     this.drawHealthBar();
@@ -71,7 +70,6 @@ export class Boss implements Foe {
       return false;
     }
     this.alive = false;
-    this.chopTimer?.remove();
     this.healthBar.destroy();
     const f = this.figure;
     new BrokenFigure(
@@ -82,7 +80,7 @@ export class Boss implements Foe {
       f.getFeetY(),
       hit,
       PLAYER.feetY,
-      1,
+      push,
       'axe',
     );
     f.destroy();
@@ -91,32 +89,32 @@ export class Boss implements Foe {
 
   update(deltaMs: number): void {
     if (!this.alive) return;
-    // Always follow the player, staying just in front of them (and on the screen)
-    const target = Math.min(this.getPlayerX() + BOSS.reach, BOSS.maxX);
-    const x = walkTowards(this.figure.getX(), target, BOSS.walkSpeed, deltaMs);
+    // Always follow the player, standing next to them on his side (and on the screen)
+    const playerX = this.getPlayerX();
+    const oldX = this.figure.getX();
+    const target = followTarget(oldX, playerX, BOSS.reach, BOSS.minX, BOSS.maxX);
+    const x = walkTowards(oldX, target, BOSS.walkSpeed, deltaMs);
     this.figure.setX(x);
+    // Face the way he walks; when standing, face the player
+    this.figure.setFacing(
+      facingToward(x, x !== target ? target : playerX, this.figure.getFacing()),
+    );
     this.drawHealthBar();
 
     if (x !== target) {
-      // Still walking: no chopping, swing the legs
-      this.chopTimer?.remove();
-      this.chopTimer = null;
+      // Still walking: swing the legs
       this.walkTimeMs += deltaMs;
       const step = Math.floor(this.walkTimeMs / BOSS.stepMs);
       if (!this.chopping) this.figure.setStance(step % 2 === 0 ? 'raise' : 'raiseStride');
       return;
     }
 
-    // Close enough: stand and chop again and again
+    // Next to the player: chop right away, then again after every pause
     if (!this.chopping) this.figure.setStance('raise');
-    if (this.chopTimer || !this.canChop) return;
-    this.chopTimer = this.scene.time.addEvent({
-      delay: BOSS.chopIntervalMs,
-      loop: true,
-      callback: () => {
-        this.chop();
-      },
-    });
+    if (this.canChop && canShoot(this.scene.time.now, this.lastChopMs, BOSS.chopIntervalMs)) {
+      this.lastChopMs = this.scene.time.now;
+      this.chop();
+    }
   }
 
   /** Swing the axe down, hurt the player, then raise it again. */
@@ -124,7 +122,7 @@ export class Boss implements Foe {
     if (!this.alive || !this.canChop) return;
     this.chopping = true;
     this.figure.setStance('chop');
-    this.onChop(this.figure.muzzlePosition().y);
+    this.onChop(this.figure.muzzlePosition().y, this.figure.getFacing());
     this.scene.time.delayedCall(BOSS.chopDownMs, () => {
       this.chopping = false;
       if (this.alive) this.figure.setStance('raise');

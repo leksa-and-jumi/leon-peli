@@ -13,8 +13,8 @@ export interface Foe {
   readonly points: number;
   update(deltaMs: number): void;
   isAlive(): boolean;
-  /** Returns true if this hit broke it. */
-  takeHit(hit: { x: number; y: number }): boolean;
+  /** Returns true if this hit broke it. `push` is the way the bullet flew. */
+  takeHit(hit: { x: number; y: number }, push: 1 | -1): boolean;
   /** The player shot from a crouch. */
   dodge(bulletX: number, bulletSpeed: number): void;
   /** The player is out of lives: stop attacking. */
@@ -109,19 +109,19 @@ export class Enemy implements Foe {
    * Hit by a bullet: blink red, or break in two when it was the last life.
    * Returns true if it broke.
    */
-  takeHit(hit: { x: number; y: number }): boolean {
+  takeHit(hit: { x: number; y: number }, push: 1 | -1): boolean {
     if (!this.alive) return false;
     this.lives = loseLife(this.lives);
     if (this.lives > 0) {
       this.figure.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
       return false;
     }
-    this.breakAt(hit);
+    this.breakAt(hit, push);
     return true;
   }
 
   /** Out of lives: stop shooting and break in two where it hit. */
-  private breakAt(hit: { x: number; y: number }): void {
+  private breakAt(hit: { x: number; y: number }, push: 1 | -1): void {
     if (!this.alive) return;
     this.alive = false;
     this.shootTimer?.remove();
@@ -135,7 +135,7 @@ export class Enemy implements Foe {
       f.getFeetY(),
       hit,
       PLAYER.feetY,
-      1,
+      push,
     );
     f.destroy();
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { walkTowards } from './walk';
+import { facingToward, followTarget, walkTowards } from './walk';
 
 describe('walkTowards', () => {
   it('walks left toward a target on the left', () => {
@@ -20,5 +20,31 @@ describe('walkTowards', () => {
 
   it('rejects a negative speed', () => {
     expect(() => walkTowards(0, 10, -1, 16)).toThrow(RangeError);
+  });
+});
+
+describe('followTarget', () => {
+  it('stands to the right of the player when coming from the right', () => {
+    expect(followTarget(700, 100, 85, 40, 740)).toBe(185);
+  });
+
+  it('stands to the left when the player has walked past', () => {
+    expect(followTarget(300, 400, 85, 40, 740)).toBe(315);
+  });
+
+  it('stays on the screen', () => {
+    expect(followTarget(700, 700, 85, 40, 740)).toBe(740);
+    expect(followTarget(10, 60, 85, 40, 740)).toBe(40);
+  });
+});
+
+describe('facingToward', () => {
+  it('faces the way it walks', () => {
+    expect(facingToward(100, 200, -1)).toBe(1);
+    expect(facingToward(200, 100, 1)).toBe(-1);
+  });
+
+  it('keeps its old facing when standing still', () => {
+    expect(facingToward(100, 100, -1)).toBe(-1);
   });
 });

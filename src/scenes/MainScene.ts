@@ -114,9 +114,10 @@ export class MainScene extends Phaser.Scene {
       if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
       this.lastShotMs = this.time.now;
       const muzzle = this.player.muzzlePosition();
-      this.shoot(muzzle, 1);
-      // Shots from a crouch are always jumped over
-      if (this.crouchKey.isDown) this.enemy.dodge(muzzle.x, BULLET.speed);
+      const facing = this.player.getFacing();
+      this.shoot(muzzle, facing, 'player');
+      // Shots from a crouch toward the white ones are always jumped over
+      if (this.crouchKey.isDown && facing === 1) this.enemy.dodge(muzzle.x, BULLET.speed);
     });
   }
 
@@ -133,7 +134,10 @@ export class MainScene extends Phaser.Scene {
       const hitBullet = this.playerBullets.find((b) => bulletHits(b, BULLET, enemyBox));
       if (hitBullet) {
         this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
-        const broke = this.enemy.takeHit({ x: this.enemy.figure.getX(), y: hitBullet.y });
+        const broke = this.enemy.takeHit(
+          { x: this.enemy.figure.getX(), y: hitBullet.y },
+          hitBullet.direction,
+        );
         if (broke) {
           this.score = addPoints(this.score, this.enemy.points);
           this.scoreText.setText(formatScore(this.score));
@@ -150,7 +154,7 @@ export class MainScene extends Phaser.Scene {
       const hit = this.enemyBullets.find((b) => bulletHits(b, BULLET, playerBox));
       if (hit) {
         this.enemyBullets = this.enemyBullets.filter((b) => !bulletHits(b, BULLET, playerBox));
-        this.hurtPlayer(hit.y);
+        this.hurtPlayer(hit.y, hit.direction);
       }
     }
 
@@ -161,6 +165,8 @@ export class MainScene extends Phaser.Scene {
   /** A and D walk left and right. C crouches while held down. */
   private movePlayer(delta: number): void {
     const direction = moveDirection(this.leftKey.isDown, this.rightKey.isDown);
+    // Turn the way you walk (and the gun turns too)
+    if (direction !== 0) this.player.setFacing(direction);
     const x = moveX(
       this.player.getX(),
       direction,
@@ -264,28 +270,28 @@ export class MainScene extends Phaser.Scene {
     if (isBossTurn(this.enemyCount, BOSS.every)) {
       this.enemy = new Boss(
         this,
-        (hitY) => {
-          if (this.playerAlive) this.hurtPlayer(hitY);
+        (hitY, push) => {
+          if (this.playerAlive) this.hurtPlayer(hitY, push);
         },
         () => this.player.getX(),
       );
       return;
     }
     this.enemy = new Enemy(this, (muzzle) => {
-      this.shoot(muzzle, -1);
+      this.shoot(muzzle, -1, 'enemy');
     });
   }
 
   /** A bullet or the axe hit the player: lose a life, and break on the last one. */
-  private hurtPlayer(hitY: number): void {
+  private hurtPlayer(hitY: number, push: 1 | -1): void {
     this.lives = loseLife(this.lives);
     this.livesText.setText(formatLives(this.lives, PLAYER.lives));
-    if (this.lives === 0) this.breakPlayer(hitY);
+    if (this.lives === 0) this.breakPlayer(hitY, push);
     else this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
   }
 
   /** Out of lives: the player breaks in two like the white ones, and the shooting stops. */
-  private breakPlayer(hitY: number): void {
+  private breakPlayer(hitY: number, push: 1 | -1): void {
     this.playerAlive = false;
     this.enemy.stopShooting();
     const p = this.player;
@@ -297,7 +303,7 @@ export class MainScene extends Phaser.Scene {
       p.getFeetY(),
       { x: p.getX(), y: hitY },
       PLAYER.feetY,
-      -1,
+      push,
       p.getWeapon(),
     );
     p.destroy();
@@ -322,9 +328,13 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  private shoot(muzzle: { x: number; y: number }, direction: 1 | -1): void {
+  private shoot(
+    muzzle: { x: number; y: number },
+    direction: 1 | -1,
+    shooter: 'player' | 'enemy',
+  ): void {
     const bullet = { ...muzzle, direction };
-    if (direction === 1) this.playerBullets.push(bullet);
+    if (shooter === 'player') this.playerBullets.push(bullet);
     else this.enemyBullets.push(bullet);
 
     // Quick flash at the end of the gun
