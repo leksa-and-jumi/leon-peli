@@ -20,6 +20,9 @@ export const PLAYER = {
   gun: { body: 0x1e1e1e, shine: 0x8a8a8a },
 } as const;
 
+/** Every text in the game is shown in English and Finnish. */
+export const CROUCH_HINT = 'C = crouch 🧎 / kyykisty';
+
 /** Ruins background. Same seed = same ruins every time. */
 export const RUINS = {
   seed: 2026,
