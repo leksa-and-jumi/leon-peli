@@ -46,3 +46,12 @@ export function outfitColor(outfit: OutfitLook, index: number): number {
     }
   }
 }
+
+/**
+ * Rainbow stripes from head to toe: `fraction` 0 is the top of the head (red),
+ * 1 is the feet (purple).
+ */
+export function rainbowColorAt(colors: readonly number[], fraction: number): number {
+  const f = Math.min(Math.max(fraction, 0), 0.9999);
+  return colors[Math.floor(f * colors.length)] ?? 0;
+}

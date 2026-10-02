@@ -1,8 +1,15 @@
 import Phaser from 'phaser';
-import { BULLET, OUTFIT_PIECE_LENGTH, PLAYER, WEAPONS, type Weapon } from '../config';
+import {
+  BULLET,
+  OUTFIT_PIECE_LENGTH,
+  PLAYER,
+  RAINBOW_PIECE_LENGTH,
+  WEAPONS,
+  type Weapon,
+} from '../config';
 import type { Box } from '../logic/bullets';
 import { figureSegments, type Segment } from '../logic/cut';
-import { outfitColor, splitSegment, type OutfitLook } from '../logic/outfit';
+import { outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from '../logic/outfit';
 import {
   poseBounds,
   stickFigurePose,
@@ -165,11 +172,23 @@ export function drawOutfit(
   pose: Pose,
   outfit: OutfitLook,
   withHead = true,
+  /** Where the feet line is in these coordinates (moved for broken pieces). */
+  feetY = 0,
 ): void {
+  // Rainbow stripes go from the top of the head (red) down to the feet (purple)
+  const headTop = pose.neck.y - pose.headRadius * 2;
+  const stripeAt = (y: number, colors: readonly number[]): number =>
+    rainbowColorAt(colors, (y - headTop) / (feetY - headTop));
+
   let index = 0;
   for (const segment of segments) {
-    for (const { from, to } of splitSegment(segment, OUTFIT_PIECE_LENGTH)) {
-      g.lineStyle(PLAYER.lineWidth, outfitColor(outfit, index), 1);
+    const pieceLength = outfit.kind === 'rainbow' ? RAINBOW_PIECE_LENGTH : OUTFIT_PIECE_LENGTH;
+    for (const { from, to } of splitSegment(segment, pieceLength)) {
+      const color =
+        outfit.kind === 'rainbow'
+          ? stripeAt((from.y + to.y) / 2, outfit.colors)
+          : outfitColor(outfit, index);
+      g.lineStyle(PLAYER.lineWidth, color, 1);
       g.lineBetween(from.x, from.y, to.x, to.y);
       index += 1;
     }
@@ -182,13 +201,14 @@ export function drawOutfit(
     g.fillStyle(outfit.color, 1);
     g.fillCircle(c.x, c.y, r);
   } else if (outfit.kind === 'rainbow') {
-    // A rainbow wheel for a head
-    const step = (Math.PI * 2) / outfit.colors.length;
-    outfit.colors.forEach((color, i) => {
-      g.fillStyle(color, 1);
-      g.slice(c.x, c.y, r, i * step - Math.PI / 2, (i + 1) * step - Math.PI / 2);
-      g.fillPath();
-    });
+    // The head gets the same stripes, one thin row at a time, plus a little shine
+    for (let dy = -r; dy < r; dy += 1) {
+      const half = Math.sqrt(Math.max(r * r - (dy + 0.5) * (dy + 0.5), 0));
+      g.fillStyle(stripeAt(c.y + dy, outfit.colors), 1);
+      g.fillRect(c.x - half, c.y + dy, half * 2, 1.2);
+    }
+    g.fillStyle(0xffffff, 0.45);
+    g.fillCircle(c.x + r * 0.35, c.y - r * 0.4, r * 0.25);
   } else {
     // Camo: a base color with darker and lighter spots
     const [dark, base, brown, light] = outfit.colors;

@@ -205,6 +205,11 @@ export type OutfitId = keyof typeof OUTFITS;
 
 /** How long each colored piece of a camo or rainbow outfit is. */
 export const OUTFIT_PIECE_LENGTH = 7;
+/** Rainbow pieces are tiny, so the stripes have sharp edges. */
+export const RAINBOW_PIECE_LENGTH = 2;
+
+/** Points you start every game with. */
+export const START_POINTS = 3;
 
 /** Things in the shop, one per row. Prices are in ⭐ points. */
 export const SHOP_ITEMS = [
