@@ -11,6 +11,7 @@ import {
 } from '../config';
 import { clamp, randomPosition } from '../logic/bounds';
 import { addPoints, formatScore } from '../logic/score';
+import { RuinsBackground } from '../objects/RuinsBackground';
 
 /**
  * Starter scene: move the square with the arrow keys and collect stars.
@@ -28,6 +29,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   create(): void {
+    new RuinsBackground(this);
+
     this.player = this.add.rectangle(
       GAME_WIDTH / 2,
       GAME_HEIGHT / 2,
