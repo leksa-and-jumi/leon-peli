@@ -62,6 +62,14 @@ describe('dodging by crouching', () => {
     expect(bulletTop).toBeGreaterThan(poseBounds(stickFigurePose(PLAYER.height, 'stand')).top);
   });
 
+  it('the bullet hits a standing player in the belly', () => {
+    const stand = stickFigurePose(PLAYER.height, 'stand');
+    const belly = (stand.hip.y + stand.neck.y) / 2;
+    expect(enemyBulletY).toBeGreaterThan(stand.neck.y);
+    expect(enemyBulletY).toBeLessThan(stand.hip.y);
+    expect(Math.abs(enemyBulletY - belly)).toBeLessThan(PLAYER.height * 0.1);
+  });
+
   it('the bullet flies over a crouching player', () => {
     expect(bulletBottom).toBeLessThan(poseBounds(stickFigurePose(PLAYER.height, 'crouch')).top);
   });

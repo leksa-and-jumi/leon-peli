@@ -31,21 +31,21 @@ const STAND = {
   gunHand: { x: 0.3, y: -0.66 },
 };
 
-/** Knees bent, body low and leaning a little forward. */
+/** Ducking very low: kneeling on the back knee, body leaning far forward. */
 const CROUCH: typeof STAND = {
-  hip: { x: -0.05, y: -0.24 },
-  neck: { x: 0.05, y: -0.58 },
-  shoulder: { x: 0.04, y: -0.52 },
-  backKnee: { x: -0.2, y: -0.12 },
-  backFoot: { x: -0.17, y: 0 },
-  frontKnee: { x: 0.17, y: -0.26 },
-  frontFoot: { x: 0.17, y: 0 },
-  backHand: { x: -0.06, y: -0.32 },
-  gunHand: { x: 0.33, y: -0.47 },
+  hip: { x: -0.08, y: -0.14 },
+  neck: { x: 0.12, y: -0.22 },
+  shoulder: { x: 0.09, y: -0.2 },
+  backKnee: { x: -0.12, y: 0 },
+  backFoot: { x: -0.3, y: 0 },
+  frontKnee: { x: 0.1, y: -0.16 },
+  frontFoot: { x: 0.08, y: 0 },
+  backHand: { x: 0, y: -0.06 },
+  gunHand: { x: 0.36, y: -0.2 },
 };
 
-/** Standing, but the gun arm points a bit up, at the other figure's head. */
-const AIM: typeof STAND = { ...STAND, gunHand: { x: 0.3, y: -0.84 } };
+/** Standing, with the gun arm pointing a bit down, at the other figure's belly. */
+const AIM: typeof STAND = { ...STAND, gunHand: { x: 0.3, y: -0.5 } };
 
 /** A walking step: legs wide apart. Switching between AIM and STRIDE looks like walking. */
 const STRIDE: typeof STAND = {
