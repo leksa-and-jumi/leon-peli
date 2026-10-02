@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { BULLET, PLAYER, WEAPONS, type Weapon } from '../config';
+import { BULLET, OUTFIT_PIECE_LENGTH, PLAYER, WEAPONS, type Weapon } from '../config';
 import type { Box } from '../logic/bullets';
 import { figureSegments, type Segment } from '../logic/cut';
+import { outfitColor, splitSegment, type OutfitLook } from '../logic/outfit';
 import {
   poseBounds,
   stickFigurePose,
@@ -19,6 +20,8 @@ export interface StickFigureLook {
   facing: Facing;
   /** How tall the figure is. The player's height if not given. */
   height?: number;
+  /** Clothes. Without them the figure is plain `color`. */
+  outfit?: OutfitLook;
 }
 
 /**
@@ -37,7 +40,7 @@ export class StickFigure {
     private readonly scene: Phaser.Scene,
     private x: number,
     private readonly feetY: number,
-    private readonly look: StickFigureLook,
+    private look: StickFigureLook,
     stance: Stance = 'stand',
   ) {
     this.stance = stance;
@@ -104,6 +107,12 @@ export class StickFigure {
     return this.feetY - this.lift;
   }
 
+  /** Put on different clothes. */
+  setOutfit(outfit: OutfitLook): void {
+    this.look = { ...this.look, outfit };
+    this.draw();
+  }
+
   /** Swap the gun in the hand, for example to the rifle from the shop. */
   setWeapon(weapon: Weapon): void {
     this.weapon = weapon;
@@ -128,15 +137,69 @@ export class StickFigure {
 
   private draw(): void {
     const pose = this.pose();
-    const { color, outlineColor, outlineAlpha } = this.look;
+    const { outlineColor, outlineAlpha } = this.look;
     const segments = figureSegments(pose);
     this.g.clear();
     // Edge first, then the figure on top of it
     drawSegments(this.g, segments, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
     drawHead(this.g, pose, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
-    drawSegments(this.g, segments, PLAYER.lineWidth, this.hitColor ?? color, 1);
-    drawHead(this.g, pose, PLAYER.lineWidth, this.hitColor ?? color, 1);
+    const outfit: OutfitLook =
+      this.hitColor !== null ? { kind: 'solid', color: this.hitColor } : lookOutfit(this.look);
+    drawOutfit(this.g, segments, pose, outfit);
     drawGun(this.g, pose, this.look, this.weapon);
+  }
+}
+
+/** The clothes a figure wears: its outfit, or plain `color` without one. */
+export function lookOutfit(look: StickFigureLook): OutfitLook {
+  return look.outfit ?? { kind: 'solid', color: look.color };
+}
+
+/**
+ * Draws the body lines and head in the outfit's colors.
+ * Camo and rainbow color each short piece of the lines differently.
+ */
+export function drawOutfit(
+  g: Phaser.GameObjects.Graphics,
+  segments: readonly Segment[],
+  pose: Pose,
+  outfit: OutfitLook,
+  withHead = true,
+): void {
+  let index = 0;
+  for (const segment of segments) {
+    for (const { from, to } of splitSegment(segment, OUTFIT_PIECE_LENGTH)) {
+      g.lineStyle(PLAYER.lineWidth, outfitColor(outfit, index), 1);
+      g.lineBetween(from.x, from.y, to.x, to.y);
+      index += 1;
+    }
+  }
+  if (!withHead) return;
+
+  const c = headCenter(pose);
+  const r = pose.headRadius;
+  if (outfit.kind === 'solid') {
+    g.fillStyle(outfit.color, 1);
+    g.fillCircle(c.x, c.y, r);
+  } else if (outfit.kind === 'rainbow') {
+    // A rainbow wheel for a head
+    const step = (Math.PI * 2) / outfit.colors.length;
+    outfit.colors.forEach((color, i) => {
+      g.fillStyle(color, 1);
+      g.slice(c.x, c.y, r, i * step - Math.PI / 2, (i + 1) * step - Math.PI / 2);
+      g.fillPath();
+    });
+  } else {
+    // Camo: a base color with darker and lighter spots
+    const [dark, base, brown, light] = outfit.colors;
+    g.fillStyle(base ?? 0, 1);
+    g.fillCircle(c.x, c.y, r);
+    g.fillStyle(dark ?? 0, 1);
+    g.fillCircle(c.x - r * 0.35, c.y - r * 0.3, r * 0.35);
+    g.fillStyle(brown ?? 0, 1);
+    g.fillCircle(c.x + r * 0.4, c.y + r * 0.25, r * 0.3);
+    g.fillStyle(light ?? 0, 1);
+    g.fillCircle(c.x - r * 0.1, c.y + r * 0.5, r * 0.22);
   }
 }
 

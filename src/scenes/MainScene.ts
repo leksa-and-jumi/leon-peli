@@ -7,9 +7,11 @@ import {
   ENEMY,
   GAME_OVER,
   GAME_WIDTH,
+  OUTFITS,
   PLAYER,
   RELOAD_BAR,
   WEAPONS,
+  type OutfitId,
 } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
@@ -40,6 +42,8 @@ export class MainScene extends Phaser.Scene {
   private lastShotMs: number | null = null;
   private score = 0;
   private shopClosedKeyTime: number | null = null;
+  private ownedOutfits = new Set<OutfitId>(['black']);
+  private wornOutfit: OutfitId = 'black';
   private scoreText!: Phaser.GameObjects.Text;
   private reloadBar!: Phaser.GameObjects.Graphics;
 
@@ -56,6 +60,8 @@ export class MainScene extends Phaser.Scene {
     this.lastShotMs = null;
     this.score = 0;
     this.enemyCount = 0;
+    this.ownedOutfits = new Set<OutfitId>(['black']);
+    this.wornOutfit = 'black';
 
     new RuinsBackground(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
@@ -163,8 +169,12 @@ export class MainScene extends Phaser.Scene {
     if (!this.playerAlive) return;
     const data: ShopData = {
       getScore: () => this.score,
-      owns: (item) => item.id === 'rifle' && this.player.getWeapon() === 'rifle',
+      owns: (item) => this.owns(item),
       purchase: (item) => this.purchase(item),
+      wears: (item) => item.outfit === this.wornOutfit,
+      wear: (item) => {
+        this.wear(item);
+      },
       onClose: (keyTime) => {
         this.shopClosedKeyTime = keyTime ?? null;
         this.scene.resume();
@@ -175,8 +185,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private purchase(item: ShopItem): boolean {
-    const owned = item.id === 'rifle' && this.player.getWeapon() === 'rifle';
-    const result = buy(this.score, item, owned);
+    const result = buy(this.score, item, this.owns(item));
     if (!result.ok) return false;
     this.score = result.score;
     this.scoreText.setText(formatScore(this.score));
@@ -185,7 +194,27 @@ export class MainScene extends Phaser.Scene {
       this.livesText.setText(formatLives(this.lives, PLAYER.lives));
     }
     if (item.id === 'rifle') this.player.setWeapon('rifle');
+    const outfit = outfitOf(item);
+    if (outfit) {
+      this.ownedOutfits.add(outfit);
+      this.wear(item);
+    }
     return true;
+  }
+
+  /** Does the player already have this one-time item? */
+  private owns(item: ShopItem): boolean {
+    if (item.id === 'rifle') return this.player.getWeapon() === 'rifle';
+    const outfit = outfitOf(item);
+    return outfit !== null && this.ownedOutfits.has(outfit);
+  }
+
+  /** Put on clothes the player owns. */
+  private wear(item: ShopItem): void {
+    const outfit = outfitOf(item);
+    if (!outfit || !this.ownedOutfits.has(outfit)) return;
+    this.wornOutfit = outfit;
+    this.player.setOutfit(OUTFITS[outfit]);
   }
 
   /** Every 15th one is the axe boss, the others are white stick figures. */
@@ -261,4 +290,9 @@ export class MainScene extends Phaser.Scene {
       flash.destroy();
     });
   }
+}
+
+/** Which outfit a shop item gives, or null if it isn't clothes. */
+function outfitOf(item: ShopItem): OutfitId | null {
+  return item.outfit !== undefined && item.outfit in OUTFITS ? (item.outfit as OutfitId) : null;
 }

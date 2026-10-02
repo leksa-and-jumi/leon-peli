@@ -1,3 +1,4 @@
+import type { OutfitLook } from './logic/outfit';
 import type { ShopItem } from './logic/shop';
 
 /** Shared game constants. Tweak values here instead of inside scenes. */
@@ -182,16 +183,62 @@ export const GAME_OVER = {
 } as const;
 
 /** Things in the shop. Prices are in ⭐ points. */
+/** Clothes for the stick figure. Black is what you start with. */
+export const OUTFITS = {
+  black: { kind: 'solid', color: 0x000000 },
+  white: { kind: 'solid', color: 0xffffff },
+  blue: { kind: 'solid', color: 0x1e88e5 },
+  pink: { kind: 'solid', color: 0xf06292 },
+  red: { kind: 'solid', color: 0xe53935 },
+  green: { kind: 'solid', color: 0x43a047 },
+  yellow: { kind: 'solid', color: 0xfdd835 },
+  orange: { kind: 'solid', color: 0xfb8c00 },
+  purple: { kind: 'solid', color: 0x8e24aa },
+  camo: { kind: 'camo', colors: [0x4b5320, 0x6b8e23, 0x3b2f1e, 0x8f8a5a] },
+  rainbow: {
+    kind: 'rainbow',
+    colors: [0xe53935, 0xfb8c00, 0xfdd835, 0x43a047, 0x1e88e5, 0x3949ab, 0x8e24aa],
+  },
+} as const satisfies Record<string, OutfitLook>;
+
+export type OutfitId = keyof typeof OUTFITS;
+
+/** How long each colored piece of a camo or rainbow outfit is. */
+export const OUTFIT_PIECE_LENGTH = 7;
+
+/** Things in the shop, one per row. Prices are in ⭐ points. */
 export const SHOP_ITEMS = [
   { id: 'life', emoji: '❤️', name: 'Extra life\nLisäelämä', price: 3 },
   { id: 'rifle', emoji: '🔫', name: 'Assault rifle\nRynnäkkökivääri', price: 15, onlyOnce: true },
-  { id: 'clothes', emoji: '👕', name: 'Clothes\nVaatteet', price: 5, comingSoon: true },
+  {
+    id: 'camo',
+    emoji: '🪖',
+    name: 'Camo suit\nMaastopuku',
+    price: 20,
+    onlyOnce: true,
+    outfit: 'camo',
+  },
+  {
+    id: 'rainbow',
+    emoji: '🌈',
+    name: 'Rainbow suit\nSateenkaaripuku',
+    price: 30,
+    onlyOnce: true,
+    outfit: 'rainbow',
+  },
 ] as const satisfies readonly ShopItem[];
 
+/** One-color clothes, shown as color squares in the shop. Black is yours from the start. */
+export const COLOR_ITEMS: readonly ShopItem[] = (
+  ['black', 'white', 'blue', 'pink', 'red', 'green', 'yellow', 'orange', 'purple'] as const
+).map((id) => ({ id, emoji: '👕', name: id, price: 5, onlyOnce: true, outfit: id }));
+
 export const SHOP = {
-  panel: { width: 520, height: 420, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
-  rowHeight: 92,
+  panel: { width: 560, height: 570, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
+  rowHeight: 78,
+  swatch: { size: 40, gap: 12, worn: 0xffd54f },
   buyButton: { width: 120, height: 44, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
+  wearButton: { width: 120, height: 44, color: 0x1565c0, hoverColor: 0x1e88e5 },
   textColor: '#ffffff',
   dimTextColor: '#9e9e9e',
   dimAlpha: 0.5,

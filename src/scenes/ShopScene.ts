@@ -1,5 +1,13 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, SHOP, SHOP_ITEMS } from '../config';
+import {
+  COLOR_ITEMS,
+  GAME_HEIGHT,
+  GAME_WIDTH,
+  OUTFITS,
+  SHOP,
+  SHOP_ITEMS,
+  type OutfitId,
+} from '../config';
 import { canAfford, type ShopItem } from '../logic/shop';
 import { formatScore } from '../logic/score';
 
@@ -10,6 +18,10 @@ export interface ShopData {
   owns: (item: ShopItem) => boolean;
   /** Returns true if the item was bought. */
   purchase: (item: ShopItem) => boolean;
+  /** Is the player wearing these clothes right now? */
+  wears: (item: ShopItem) => boolean;
+  /** Put on clothes the player already owns. */
+  wear: (item: ShopItem) => void;
   /** `keyTime` is the time of the S press that closed the shop, if S was used. */
   onClose: (keyTime?: number) => void;
 }
@@ -95,55 +107,117 @@ export class ShopScene extends Phaser.Scene {
     );
 
     SHOP_ITEMS.forEach((item: ShopItem, i) => {
-      const y = top + 110 + i * rowHeight;
-      const soon = item.comingSoon === true;
-      const color = soon ? SHOP.dimTextColor : SHOP.textColor;
+      const y = top + 100 + i * rowHeight;
       this.content.add(
         this.add.text(left + 30, y, item.emoji, { fontSize: '40px' }).setOrigin(0, 0.5),
       );
       this.content.add(
-        this.add.text(left + 90, y, item.name, { fontSize: '20px', color }).setOrigin(0, 0.5),
+        this.add
+          .text(left + 90, y, item.name, { fontSize: '20px', color: SHOP.textColor })
+          .setOrigin(0, 0.5),
       );
-
       const buttonX = left + panel.width - 30 - buyButton.width / 2;
-      if (soon) {
-        this.content.add(
-          this.add.text(buttonX, y, '🔒 soon / pian', { fontSize: '16px', color }).setOrigin(0.5),
-        );
-        return;
-      }
 
       if (item.onlyOnce === true && this.data_.owns(item)) {
+        if (item.outfit !== undefined && !this.data_.wears(item)) {
+          // Clothes you own but aren't wearing: put them on for free
+          this.addButton(buttonX, y, '👕 wear / pue', SHOP.wearButton, () => {
+            this.data_.wear(item);
+          });
+          return;
+        }
+        const text = item.outfit !== undefined ? '✅ on / päällä' : '✅ yours / sinun';
         this.content.add(
-          this.add.text(buttonX, y, '✅ yours / sinun', { fontSize: '16px', color }).setOrigin(0.5),
+          this.add
+            .text(buttonX, y, text, { fontSize: '16px', color: SHOP.textColor })
+            .setOrigin(0.5),
         );
         return;
       }
 
       const affordable = canAfford(score, item);
-      const button = this.add.rectangle(
-        buttonX,
-        y,
-        buyButton.width,
-        buyButton.height,
-        affordable ? buyButton.color : buyButton.disabled,
-      );
-      const label = this.add
-        .text(buttonX, y, `⭐ ${String(item.price)}`, {
-          fontSize: '22px',
-          color: SHOP.textColor,
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-      this.content.add([button, label]);
-      if (!affordable) return;
-
-      button.setInteractive({ useHandCursor: true });
-      button.on('pointerover', () => button.setFillStyle(buyButton.hoverColor));
-      button.on('pointerout', () => button.setFillStyle(buyButton.color));
-      button.on('pointerdown', () => {
-        if (this.data_.purchase(item)) this.drawContent();
+      this.addButton(buttonX, y, `⭐ ${String(item.price)}`, affordable ? buyButton : null, () => {
+        this.data_.purchase(item);
       });
+    });
+
+    this.drawColors(left, top + 100 + SHOP_ITEMS.length * rowHeight - 10, score);
+  }
+
+  /** One-color clothes as a row of color squares. */
+  private drawColors(left: number, y: number, score: number): void {
+    const { size, gap, worn } = SHOP.swatch;
+    const price = COLOR_ITEMS[0]?.price ?? 0;
+    this.content.add(
+      this.add
+        .text(left + 30, y, `👕 Colors / Värit   ⭐ ${String(price)}`, {
+          fontSize: '20px',
+          color: SHOP.textColor,
+        })
+        .setOrigin(0, 0.5),
+    );
+    const rowWidth = COLOR_ITEMS.length * size + (COLOR_ITEMS.length - 1) * gap;
+    const startX = GAME_WIDTH / 2 - rowWidth / 2 + size / 2;
+    const swatchY = y + 46;
+
+    COLOR_ITEMS.forEach((item, i) => {
+      const outfit = item.outfit !== undefined ? OUTFITS[item.outfit as OutfitId] : undefined;
+      if (outfit?.kind !== 'solid') return;
+      const x = startX + i * (size + gap);
+      const owned = this.data_.owns(item);
+      const wearing = this.data_.wears(item);
+      const usable = owned || canAfford(score, item);
+
+      const square = this.add
+        .rectangle(x, swatchY, size, size, outfit.color)
+        .setStrokeStyle(wearing ? 4 : 2, wearing ? worn : 0x9e9e9e)
+        .setAlpha(usable ? 1 : 0.35);
+      this.content.add(square);
+      if (owned) {
+        this.content.add(
+          this.add
+            .text(x, swatchY + size / 2 + 12, wearing ? '⭐' : '✅', {
+              fontSize: '14px',
+            })
+            .setOrigin(0.5),
+        );
+      }
+      if (!usable || wearing) return;
+
+      square.setInteractive({ useHandCursor: true });
+      square.on('pointerdown', () => {
+        if (owned) this.data_.wear(item);
+        else this.data_.purchase(item);
+        this.drawContent();
+      });
+    });
+  }
+
+  /** A button. `style` null means grey and not clickable. */
+  private addButton(
+    x: number,
+    y: number,
+    text: string,
+    style: { width: number; height: number; color: number; hoverColor: number } | null,
+    onClick: () => void,
+  ): void {
+    const { width, height, disabled } = SHOP.buyButton;
+    const button = this.add.rectangle(x, y, width, height, style?.color ?? disabled);
+    const label = this.add
+      .text(x, y, text, {
+        fontSize: text.length > 6 ? '15px' : '22px',
+        color: SHOP.textColor,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
+    this.content.add([button, label]);
+    if (!style) return;
+    button.setInteractive({ useHandCursor: true });
+    button.on('pointerover', () => button.setFillStyle(style.hoverColor));
+    button.on('pointerout', () => button.setFillStyle(style.color));
+    button.on('pointerdown', () => {
+      onClick();
+      this.drawContent();
     });
   }
 }
