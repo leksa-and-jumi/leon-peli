@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PLAYER } from '../config';
+import { BULLET, PLAYER } from '../config';
 import { stickFigurePose, type Pose } from '../logic/pose';
 
 /**
@@ -10,9 +10,22 @@ export class StickFigure {
   private readonly g: Phaser.GameObjects.Graphics;
   private crouching = false;
 
-  constructor(scene: Phaser.Scene, x: number, feetY: number) {
+  constructor(
+    scene: Phaser.Scene,
+    private readonly x: number,
+    private readonly feetY: number,
+  ) {
     this.g = scene.add.graphics({ x, y: feetY });
     this.draw();
+  }
+
+  /** Where bullets come out of the gun, on the screen. Lower when crouching. */
+  muzzlePosition(): { x: number; y: number } {
+    const hand = stickFigurePose(PLAYER.height, this.crouching).gunHand;
+    return {
+      x: this.x + hand.x + BULLET.muzzleOffset.x,
+      y: this.feetY + hand.y + BULLET.muzzleOffset.y,
+    };
   }
 
   /** Crouch down or stand up. Only redraws when the pose really changes. */

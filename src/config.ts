@@ -21,7 +21,18 @@ export const PLAYER = {
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
-export const CROUCH_HINT = 'C = crouch 🧎 / kyykisty';
+export const CROUCH_HINT = 'C = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu';
+
+/** Bullets shot from the gun with a mouse click. */
+export const BULLET = {
+  speed: 900, // pixels per second
+  width: 12,
+  height: 4,
+  color: 0xffd54f,
+  /** Where the bullet leaves the gun, measured from the hand. */
+  muzzleOffset: { x: 30, y: -3 },
+  flash: { color: 0xfff3b0, radius: 9, durationMs: 60 },
+} as const;
 
 /** Ruins background. Same seed = same ruins every time. */
 export const RUINS = {
