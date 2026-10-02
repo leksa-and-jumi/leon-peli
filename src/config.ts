@@ -96,6 +96,17 @@ export const BULLET = {
   flash: { color: 0xfff3b0, radius: 9, durationMs: 60 },
 } as const;
 
+/** The "you died" sign that comes after the player breaks. */
+export const GAME_OVER = {
+  /** Time to watch yourself fall apart before the sign shows. */
+  delayMs: 1300,
+  text: 'You died!\nSinä kuolit!',
+  textColor: '#ffffff',
+  dimAlpha: 0.35,
+  panel: { width: 340, height: 260, color: 0x1b1533, alpha: 0.92, border: 0xc62828 },
+  button: { width: 120, height: 48, color: 0xc62828, hoverColor: 0xe53935 },
+} as const;
+
 /** Ruins background. Same seed = same ruins every time. */
 export const RUINS = {
   seed: 2026,
