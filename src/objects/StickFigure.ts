@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   BULLET,
   MOTION,
+  SHADOW,
   OUTFIT_PIECE_LENGTH,
   PLAYER,
   RAINBOW_PIECE_LENGTH,
@@ -42,6 +43,8 @@ export interface StickFigureLook {
  */
 export class StickFigure {
   private readonly g: Phaser.GameObjects.Graphics;
+  /** A soft dark spot on the ground under the feet. */
+  private readonly shadow: Phaser.GameObjects.Ellipse;
   private stance: Stance;
   private hitColor: number | null = null;
   private weapon: Weapon = 'pistol';
@@ -63,6 +66,8 @@ export class StickFigure {
     stance: Stance = 'stand',
   ) {
     this.stance = stance;
+    const size = look.height ?? PLAYER.height;
+    this.shadow = scene.add.ellipse(x, feetY + 2, size * 0.45, size * 0.07, 0x000000, SHADOW.alpha);
     this.g = scene.add.graphics({ x, y: feetY });
     this.current = this.targetPose();
     this.draw();
@@ -119,12 +124,16 @@ export class StickFigure {
   setX(x: number): void {
     this.x = x;
     this.g.x = x;
+    this.shadow.x = x;
   }
 
   /** Raise the figure off the ground, for jumping. */
   setLift(lift: number): void {
     this.lift = lift;
     this.g.y = this.feetY - lift;
+    // Higher up: the shadow gets smaller and fainter
+    const away = Math.max(0, 1 - lift / SHADOW.fadeHeight);
+    this.shadow.setScale(0.5 + 0.5 * away).setAlpha(SHADOW.alpha * away);
   }
 
   /** Change the pose. The figure glides into it over the next frames. */
@@ -139,6 +148,12 @@ export class StickFigure {
       x: this.x + hand.x + this.look.facing * WEAPONS[this.weapon].muzzleX,
       y: this.feetY - this.lift + hand.y + BULLET.muzzleOffset.y,
     };
+  }
+
+  /** Where the gun hand is on the screen (shells pop out here). */
+  handPosition(): { x: number; y: number } {
+    const hand = this.pose().gunHand;
+    return { x: this.x + hand.x, y: this.feetY - this.lift + hand.y - 6 };
   }
 
   /** The box bullets can hit, on the screen. */
@@ -205,6 +220,7 @@ export class StickFigure {
   destroy(): void {
     this.stopTicking();
     this.g.destroy();
+    this.shadow.destroy();
   }
 
   /** The pose as it is drawn right now. */

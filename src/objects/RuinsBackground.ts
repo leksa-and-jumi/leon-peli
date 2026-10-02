@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { Atmosphere } from './Atmosphere';
 import { GAME_HEIGHT, GAME_WIDTH, RUINS } from '../config';
 import {
   buildBrokenWall,
@@ -19,14 +20,18 @@ const V = Phaser.Math.Vector2;
  * and shadows fall to the left. Everything is drawn with shapes, no image files.
  */
 export class RuinsBackground {
-  private readonly g: Phaser.GameObjects.Graphics;
+  private g: Phaser.GameObjects.Graphics;
   private readonly random: () => number;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, atmosphere: Atmosphere) {
     this.g = scene.add.graphics();
     this.random = createRandom(RUINS.seed);
     this.drawSky();
     this.drawMoon();
+    // Twinkling stars and clouds go between the moon and the ruins
+    atmosphere.addTwinklingStars();
+    atmosphere.addClouds();
+    this.g = scene.add.graphics();
     this.drawFarRuins();
     this.drawFog();
     this.drawGround();
@@ -41,6 +46,7 @@ export class RuinsBackground {
     this.drawRubble();
     this.drawFallenColumn(560, groundY + 62, 150);
     this.drawGrass();
+    atmosphere.addGroundMist();
   }
 
   private drawSky(): void {

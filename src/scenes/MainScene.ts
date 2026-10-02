@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import {
+  ATMOSPHERE,
   BOSS,
   BULLET,
   COLORS,
+  DUST,
   CROUCH_HINT,
   ENEMY,
   GAME_OVER,
@@ -25,8 +27,10 @@ import { buy, type ShopItem } from '../logic/shop';
 import { enemyKind } from '../logic/spawn';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Sfx } from '../audio/Sfx';
+import { Atmosphere } from '../objects/Atmosphere';
 import { Boss } from '../objects/Boss';
 import { Enemy, type Foe } from '../objects/Enemy';
+import { GunEffects } from '../objects/GunEffects';
 import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
 import { StickFigure } from '../objects/StickFigure';
@@ -43,7 +47,7 @@ export class MainScene extends Phaser.Scene {
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
-  private bulletGraphics!: Phaser.GameObjects.Graphics;
+  private gunFx!: GunEffects;
   private lives = 0;
   private livesText!: Phaser.GameObjects.Text;
   private playerAlive = true;
@@ -76,7 +80,9 @@ export class MainScene extends Phaser.Scene {
     this.muted = loadSave(browserStorage()).muted;
     this.sfx = new Sfx(this, this.muted);
 
-    new RuinsBackground(this);
+    const atmosphere = new Atmosphere(this);
+    new RuinsBackground(this, atmosphere);
+    atmosphere.addVignette(ATMOSPHERE.vignette.depth);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
       outlineColor: PLAYER.outlineColor,
@@ -85,24 +91,29 @@ export class MainScene extends Phaser.Scene {
     });
     this.player.setOnStep(() => {
       this.sfx.footstep();
+      this.dustAt(this.player.getX());
     });
     // A bought rifle is saved, so it's still yours after dying
     if (loadSave(browserStorage()).rifle) this.player.setWeapon('rifle');
     this.spawnEnemy();
-    this.bulletGraphics = this.add.graphics();
-    this.add.text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text });
-    this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' });
-    this.reloadBar = this.add.graphics();
+    this.gunFx = new GunEffects(this);
+    this.add
+      .text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text })
+      .setDepth(ATMOSPHERE.hudDepth);
+    this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' }).setDepth(ATMOSPHERE.hudDepth);
+    this.reloadBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
     this.scoreText = this.add
       .text(GAME_WIDTH / 2, 16, formatScore(this.score), {
         fontSize: '28px',
         color: COLORS.text,
         fontStyle: 'bold',
       })
-      .setOrigin(0.5, 0);
+      .setOrigin(0.5, 0)
+      .setDepth(ATMOSPHERE.hudDepth);
     this.livesText = this.add
       .text(GAME_WIDTH - 16, 16, formatLives(this.lives, PLAYER.lives), { fontSize: '26px' })
-      .setOrigin(1, 0);
+      .setOrigin(1, 0)
+      .setDepth(ATMOSPHERE.hudDepth);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) {
@@ -187,7 +198,7 @@ export class MainScene extends Phaser.Scene {
       }
     }
 
-    this.drawBullets();
+    this.gunFx.update(delta, [...this.playerBullets, ...this.enemyBullets]);
     this.drawReloadBar();
   }
 
@@ -310,6 +321,7 @@ export class MainScene extends Phaser.Scene {
       );
       this.enemy.figure.setOnStep(() => {
         this.sfx.footstep(true);
+        this.dustAt(this.enemy.figure.getX(), 2);
       });
       return;
     }
@@ -318,6 +330,7 @@ export class MainScene extends Phaser.Scene {
     });
     this.enemy.figure.setOnStep(() => {
       this.sfx.footstep(false, true);
+      this.dustAt(this.enemy.figure.getX());
     });
   }
 
@@ -355,16 +368,28 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private drawBullets(): void {
-    this.bulletGraphics.clear();
-    this.bulletGraphics.fillStyle(BULLET.color, 1);
-    for (const b of [...this.playerBullets, ...this.enemyBullets]) {
-      this.bulletGraphics.fillRect(
-        b.x - BULLET.width / 2,
-        b.y - BULLET.height / 2,
-        BULLET.width,
-        BULLET.height,
+  /** A little puff of dust kicked up by a footstep. `size` is bigger for heavy feet. */
+  private dustAt(x: number, size = 1): void {
+    for (let i = 0; i < DUST.puffs; i++) {
+      const puff = this.add.circle(
+        x + (Math.random() - 0.5) * 20,
+        PLAYER.feetY - 2,
+        (2 + Math.random() * 2) * size,
+        DUST.color,
+        DUST.alpha,
       );
+      this.tweens.add({
+        targets: puff,
+        x: puff.x + (Math.random() - 0.5) * 24,
+        y: puff.y - (4 + Math.random() * 8) * size,
+        scale: 2.5,
+        alpha: 0,
+        duration: DUST.ms,
+        ease: 'Sine.easeOut',
+        onComplete: () => {
+          puff.destroy();
+        },
+      });
     }
   }
 
@@ -374,6 +399,7 @@ export class MainScene extends Phaser.Scene {
     shooter: 'player' | 'enemy',
   ): void {
     const bullet = { ...muzzle, direction };
+    const gun = shooter === 'player' ? this.player : this.enemy.figure;
     if (shooter === 'player') {
       this.playerBullets.push(bullet);
       this.sfx.gunshot(this.player.getWeapon());
@@ -381,13 +407,8 @@ export class MainScene extends Phaser.Scene {
       this.enemyBullets.push(bullet);
       this.sfx.gunshot('pistol', true);
     }
-
-    // Quick flash at the end of the gun
-    const { color, radius, durationMs } = BULLET.flash;
-    const flash = this.add.circle(muzzle.x, muzzle.y, radius, color);
-    this.time.delayedCall(durationMs, () => {
-      flash.destroy();
-    });
+    // Flash, smoke and a brass shell flying out
+    this.gunFx.shot(muzzle, gun.handPosition(), direction, PLAYER.feetY);
   }
 }
 
