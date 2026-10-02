@@ -20,7 +20,11 @@ describe('formatLives', () => {
     expect(formatLives(1, 4)).toBe('❤️🤍🤍🤍');
   });
 
-  it('rejects more lives than the maximum', () => {
-    expect(() => formatLives(5, 4)).toThrow(RangeError);
+  it('shows extra red hearts for lives bought in the shop', () => {
+    expect(formatLives(5, 4)).toBe('❤️❤️❤️❤️❤️');
+  });
+
+  it('rejects negative lives', () => {
+    expect(() => formatLives(-1, 4)).toThrow(RangeError);
   });
 });

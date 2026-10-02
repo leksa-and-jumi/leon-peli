@@ -1,3 +1,5 @@
+import type { ShopItem } from './logic/shop';
+
 /** Shared game constants. Tweak values here instead of inside scenes. */
 export const GAME_WIDTH = 800;
 export const GAME_HEIGHT = 600;
@@ -86,7 +88,7 @@ export const BLOOD = {
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */
-export const CROUCH_HINT = 'C = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu';
+export const CROUCH_HINT = 'C = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nS = shop 🛒 / kauppa';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {
@@ -104,7 +106,7 @@ export const BULLET = {
 /** Bar under the hints that fills up while the gun reloads. */
 export const RELOAD_BAR = {
   x: 52,
-  y: 78,
+  y: 100,
   width: 120,
   height: 10,
   empty: 0x3a332b,
@@ -121,6 +123,22 @@ export const GAME_OVER = {
   dimAlpha: 0.35,
   panel: { width: 340, height: 260, color: 0x1b1533, alpha: 0.92, border: 0xc62828 },
   button: { width: 120, height: 48, color: 0xc62828, hoverColor: 0xe53935 },
+} as const;
+
+/** Things in the shop. Prices are in ⭐ points. */
+export const SHOP_ITEMS = [
+  { id: 'life', emoji: '❤️', name: 'Extra life\nLisäelämä', price: 3 },
+  { id: 'rifle', emoji: '🔫', name: 'Assault rifle\nRynnäkkökivääri', price: 10, comingSoon: true },
+  { id: 'clothes', emoji: '👕', name: 'Clothes\nVaatteet', price: 5, comingSoon: true },
+] as const satisfies readonly ShopItem[];
+
+export const SHOP = {
+  panel: { width: 520, height: 420, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
+  rowHeight: 92,
+  buyButton: { width: 120, height: 44, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
+  textColor: '#ffffff',
+  dimTextColor: '#9e9e9e',
+  dimAlpha: 0.5,
 } as const;
 
 /** Ruins background. Same seed = same ruins every time. */
