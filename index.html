@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Leon peli</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1d1f2b;
+        /* On phones, touching the game must not scroll or zoom the page. */
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      /* A tip for phones held upright: the game is bigger sideways. */
+      #rotate {
+        display: none;
+        position: fixed;
+        top: 16px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #ffffff;
+        font: 20px sans-serif;
+      }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate {
+          display: block;
+        }
+      }
+      #game {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="rotate">Turn your phone sideways! / Käännä puhelin vaakasuoraan! 📱</div>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
