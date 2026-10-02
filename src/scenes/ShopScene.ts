@@ -16,6 +16,8 @@ export interface ShopData {
   getScore: () => number;
   /** Does the player already have this (for things you buy only once)? */
   owns: (item: ShopItem) => boolean;
+  /** Does the player have what this item needs first? */
+  hasNeeded: (item: ShopItem) => boolean;
   /** Returns true if the item was bought. */
   purchase: (item: ShopItem) => boolean;
   /** Is the player wearing these clothes right now? */
@@ -130,6 +132,15 @@ export class ShopScene extends Phaser.Scene {
         this.content.add(
           this.add
             .text(buttonX, y, text, { fontSize: '16px', color: SHOP.textColor })
+            .setOrigin(0.5),
+        );
+        return;
+      }
+
+      if (!this.data_.hasNeeded(item)) {
+        this.content.add(
+          this.add
+            .text(buttonX, y, '🔫 first / ensin', { fontSize: '16px', color: SHOP.dimTextColor })
             .setOrigin(0.5),
         );
         return;

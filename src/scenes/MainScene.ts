@@ -55,6 +55,7 @@ export class MainScene extends Phaser.Scene {
   private score = 0;
   private shopClosedKeyTime: number | null = null;
   private sfx!: Sfx;
+  private rifleUpgrade = false;
   private muted = false;
   private ownedOutfits = new Set<OutfitId>(['black']);
   private wornOutfit: OutfitId = 'black';
@@ -94,7 +95,9 @@ export class MainScene extends Phaser.Scene {
       this.dustAt(this.player.getX());
     });
     // A bought rifle is saved, so it's still yours after dying
-    if (loadSave(browserStorage()).rifle) this.player.setWeapon('rifle');
+    const save = loadSave(browserStorage());
+    if (save.rifle) this.player.setWeapon('rifle');
+    this.rifleUpgrade = save.rifleUpgrade;
     this.spawnEnemy();
     this.gunFx = new GunEffects(this);
     this.add
@@ -232,9 +235,11 @@ export class MainScene extends Phaser.Scene {
     writeSave(browserStorage(), { ...loadSave(browserStorage()), muted: this.muted });
   }
 
-  /** The pistol needs to reload, the rifle doesn't. */
+  /** How long the gun in the hand reloads. The rifle upgrade makes the rifle much faster. */
   private cooldownMs(): number {
-    return WEAPONS[this.player.getWeapon()].cooldownMs;
+    const weapon = this.player.getWeapon();
+    if (weapon === 'rifle' && this.rifleUpgrade) return WEAPONS.rifle.upgradedCooldownMs;
+    return WEAPONS[weapon].cooldownMs;
   }
 
   private drawReloadBar(): void {
@@ -253,6 +258,7 @@ export class MainScene extends Phaser.Scene {
     const data: ShopData = {
       getScore: () => this.score,
       owns: (item) => this.owns(item),
+      hasNeeded: (item) => this.hasNeeded(item),
       purchase: (item) => this.purchase(item),
       wears: (item) => item.outfit === this.wornOutfit,
       wear: (item) => {
@@ -268,7 +274,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private purchase(item: ShopItem): boolean {
-    const result = buy(this.score, item, this.owns(item));
+    const result = buy(this.score, item, this.owns(item), this.hasNeeded(item));
     if (!result.ok) return false;
     this.score = result.score;
     this.scoreText.setText(formatScore(this.score));
@@ -281,6 +287,10 @@ export class MainScene extends Phaser.Scene {
       this.player.setWeapon('rifle');
       writeSave(browserStorage(), { ...loadSave(browserStorage()), rifle: true });
     }
+    if (item.id === 'rifleUpgrade') {
+      this.rifleUpgrade = true;
+      writeSave(browserStorage(), { ...loadSave(browserStorage()), rifleUpgrade: true });
+    }
     const outfit = outfitOf(item);
     if (outfit) {
       this.ownedOutfits.add(outfit);
@@ -292,8 +302,15 @@ export class MainScene extends Phaser.Scene {
   /** Does the player already have this one-time item? */
   private owns(item: ShopItem): boolean {
     if (item.id === 'rifle') return this.player.getWeapon() === 'rifle';
+    if (item.id === 'rifleUpgrade') return this.rifleUpgrade;
     const outfit = outfitOf(item);
     return outfit !== null && this.ownedOutfits.has(outfit);
+  }
+
+  /** Does the player have what this item needs first (like the rifle for its upgrade)? */
+  private hasNeeded(item: ShopItem): boolean {
+    if (item.needs === undefined) return true;
+    return this.owns({ ...item, id: item.needs });
   }
 
   /** Put on clothes the player owns. */

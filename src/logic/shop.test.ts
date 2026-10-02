@@ -38,3 +38,22 @@ describe('canAfford', () => {
     expect(canAfford(2, life)).toBe(false);
   });
 });
+
+describe('items that need something first', () => {
+  const upgrade: ShopItem = {
+    id: 'rifleUpgrade',
+    emoji: '⚡',
+    name: 'Upgrade',
+    price: 30,
+    onlyOnce: true,
+    needs: 'rifle',
+  };
+
+  it('cannot be bought without the rifle', () => {
+    expect(buy(50, upgrade, false, false)).toEqual({ ok: false, reason: 'needs-something-first' });
+  });
+
+  it('can be bought with the rifle and enough points', () => {
+    expect(buy(50, upgrade, false, true)).toEqual({ ok: true, score: 20 });
+  });
+});

@@ -1,6 +1,8 @@
 /** What the game remembers on this computer, even after dying or closing the page. */
 export interface SaveData {
   rifle: boolean;
+  /** The faster-reloading rifle upgrade from the shop. */
+  rifleUpgrade: boolean;
   /** Sounds turned off with M. */
   muted: boolean;
 }
@@ -12,7 +14,7 @@ export interface SaveStorage {
 }
 
 const SAVE_KEY = 'leon-peli-save';
-const EMPTY: SaveData = { rifle: false, muted: false };
+const EMPTY: SaveData = { rifle: false, rifleUpgrade: false, muted: false };
 
 /** Reads the save. Anything broken or missing means a fresh save. */
 export function loadSave(storage: SaveStorage | null): SaveData {
@@ -23,8 +25,9 @@ export function loadSave(storage: SaveStorage | null): SaveData {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return { ...EMPTY };
     const rifle = 'rifle' in parsed && parsed.rifle === true;
+    const rifleUpgrade = 'rifleUpgrade' in parsed && parsed.rifleUpgrade === true;
     const muted = 'muted' in parsed && parsed.muted === true;
-    return { rifle, muted };
+    return { rifle, rifleUpgrade, muted };
   } catch {
     return { ...EMPTY };
   }
