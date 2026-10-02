@@ -18,6 +18,8 @@ export class BrokenFigure {
     hit: { x: number; y: number },
     /** Where the ground is. Lower than `feetY` if it was hit in the air. */
     groundY: number,
+    /** Which way the bullet flew: 1 = right, -1 = left. The pieces fall that way. */
+    push: 1 | -1,
   ) {
     // Cut height measured from the feet, like the pose
     const cutY = hit.y - feetY;
@@ -34,22 +36,22 @@ export class BrokenFigure {
     // The legs tip away from the bullet, the top tumbles down in front of them
     scene.tweens.add({
       targets: top,
-      x: x + BREAK.topFlyX,
+      x: x + push * BREAK.topFlyX,
       y: groundY - BREAK.restHeight,
-      angle: BREAK.topSpin,
+      angle: push * BREAK.topSpin,
       duration: BREAK.topFallMs,
       ease: 'Quad.easeIn',
     });
     scene.tweens.add({
       targets: bottom,
-      angle: BREAK.bottomTip,
+      angle: push * BREAK.bottomTip,
       y: groundY,
       delay: BREAK.bottomDelayMs,
       duration: BREAK.bottomFallMs,
       ease: 'Quad.easeIn',
     });
 
-    const drops = this.sprayBlood(scene, hit, groundY);
+    const drops = this.sprayBlood(scene, hit, groundY, push);
     scene.tweens.add({
       targets: [top, bottom, ...drops],
       alpha: 0,
@@ -106,6 +108,7 @@ export class BrokenFigure {
     scene: Phaser.Scene,
     hit: { x: number; y: number },
     groundY: number,
+    push: 1 | -1,
   ): Phaser.GameObjects.Arc[] {
     const drops: Phaser.GameObjects.Arc[] = [];
     for (let i = 0; i < BLOOD.drops; i++) {
@@ -113,7 +116,7 @@ export class BrokenFigure {
       const drop = scene.add.circle(hit.x, hit.y, radius, BLOOD.color);
       drops.push(drop);
       // Most drops fly forward (the way the bullet went), a few backward
-      const forward = Math.random() < 0.8 ? 1 : -1;
+      const forward = Math.random() < 0.8 ? push : -push;
       scene.tweens.add({
         targets: drop,
         x: hit.x + forward * (10 + Math.random() * BLOOD.spread),

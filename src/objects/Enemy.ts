@@ -14,6 +14,7 @@ export class Enemy {
   private walkTimeMs = 0;
   private arrived = false;
   private alive = true;
+  private canShoot = true;
   private shootTimer: Phaser.Time.TimerEvent | null = null;
   private jumpTween: Phaser.Tweens.Tween | null = null;
   private readonly jumpState = { lift: 0 };
@@ -34,6 +35,13 @@ export class Enemy {
       },
       'aim',
     );
+  }
+
+  /** Stop shooting, for example when the player is out of lives. */
+  stopShooting(): void {
+    this.shootTimer?.remove();
+    this.shootTimer = null;
+    this.canShoot = false;
   }
 
   isAlive(): boolean {
@@ -86,7 +94,16 @@ export class Enemy {
     this.shootTimer?.remove();
     this.jumpTween?.stop();
     const f = this.figure;
-    new BrokenFigure(this.scene, f.pose(), f.getLook(), f.getX(), f.getFeetY(), hit, PLAYER.feetY);
+    new BrokenFigure(
+      this.scene,
+      f.pose(),
+      f.getLook(),
+      f.getX(),
+      f.getFeetY(),
+      hit,
+      PLAYER.feetY,
+      1,
+    );
     f.destroy();
   }
 
@@ -100,7 +117,7 @@ export class Enemy {
     const step = Math.floor(this.walkTimeMs / ENEMY.stepMs);
     if (!this.isAirborne()) this.figure.setStance(step % 2 === 0 ? 'aim' : 'stride');
 
-    if (x === ENEMY.stopX) {
+    if (x === ENEMY.stopX && this.canShoot) {
       this.arrived = true;
       if (!this.isAirborne()) this.figure.setStance('aim');
       this.shootTimer = this.scene.time.addEvent({

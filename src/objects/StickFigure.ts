@@ -89,6 +89,8 @@ export class StickFigure {
     this.hitColor = color;
     this.draw();
     this.scene.time.delayedCall(durationMs, () => {
+      // It may have broken apart while blinking
+      if (!this.g.active) return;
       this.hitColor = null;
       this.draw();
     });

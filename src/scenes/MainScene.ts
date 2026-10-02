@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BULLET, COLORS, CROUCH_HINT, ENEMY, GAME_WIDTH, PLAYER } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
+import { BrokenFigure } from '../objects/BrokenFigure';
 import { Enemy } from '../objects/Enemy';
 import { RuinsBackground } from '../objects/RuinsBackground';
 import { StickFigure } from '../objects/StickFigure';
@@ -16,6 +17,7 @@ export class MainScene extends Phaser.Scene {
   private bulletGraphics!: Phaser.GameObjects.Graphics;
   private lives: number = PLAYER.lives;
   private livesText!: Phaser.GameObjects.Text;
+  private playerAlive = true;
 
   constructor() {
     super('MainScene');
@@ -44,7 +46,7 @@ export class MainScene extends Phaser.Scene {
 
     // Left mouse click shoots
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.leftButtonDown()) return;
+      if (!pointer.leftButtonDown() || !this.playerAlive) return;
       const muzzle = this.player.muzzlePosition();
       this.shoot(muzzle, 1);
       // Shots from a crouch are always jumped over
@@ -54,7 +56,7 @@ export class MainScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     // Crouch only while C is held down
-    this.player.setStance(this.crouchKey.isDown ? 'crouch' : 'stand');
+    if (this.playerAlive) this.player.setStance(this.crouchKey.isDown ? 'crouch' : 'stand');
     this.enemy.update(delta);
 
     this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
@@ -74,22 +76,44 @@ export class MainScene extends Phaser.Scene {
     }
 
     // White figures' bullets that hit the player disappear, and the player blinks red
-    const playerBox = this.player.bounds();
-    const hit = this.enemyBullets.some((b) => bulletHits(b, BULLET, playerBox));
-    if (hit) {
-      this.enemyBullets = this.enemyBullets.filter((b) => !bulletHits(b, BULLET, playerBox));
-      this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
-      this.lives = loseLife(this.lives);
-      this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+    if (this.playerAlive) {
+      const playerBox = this.player.bounds();
+      const hit = this.enemyBullets.find((b) => bulletHits(b, BULLET, playerBox));
+      if (hit) {
+        this.enemyBullets = this.enemyBullets.filter((b) => !bulletHits(b, BULLET, playerBox));
+        this.lives = loseLife(this.lives);
+        this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+        if (this.lives === 0) this.breakPlayer(hit.y);
+        else this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
+      }
     }
 
     this.drawBullets();
   }
 
   private spawnEnemy(): void {
+    if (!this.playerAlive) return;
     this.enemy = new Enemy(this, (muzzle) => {
       this.shoot(muzzle, -1);
     });
+  }
+
+  /** Out of lives: the player breaks in two like the white ones, and the shooting stops. */
+  private breakPlayer(hitY: number): void {
+    this.playerAlive = false;
+    this.enemy.stopShooting();
+    const p = this.player;
+    new BrokenFigure(
+      this,
+      p.pose(),
+      p.getLook(),
+      p.getX(),
+      p.getFeetY(),
+      { x: p.getX(), y: hitY },
+      PLAYER.feetY,
+      -1,
+    );
+    p.destroy();
   }
 
   private drawBullets(): void {
