@@ -146,7 +146,7 @@ export class BrokenFigure {
     const edge = PLAYER.lineWidth + 3;
     drawSegments(g, shifted, edge, look.outlineColor, look.outlineAlpha);
     if (withHead) drawHead(g, shiftedPose, edge, look.outlineColor, look.outlineAlpha);
-    drawOutfit(g, shifted, shiftedPose, lookOutfit(look), withHead);
+    drawOutfit(g, shifted, shiftedPose, lookOutfit(look), withHead, shiftY);
     if (gun) drawGun(g, shiftedPose, look, gun);
 
     // Red at the ends where it broke

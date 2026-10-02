@@ -10,6 +10,7 @@ import {
   OUTFITS,
   PLAYER,
   RELOAD_BAR,
+  START_POINTS,
   WEAPONS,
   type OutfitId,
 } from '../config';
@@ -17,6 +18,7 @@ import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatScore } from '../logic/score';
+import { loadSave, writeSave, type SaveStorage } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
 import { isBossTurn } from '../logic/spawn';
 import { BrokenFigure } from '../objects/BrokenFigure';
@@ -58,7 +60,7 @@ export class MainScene extends Phaser.Scene {
     this.lives = PLAYER.lives;
     this.playerAlive = true;
     this.lastShotMs = null;
-    this.score = 0;
+    this.score = START_POINTS;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
@@ -70,6 +72,8 @@ export class MainScene extends Phaser.Scene {
       outlineAlpha: PLAYER.outlineAlpha,
       facing: 1,
     });
+    // A bought rifle is saved, so it's still yours after dying
+    if (loadSave(browserStorage()).rifle) this.player.setWeapon('rifle');
     this.spawnEnemy();
     this.bulletGraphics = this.add.graphics();
     this.add.text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text });
@@ -193,7 +197,10 @@ export class MainScene extends Phaser.Scene {
       this.lives += 1;
       this.livesText.setText(formatLives(this.lives, PLAYER.lives));
     }
-    if (item.id === 'rifle') this.player.setWeapon('rifle');
+    if (item.id === 'rifle') {
+      this.player.setWeapon('rifle');
+      writeSave(browserStorage(), { ...loadSave(browserStorage()), rifle: true });
+    }
     const outfit = outfitOf(item);
     if (outfit) {
       this.ownedOutfits.add(outfit);
@@ -295,4 +302,13 @@ export class MainScene extends Phaser.Scene {
 /** Which outfit a shop item gives, or null if it isn't clothes. */
 function outfitOf(item: ShopItem): OutfitId | null {
   return item.outfit !== undefined && item.outfit in OUTFITS ? (item.outfit as OutfitId) : null;
+}
+
+/** The browser's storage for the save, or null if the browser doesn't allow it. */
+function browserStorage(): SaveStorage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }

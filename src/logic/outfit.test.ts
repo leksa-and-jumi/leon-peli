@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { outfitColor, splitSegment, type OutfitLook } from './outfit';
+import { outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from './outfit';
 
 describe('splitSegment', () => {
   const line = { from: { x: 0, y: 0 }, to: { x: 0, y: -40 } };
@@ -43,5 +43,24 @@ describe('outfitColor', () => {
   it('camo neighbours are different colors', () => {
     const camo: OutfitLook = { kind: 'camo', colors: [10, 20, 30, 40] };
     expect(outfitColor(camo, 0)).not.toBe(outfitColor(camo, 1));
+  });
+});
+
+describe('rainbowColorAt', () => {
+  const colors = [1, 2, 3, 4];
+
+  it('is the first color at the top and the last at the feet', () => {
+    expect(rainbowColorAt(colors, 0)).toBe(1);
+    expect(rainbowColorAt(colors, 1)).toBe(4);
+  });
+
+  it('makes even stripes in between', () => {
+    expect(rainbowColorAt(colors, 0.3)).toBe(2);
+    expect(rainbowColorAt(colors, 0.6)).toBe(3);
+  });
+
+  it('stays inside the colors', () => {
+    expect(rainbowColorAt(colors, -1)).toBe(1);
+    expect(rainbowColorAt(colors, 5)).toBe(4);
   });
 });
