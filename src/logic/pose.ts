@@ -65,7 +65,25 @@ const JUMP_POSE: typeof STAND = {
   frontFoot: { x: 0.06, y: -0.1 },
 };
 
-const STANCES = { stand: STAND, crouch: CROUCH, aim: AIM, stride: STRIDE, jump: JUMP_POSE };
+/** Axe raised high, ready to chop. */
+const RAISE: typeof STAND = { ...STAND, gunHand: { x: 0.12, y: -0.98 } };
+
+/** Axe chopped down in front. */
+const CHOP: typeof STAND = { ...STAND, gunHand: { x: 0.36, y: -0.55 } };
+
+/** Walking with the axe raised. */
+const RAISE_STRIDE: typeof STAND = { ...STRIDE, gunHand: RAISE.gunHand };
+
+const STANCES = {
+  stand: STAND,
+  crouch: CROUCH,
+  aim: AIM,
+  stride: STRIDE,
+  jump: JUMP_POSE,
+  raise: RAISE,
+  chop: CHOP,
+  raiseStride: RAISE_STRIDE,
+};
 
 export type Stance = keyof typeof STANCES;
 

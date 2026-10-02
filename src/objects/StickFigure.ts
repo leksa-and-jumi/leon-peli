@@ -17,6 +17,8 @@ export interface StickFigureLook {
   outlineColor: number;
   outlineAlpha: number;
   facing: Facing;
+  /** How tall the figure is. The player's height if not given. */
+  height?: number;
 }
 
 /**
@@ -121,7 +123,7 @@ export class StickFigure {
   }
 
   pose(): Pose {
-    return stickFigurePose(PLAYER.height, this.stance, this.look.facing);
+    return stickFigurePose(this.look.height ?? PLAYER.height, this.stance, this.look.facing);
   }
 
   private draw(): void {
@@ -184,6 +186,22 @@ export function drawGun(
     const left = facing === 1 ? handX + dx : handX - dx - w;
     g.fillRect(left, handY + dy, w, h);
   };
+
+  if (weapon === 'axe') {
+    const { handle, blade, edge } = WEAPONS.axe.colors;
+    g.fillStyle(outlineColor, outlineAlpha);
+    rect(-4, -46, 9, 58);
+    rect(3, -48, 22, 24);
+    // Long wooden handle going up from the hand
+    g.fillStyle(handle, 1);
+    rect(-2, -44, 5, 54);
+    // Heavy blade at the top, facing forward, with a shiny edge
+    g.fillStyle(blade, 1);
+    rect(3, -46, 16, 20);
+    g.fillStyle(edge, 1);
+    rect(19, -46, 4, 20);
+    return;
+  }
 
   if (weapon === 'rifle') {
     const { body, wood, shine } = WEAPONS.rifle.colors;

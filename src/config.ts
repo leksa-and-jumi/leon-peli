@@ -60,6 +60,25 @@ export const JUMP = {
   hangMs: 140,
 } as const;
 
+/** The big axe guy who comes every 15th time and walks up to you. */
+export const BOSS = {
+  every: 15,
+  height: 170,
+  color: 0x7f1d1d,
+  outlineColor: 0xf3e6c4,
+  outlineAlpha: 0.5,
+  walkSpeed: ENEMY.walkSpeed,
+  stepMs: ENEMY.stepMs,
+  lives: 10,
+  /** Stops this far in front of the player, close enough to chop. */
+  reach: 85,
+  /** Time between axe chops once it's close. */
+  chopIntervalMs: 1200,
+  /** How long the axe stays down after a chop. */
+  chopDownMs: 250,
+  healthBar: { width: 70, height: 8, gap: 14, back: 0x3a332b, fill: 0xe53935 },
+} as const;
+
 /** How a hit white stick figure breaks in two. */
 export const BREAK = {
   topFlyX: 10,
@@ -111,6 +130,12 @@ export const WEAPONS = {
     muzzleX: 52,
     cooldownMs: 0,
     colors: { body: 0x1e1e1e, wood: 0x6d4c41, shine: 0x8a8a8a },
+  },
+  /** The boss's axe. It doesn't shoot. */
+  axe: {
+    muzzleX: 0,
+    cooldownMs: 0,
+    colors: { handle: 0x6d4c41, blade: 0x757575, edge: 0xe0e0e0 },
   },
 } as const;
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  BOSS,
   BULLET,
   COLORS,
   CROUCH_HINT,
@@ -16,8 +17,10 @@ import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatScore } from '../logic/score';
 import { buy, type ShopItem } from '../logic/shop';
+import { isBossTurn } from '../logic/spawn';
 import { BrokenFigure } from '../objects/BrokenFigure';
-import { Enemy } from '../objects/Enemy';
+import { Boss } from '../objects/Boss';
+import { Enemy, type Foe } from '../objects/Enemy';
 import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
 import { StickFigure } from '../objects/StickFigure';
@@ -26,7 +29,8 @@ import type { ShopData } from './ShopScene';
 /** Leo's game: the black stick figure in the ruins against the white ones. */
 export class MainScene extends Phaser.Scene {
   private player!: StickFigure;
-  private enemy!: Enemy;
+  private enemy!: Foe;
+  private enemyCount = 0;
   private crouchKey!: Phaser.Input.Keyboard.Key;
   private playerBullets: Bullet[] = [];
   private enemyBullets: Bullet[] = [];
@@ -52,6 +56,7 @@ export class MainScene extends Phaser.Scene {
     this.playerAlive = true;
     this.lastShotMs = null;
     this.score = 0;
+    this.enemyCount = 0;
 
     new RuinsBackground(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
@@ -131,10 +136,7 @@ export class MainScene extends Phaser.Scene {
       const hit = this.enemyBullets.find((b) => bulletHits(b, BULLET, playerBox));
       if (hit) {
         this.enemyBullets = this.enemyBullets.filter((b) => !bulletHits(b, BULLET, playerBox));
-        this.lives = loseLife(this.lives);
-        this.livesText.setText(formatLives(this.lives, PLAYER.lives));
-        if (this.lives === 0) this.breakPlayer(hit.y);
-        else this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
+        this.hurtPlayer(hit.y);
       }
     }
 
@@ -187,11 +189,27 @@ export class MainScene extends Phaser.Scene {
     return true;
   }
 
+  /** Every 15th one is the axe boss, the others are white stick figures. */
   private spawnEnemy(): void {
     if (!this.playerAlive) return;
+    this.enemyCount += 1;
+    if (isBossTurn(this.enemyCount, BOSS.every)) {
+      this.enemy = new Boss(this, (hitY) => {
+        if (this.playerAlive) this.hurtPlayer(hitY);
+      });
+      return;
+    }
     this.enemy = new Enemy(this, (muzzle) => {
       this.shoot(muzzle, -1);
     });
+  }
+
+  /** A bullet or the axe hit the player: lose a life, and break on the last one. */
+  private hurtPlayer(hitY: number): void {
+    this.lives = loseLife(this.lives);
+    this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+    if (this.lives === 0) this.breakPlayer(hitY);
+    else this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
   }
 
   /** Out of lives: the player breaks in two like the white ones, and the shooting stops. */
