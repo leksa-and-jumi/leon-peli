@@ -15,6 +15,31 @@ export const MOTION = {
   smoothSpeed: 14,
 } as const;
 
+/** Sounds, all made with code. */
+export const SOUND = {
+  volume: 0.6,
+  /** The white ones' guns are a bit quieter than yours. */
+  enemyGunVolume: 0.55,
+  screamVolume: 0.6,
+  screamLength: 0.9,
+  /** How rough the scream is (0 = smooth). */
+  screamRasp: 6,
+  /** How much breathy hiss is in the scream. */
+  screamBreath: 0.25,
+  /** Screams slide from `start` down to `end` Hz: men's voices, deepest for the axe guy. */
+  screamPitch: {
+    player: { start: 210, end: 105 },
+    white: { start: 240, end: 120 },
+    boss: { start: 140, end: 65 },
+  },
+  /** Mouth shapes of a man's "aaa" sliding to "ooo": [from Hz, to Hz, loudness]. */
+  screamFormants: [
+    [730, 570, 1],
+    [1090, 840, 0.7],
+    [2440, 2410, 0.3],
+  ],
+} as const;
+
 /** Round ends on the stick figures' lines. */
 export const ROUND_ENDS = {
   /** Hands and feet are round balls this much bigger than the line (part of the line width). */
@@ -154,7 +179,7 @@ export const BLOOD = {
 
 /** Every text in the game is shown in English and Finnish. */
 export const CROUCH_HINT =
-  'A/D = move 🏃 / liiku\nS = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nK = shop 🛒 / kauppa';
+  'A/D = move 🏃 / liiku\nS = crouch 🧎 / kyykisty\n🖱️ = shoot / ammu\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {
@@ -191,7 +216,7 @@ export type Weapon = keyof typeof WEAPONS;
 /** Bar under the hints that fills up while the gun reloads. */
 export const RELOAD_BAR = {
   x: 52,
-  y: 122,
+  y: 142,
   width: 120,
   height: 10,
   empty: 0x3a332b,

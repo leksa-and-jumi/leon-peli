@@ -14,12 +14,13 @@
 
 🇫🇮 Tikku-ukkosi taistelee valkoisia tikku-ukkoja vastaan vanhoissa raunioissa 🏛️. Joka 15. vihollinen on iso punainen kirvesmies 🪓.
 
-| Key / Näppäin       | 🇬🇧     | 🇫🇮       |
-| ------------------- | ------ | -------- |
-| A / D               | move   | liiku    |
-| S                   | crouch | kyykisty |
-| 🖱️ click / klikkaus | shoot  | ammu     |
-| K                   | shop   | kauppa   |
+| Key / Näppäin       | 🇬🇧           | 🇫🇮                |
+| ------------------- | ------------ | ----------------- |
+| A / D               | move         | liiku             |
+| S                   | crouch       | kyykisty          |
+| 🖱️ click / klikkaus | shoot        | ammu              |
+| K                   | shop         | kauppa            |
+| M                   | sound on/off | äänet päälle/pois |
 
 _🇬🇧 The game is just starting. Leo decides what comes next!_
 _🇫🇮 Peli on vasta alussa. Leo päättää, mitä siihen tulee!_

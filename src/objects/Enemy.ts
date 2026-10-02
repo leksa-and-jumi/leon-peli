@@ -3,6 +3,7 @@ import { BULLET, ENEMY, JUMP, PLAYER, POINTS_PER_KILL } from '../config';
 import { dodgeWindow, nextLift, wantsToBeUp, type JumpWindow } from '../logic/jump';
 import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
+import type { Voice } from '../audio/Sfx';
 import { BrokenFigure } from './BrokenFigure';
 import { StickFigure } from './StickFigure';
 
@@ -11,6 +12,8 @@ export interface Foe {
   readonly figure: StickFigure;
   /** Points the player gets for breaking it. */
   readonly points: number;
+  /** How it sounds when hit or breaking. */
+  readonly voice: Voice;
   update(deltaMs: number): void;
   isAlive(): boolean;
   /** Returns true if this hit broke it. `push` is the way the bullet flew. */
@@ -28,6 +31,7 @@ export interface Foe {
 export class Enemy implements Foe {
   readonly figure: StickFigure;
   readonly points = POINTS_PER_KILL;
+  readonly voice = 'white';
   private arrived = false;
   private alive = true;
   private lives: number = ENEMY.lives;

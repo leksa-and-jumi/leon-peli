@@ -23,6 +23,7 @@ import { loadSave, writeSave, type SaveStorage } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
 import { isBossTurn } from '../logic/spawn';
 import { BrokenFigure } from '../objects/BrokenFigure';
+import { Sfx } from '../audio/Sfx';
 import { Boss } from '../objects/Boss';
 import { Enemy, type Foe } from '../objects/Enemy';
 import { showGameOverSign } from '../objects/GameOverSign';
@@ -47,6 +48,8 @@ export class MainScene extends Phaser.Scene {
   private lastShotMs: number | null = null;
   private score = 0;
   private shopClosedKeyTime: number | null = null;
+  private sfx!: Sfx;
+  private muted = false;
   private ownedOutfits = new Set<OutfitId>(['black']);
   private wornOutfit: OutfitId = 'black';
   private scoreText!: Phaser.GameObjects.Text;
@@ -68,12 +71,18 @@ export class MainScene extends Phaser.Scene {
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
 
+    this.muted = loadSave(browserStorage()).muted;
+    this.sfx = new Sfx(this, this.muted);
+
     new RuinsBackground(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
       outlineColor: PLAYER.outlineColor,
       outlineAlpha: PLAYER.outlineAlpha,
       facing: 1,
+    });
+    this.player.setOnStep(() => {
+      this.sfx.footstep();
     });
     // A bought rifle is saved, so it's still yours after dying
     if (loadSave(browserStorage()).rifle) this.player.setWeapon('rifle');
@@ -98,6 +107,9 @@ export class MainScene extends Phaser.Scene {
       throw new Error('Keyboard input is not available');
     }
     this.crouchKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    keyboard.on('keydown-M', () => {
+      this.toggleSound();
+    });
     this.leftKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
     this.rightKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     keyboard.on('keydown-K', (event: KeyboardEvent) => {
@@ -137,6 +149,8 @@ export class MainScene extends Phaser.Scene {
           { x: this.enemy.figure.getX(), y: hitBullet.y },
           hitBullet.direction,
         );
+        if (broke) this.sfx.scream(this.enemy.voice);
+        else this.sfx.hurt(this.enemy.voice);
         if (broke) {
           this.score = addPoints(this.score, this.enemy.points);
           this.scoreText.setText(formatScore(this.score));
@@ -181,6 +195,13 @@ export class MainScene extends Phaser.Scene {
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 
+  /** M turns all sounds off and on. The choice is saved. */
+  private toggleSound(): void {
+    this.muted = !this.muted;
+    this.sfx.setMuted(this.muted);
+    writeSave(browserStorage(), { ...loadSave(browserStorage()), muted: this.muted });
+  }
+
   /** The pistol needs to reload, the rifle doesn't. */
   private cooldownMs(): number {
     return WEAPONS[this.player.getWeapon()].cooldownMs;
@@ -221,6 +242,7 @@ export class MainScene extends Phaser.Scene {
     if (!result.ok) return false;
     this.score = result.score;
     this.scoreText.setText(formatScore(this.score));
+    this.sfx.buy();
     if (item.id === 'life') {
       this.lives += 1;
       this.livesText.setText(formatLives(this.lives, PLAYER.lives));
@@ -260,14 +282,21 @@ export class MainScene extends Phaser.Scene {
       this.enemy = new Boss(
         this,
         (hitY, push) => {
+          this.sfx.chop();
           if (this.playerAlive) this.hurtPlayer(hitY, push);
         },
         () => this.player.getX(),
       );
+      this.enemy.figure.setOnStep(() => {
+        this.sfx.footstep(true);
+      });
       return;
     }
     this.enemy = new Enemy(this, (muzzle) => {
       this.shoot(muzzle, -1, 'enemy');
+    });
+    this.enemy.figure.setOnStep(() => {
+      this.sfx.footstep(false, true);
     });
   }
 
@@ -275,6 +304,7 @@ export class MainScene extends Phaser.Scene {
   private hurtPlayer(hitY: number, push: 1 | -1): void {
     this.lives = loseLife(this.lives);
     this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+    this.sfx[this.lives === 0 ? 'scream' : 'hurt']('player');
     if (this.lives === 0) this.breakPlayer(hitY, push);
     else this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
   }
@@ -323,8 +353,13 @@ export class MainScene extends Phaser.Scene {
     shooter: 'player' | 'enemy',
   ): void {
     const bullet = { ...muzzle, direction };
-    if (shooter === 'player') this.playerBullets.push(bullet);
-    else this.enemyBullets.push(bullet);
+    if (shooter === 'player') {
+      this.playerBullets.push(bullet);
+      this.sfx.gunshot(this.player.getWeapon());
+    } else {
+      this.enemyBullets.push(bullet);
+      this.sfx.gunshot('pistol', true);
+    }
 
     // Quick flash at the end of the gun
     const { color, radius, durationMs } = BULLET.flash;
