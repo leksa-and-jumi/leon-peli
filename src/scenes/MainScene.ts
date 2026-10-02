@@ -26,9 +26,7 @@ export class MainScene extends Phaser.Scene {
       outlineAlpha: PLAYER.outlineAlpha,
       facing: 1,
     });
-    this.enemy = new Enemy(this, (muzzle) => {
-      this.shoot(muzzle, -1);
-    });
+    this.spawnEnemy();
     this.bulletGraphics = this.add.graphics();
     this.add.text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text });
 
@@ -52,6 +50,19 @@ export class MainScene extends Phaser.Scene {
     this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
     this.enemyBullets = moveBullets(this.enemyBullets, ENEMY.bulletSpeed, delta, GAME_WIDTH);
 
+    // The player's bullets break a white figure in two where they hit
+    if (this.enemy.isAlive()) {
+      const enemyBox = this.enemy.figure.bounds();
+      const hitBullet = this.playerBullets.find((b) => bulletHits(b, BULLET, enemyBox));
+      if (hitBullet) {
+        this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
+        this.enemy.breakAt({ x: this.enemy.figure.getX(), y: hitBullet.y });
+        this.time.delayedCall(ENEMY.respawnMs, () => {
+          this.spawnEnemy();
+        });
+      }
+    }
+
     // White figures' bullets that hit the player disappear, and the player blinks red
     const playerBox = this.player.bounds();
     const hit = this.enemyBullets.some((b) => bulletHits(b, BULLET, playerBox));
@@ -61,6 +72,12 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.drawBullets();
+  }
+
+  private spawnEnemy(): void {
+    this.enemy = new Enemy(this, (muzzle) => {
+      this.shoot(muzzle, -1);
+    });
   }
 
   private drawBullets(): void {

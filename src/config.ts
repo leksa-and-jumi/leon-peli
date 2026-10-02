@@ -37,6 +37,35 @@ export const ENEMY = {
   firstShotMs: 1200,
   shootIntervalMs: 2000,
   bulletSpeed: 450, // slower than the player's, so there's time to crouch
+  /** Time before a new one walks in after one is hit. */
+  respawnMs: 1500,
+} as const;
+
+/** How a hit white stick figure breaks in two. */
+export const BREAK = {
+  topFlyX: 10,
+  /** How high above the ground the top piece's turning point stops. */
+  restHeight: 6,
+  topSpin: -85, // degrees, falls toward the player so it stays on screen
+  topFallMs: 550,
+  bottomTip: 80, // degrees
+  bottomDelayMs: 120,
+  bottomFallMs: 650,
+  fadeDelayMs: 1500,
+  fadeMs: 500,
+} as const;
+
+/** Red drops that spray out of a hit. */
+export const BLOOD = {
+  color: 0xc62828,
+  drops: 16,
+  minRadius: 1.5,
+  maxRadius: 3.5,
+  spread: 90,
+  /** Drops land a little in front of or behind the feet line. */
+  landingDepth: 12,
+  minFlightMs: 300,
+  extraFlightMs: 350,
 } as const;
 
 /** Every text in the game is shown in English and Finnish. */

@@ -1,7 +1,15 @@
 import Phaser from 'phaser';
 import { BULLET, PLAYER } from '../config';
 import type { Box } from '../logic/bullets';
-import { poseBounds, stickFigurePose, type Facing, type Pose, type Stance } from '../logic/pose';
+import { figureSegments, type Segment } from '../logic/cut';
+import {
+  poseBounds,
+  stickFigurePose,
+  type Facing,
+  type Point,
+  type Pose,
+  type Stance,
+} from '../logic/pose';
 
 export interface StickFigureLook {
   color: number;
@@ -78,68 +86,87 @@ export class StickFigure {
     });
   }
 
+  getFeetY(): number {
+    return this.feetY;
+  }
+
+  getLook(): StickFigureLook {
+    return this.look;
+  }
+
   destroy(): void {
     this.g.destroy();
   }
 
-  private pose(): Pose {
+  pose(): Pose {
     return stickFigurePose(PLAYER.height, this.stance, this.look.facing);
   }
 
   private draw(): void {
     const pose = this.pose();
     const { color, outlineColor, outlineAlpha } = this.look;
+    const segments = figureSegments(pose);
     this.g.clear();
     // Edge first, then the figure on top of it
-    this.drawBody(pose, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
-    this.drawBody(pose, PLAYER.lineWidth, this.hitColor ?? color, 1);
-    this.drawGun(pose);
+    drawSegments(this.g, segments, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
+    drawHead(this.g, pose, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
+    drawSegments(this.g, segments, PLAYER.lineWidth, this.hitColor ?? color, 1);
+    drawHead(this.g, pose, PLAYER.lineWidth, this.hitColor ?? color, 1);
+    drawGun(this.g, pose, this.look);
   }
+}
 
-  private drawBody(pose: Pose, lineWidth: number, color: number, alpha: number): void {
-    const line = (from: { x: number; y: number }, to: { x: number; y: number }): void => {
-      this.g.lineBetween(from.x, from.y, to.x, to.y);
-    };
-    this.g.lineStyle(lineWidth, color, alpha);
-    // Legs (bent at the knees when crouching)
-    line(pose.hip, pose.backKnee);
-    line(pose.backKnee, pose.backFoot);
-    line(pose.hip, pose.frontKnee);
-    line(pose.frontKnee, pose.frontFoot);
-    // Body
-    line(pose.hip, pose.neck);
-    // Back arm hangs down, front arm holds the gun
-    line(pose.shoulder, pose.backHand);
-    line(pose.shoulder, pose.gunHand);
-    // Head
-    const extra = (lineWidth - PLAYER.lineWidth) / 2;
-    this.g.fillStyle(color, alpha);
-    this.g.fillCircle(
-      pose.neck.x,
-      pose.neck.y - pose.headRadius + lineWidth / 2,
-      pose.headRadius + extra,
-    );
+/** Draws stick figure lines. */
+export function drawSegments(
+  g: Phaser.GameObjects.Graphics,
+  segments: readonly Segment[],
+  lineWidth: number,
+  color: number,
+  alpha: number,
+): void {
+  g.lineStyle(lineWidth, color, alpha);
+  for (const { from, to } of segments) {
+    g.lineBetween(from.x, from.y, to.x, to.y);
   }
+}
 
-  private drawGun(pose: Pose): void {
-    const { x: handX, y: handY } = pose.gunHand;
-    const { facing, outlineColor, outlineAlpha } = this.look;
-    const { body, shine } = PLAYER.gun;
-    // Rectangles measured forward from the hand, mirrored when facing left
-    const rect = (dx: number, dy: number, w: number, h: number): void => {
-      const left = facing === 1 ? handX + dx : handX - dx - w;
-      this.g.fillRect(left, handY + dy, w, h);
-    };
-    this.g.fillStyle(outlineColor, outlineAlpha);
-    rect(-4, -9, 34, 12);
-    rect(-4, -4, 12, 18);
-    this.g.fillStyle(body, 1);
-    // Barrel pointing forward
-    rect(-2, -7, 30, 8);
-    // Handle going down from the hand
-    rect(-2, -2, 8, 14);
-    // A little shine on top of the barrel
-    this.g.fillStyle(shine, 1);
-    rect(0, -7, 26, 2);
-  }
+/** Where the middle of the head is. */
+export function headCenter(pose: Pose): Point {
+  return { x: pose.neck.x, y: pose.neck.y - pose.headRadius + PLAYER.lineWidth / 2 };
+}
+
+/** Draws the head. A wider `lineWidth` makes it a bit bigger, for the edge. */
+export function drawHead(
+  g: Phaser.GameObjects.Graphics,
+  pose: Pose,
+  lineWidth: number,
+  color: number,
+  alpha: number,
+): void {
+  const center = headCenter(pose);
+  g.fillStyle(color, alpha);
+  g.fillCircle(center.x, center.y, pose.headRadius + (lineWidth - PLAYER.lineWidth) / 2);
+}
+
+/** Draws the gun in the gun hand, pointing the way the figure faces. */
+export function drawGun(g: Phaser.GameObjects.Graphics, pose: Pose, look: StickFigureLook): void {
+  const { x: handX, y: handY } = pose.gunHand;
+  const { facing, outlineColor, outlineAlpha } = look;
+  const { body, shine } = PLAYER.gun;
+  // Rectangles measured forward from the hand, mirrored when facing left
+  const rect = (dx: number, dy: number, w: number, h: number): void => {
+    const left = facing === 1 ? handX + dx : handX - dx - w;
+    g.fillRect(left, handY + dy, w, h);
+  };
+  g.fillStyle(outlineColor, outlineAlpha);
+  rect(-4, -9, 34, 12);
+  rect(-4, -4, 12, 18);
+  g.fillStyle(body, 1);
+  // Barrel pointing forward
+  rect(-2, -7, 30, 8);
+  // Handle going down from the hand
+  rect(-2, -2, 8, 14);
+  // A little shine on top of the barrel
+  g.fillStyle(shine, 1);
+  rect(0, -7, 26, 2);
 }
