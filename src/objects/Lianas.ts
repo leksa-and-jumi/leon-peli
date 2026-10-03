@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { LIANAS } from '../config';
+import { GAME_WIDTH, LIANAS } from '../config';
 import { ropeEnd, type Spot } from '../logic/liana';
+import { repeatedSpots, type RepeatedSpot } from '../logic/world';
 import { drawLeaf } from './leaf';
 
 /** Points along a vine, from the branch (t = 0) to the end (t = 1). */
@@ -14,37 +15,46 @@ export class Lianas {
   private readonly g: Phaser.GameObjects.Graphics;
   private timeMs = 0;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(private readonly scene: Phaser.Scene) {
     this.g = scene.add.graphics();
   }
 
-  /** The end of vine `index`, leaning by `angle`. */
-  end(index: number, angle: number): Spot {
-    const anchor = LIANAS.anchors[index] ?? { x: 0, y: 0 };
+  /** The vines hanging between `fromX` and `toX` (they repeat with the ruins, forever). */
+  near(fromX: number, toX: number): RepeatedSpot[] {
+    return repeatedSpots(LIANAS.anchors, GAME_WIDTH, fromX, toX);
+  }
+
+  /** The end of the vine hanging from `anchor`, leaning by `angle`. */
+  end(anchor: Spot, angle: number): Spot {
     return ropeEnd(anchor, LIANAS.length, angle);
   }
 
   /** How far a vine nobody holds leans right now (a gentle sway). */
-  idleAngle(index: number): number {
-    return Math.sin(this.timeMs / 900 + index * 1.7) * 0.04;
+  idleAngle(id: number): number {
+    return Math.sin(this.timeMs / 900 + id * 1.7) * 0.04;
   }
 
   /**
-   * Draw all vines; `held` is the one being swung: how far it leans and how fast
-   * it's swinging (so it can bend behind).
+   * Draw the vines on the screen; `held` is the one being swung: how far it leans
+   * and how fast it's swinging (so it can bend behind).
    */
-  draw(deltaMs: number, held: { index: number; angle: number; speed: number } | null): void {
+  draw(deltaMs: number, held: { id: number; angle: number; speed: number } | null): void {
     this.timeMs += deltaMs;
     this.g.clear();
-    LIANAS.anchors.forEach((anchor, index) => {
-      const isHeld = held?.index === index;
-      const angle = isHeld ? held.angle : this.idleAngle(index);
+    const view = this.scene.cameras.main.worldView;
+    // A swinging vine can lean far out, so look a bit past the screen edges
+    for (const vine of this.near(view.left - LIANAS.length, view.right + LIANAS.length)) {
+      const isHeld = held?.id === vine.id;
+      const angle = isHeld ? held.angle : this.idleAngle(vine.id);
       // Swinging fast, the middle of the vine lags behind; hanging still, it barely moves
       const bend = isHeld
         ? -held.speed * LIANAS.bend
-        : Math.sin(this.timeMs / 700 + index * 2.3) * 2;
-      this.drawVine(anchor, this.end(index, angle), bend, index);
-    });
+        : Math.sin(this.timeMs / 700 + vine.id * 2.3) * 2;
+      // Copies of the same vine look the same (same kinks and twists)
+      const look =
+        ((vine.id % LIANAS.anchors.length) + LIANAS.anchors.length) % LIANAS.anchors.length;
+      this.drawVine(vine, this.end(vine, angle), bend, look);
+    }
   }
 
   private drawVine(anchor: Spot, end: Spot, bend: number, index: number): void {

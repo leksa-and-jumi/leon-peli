@@ -27,6 +27,7 @@ import {
   RUN_SAVE_EVERY_MS,
   START_POINTS,
   WEAPONS,
+  WORLD,
   type OutfitId,
   type Weapon,
 } from '../config';
@@ -49,6 +50,8 @@ import {
   type Swing,
 } from '../logic/liana';
 import { bumps, knockdownAt } from '../logic/knockdown';
+import { canSpawn, followCamera, spawnSide, type RepeatedSpot } from '../logic/world';
+import { smoothingStep } from '../logic/pose';
 import {
   afterDeath,
   loadSave,
@@ -78,7 +81,10 @@ import type { ShopData } from './ShopScene';
 /** Leo's game: the black stick figure in the ruins against the white ones. */
 export class MainScene extends Phaser.Scene {
   private player!: StickFigure;
-  private enemy!: Foe;
+  /** Everyone fighting you right now: up to three, from both sides. */
+  private enemies: Foe[] = [];
+  /** When the next enemy may come in. */
+  private nextSpawnAt = 0;
   private enemyCount = 0;
   /** Each move has two keys: letters on the left hand, arrows on the right. */
   private crouchKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -103,8 +109,7 @@ export class MainScene extends Phaser.Scene {
   private jumpLift = 0;
   private jumpSpeed = 0;
   /** Holding a vine: which one, and how it swings. */
-  private hanging: { index: number; swing: Swing } | null = null;
-  /** Flying off a vine with a flip. */
+  private hanging: { vine: RepeatedSpot; swing: Swing } | null = null;
   /** Flying off a vine: where you are, how long you've flown, and which way you flip. */
   private flight: { drop: Drop; elapsed: number; airTime: number; turn: 1 | -1 } | null = null;
   /** Crashed into someone: lying on your back, then getting up by yourself. */
@@ -117,7 +122,6 @@ export class MainScene extends Phaser.Scene {
   private lianas!: Lianas;
   private bubbles!: PointBubbles;
   private lastGrenadeMs: number | null = null;
-  private enemyShots = 0;
   private grenades!: Grenades;
   private grenadeBar!: Phaser.GameObjects.Graphics;
   private muted = false;
@@ -153,7 +157,8 @@ export class MainScene extends Phaser.Scene {
     this.landingUntil = 0;
     this.regrabAt = 0;
     this.lastGrenadeMs = null;
-    this.enemyShots = 0;
+    this.enemies = [];
+    this.nextSpawnAt = 0;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
@@ -192,12 +197,13 @@ export class MainScene extends Phaser.Scene {
     this.player.setWeapon(this.gun);
     this.rifleUpgrade = levelWeapons.rifleUpgrade;
     if (run) {
-      this.player.setX(Math.min(Math.max(run.playerX, PLAYER.minX), PLAYER.maxX));
+      this.player.setX(run.playerX);
       const worn = run.wornOutfit in OUTFITS ? (run.wornOutfit as OutfitId) : 'black';
       if (this.ownedOutfits.has(worn))
         this.wear({ id: worn, emoji: '', name: '', price: 0, outfit: worn });
     }
-    this.spawnEnemy();
+    // The camera keeps you in the middle as you walk through the endless ruins
+    this.cameras.main.scrollX = this.player.getX() - GAME_WIDTH / 2;
 
     // Keep saving while playing, so closing the page doesn't lose the game
     this.time.addEvent({
@@ -220,15 +226,21 @@ export class MainScene extends Phaser.Scene {
     this.grenades = new Grenades(this, () => {
       this.sfx.explosion();
     });
+    // Texts and bars stay put on the screen while the world scrolls
     this.add
       .text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text })
-      .setDepth(ATMOSPHERE.hudDepth);
-    this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' }).setDepth(ATMOSPHERE.hudDepth);
-    this.reloadBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.add
+      .text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' })
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.reloadBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth).setScrollFactor(0);
     this.add
       .text(16, RELOAD_BAR.y + RELOAD_BAR.gap - 8, '💣', { fontSize: '20px' })
-      .setDepth(ATMOSPHERE.hudDepth);
-    this.grenadeBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.grenadeBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth).setScrollFactor(0);
     this.bestBefore = loadSave(browserStorage()).best[this.difficulty] ?? 0;
     this.bestText = this.add
       .text(GAME_WIDTH - 16, 52, formatBest(Math.max(this.bestBefore, this.earned)), {
@@ -236,7 +248,8 @@ export class MainScene extends Phaser.Scene {
         color: COLORS.text,
       })
       .setOrigin(1, 0)
-      .setDepth(ATMOSPHERE.hudDepth);
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
     this.scoreText = this.add
       .text(GAME_WIDTH / 2, 16, formatScore(this.score), {
         fontSize: '28px',
@@ -244,11 +257,13 @@ export class MainScene extends Phaser.Scene {
         fontStyle: 'bold',
       })
       .setOrigin(0.5, 0)
-      .setDepth(ATMOSPHERE.hudDepth);
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
     this.livesText = this.add
       .text(GAME_WIDTH - 16, 16, this.livesLabel(), { fontSize: '26px' })
       .setOrigin(1, 0)
-      .setDepth(ATMOSPHERE.hudDepth);
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) {
@@ -306,6 +321,7 @@ export class MainScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0)
       .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0)
       .setInteractive({ useHandCursor: true });
     button.on('pointerdown', () => {
       this.saveRun();
@@ -346,9 +362,11 @@ export class MainScene extends Phaser.Scene {
     }
     const muzzle = this.player.muzzlePosition();
     const facing = this.player.getFacing();
-    this.shoot(muzzle, facing, 'player');
+    this.shoot(muzzle, facing, this.player);
     // Shots from a crouch toward the white ones are always jumped over
-    if (this.isCrouching() && facing === 1) this.enemy.dodge(muzzle.x, BULLET.speed);
+    if (this.isCrouching()) {
+      for (const enemy of this.enemies) enemy.dodge(muzzle.x, BULLET.speed, facing);
+    }
   }
 
   /** In the pig suit: swing the axe at whoever is right in front of you. */
@@ -359,12 +377,10 @@ export class MainScene extends Phaser.Scene {
       this.sfx.chop();
       if (!this.playerAlive) return;
       const facing = this.player.getFacing();
-      if (
-        this.enemy.isAlive() &&
-        inReach(this.player.getX(), facing, this.enemy.figure.getX(), PIG_AXE.reach)
-      ) {
-        this.hitEnemy(PLAYER.feetY - 70, facing, PIG_AXE.damage);
-      }
+      const target = this.nearestEnemy((e) =>
+        inReach(this.player.getX(), facing, e.figure.getX(), PIG_AXE.reach),
+      );
+      if (target) this.hitEnemy(target, PLAYER.feetY - 70, facing, PIG_AXE.damage);
     });
     this.time.delayedCall(SWING.windupMs + PIG_AXE.chopMs, () => {
       this.chopping = false;
@@ -373,25 +389,37 @@ export class MainScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (this.playerAlive) this.movePlayer(delta);
-    this.enemy.update(delta);
-
-    this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
-    this.enemyBullets = moveBullets(
-      this.enemyBullets,
-      ENEMY.bulletSpeed,
-      delta,
+    // The camera glides along to keep you in the middle
+    const camera = this.cameras.main;
+    camera.scrollX = followCamera(
+      camera.scrollX,
+      this.player.getX(),
       GAME_WIDTH,
-      GAME_HEIGHT,
+      smoothingStep(delta, WORLD.cameraSpeed),
     );
+    this.spawnWhenThereIsRoom();
+    for (const enemy of this.enemies) enemy.update(delta);
+    // Broken ones are gone (their pieces stay on the ground by themselves)
+    this.enemies = this.enemies.filter((e) => e.isAlive());
 
-    // The player's bullets hit the enemy
-    if (this.enemy.isAlive()) {
-      const enemyBox = this.enemy.figure.bounds();
-      const hitBullet = this.playerBullets.find((b) => bulletHits(b, BULLET, enemyBox));
-      if (hitBullet) {
-        this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
-        this.hitEnemy(hitBullet.y, hitBullet.direction, 1);
-      }
+    // Bullets that fly off the screen are gone
+    const area = {
+      left: camera.scrollX - WORLD.bulletMargin,
+      right: camera.scrollX + GAME_WIDTH + WORLD.bulletMargin,
+      top: 0,
+      bottom: GAME_HEIGHT,
+    };
+    this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, area);
+    this.enemyBullets = moveBullets(this.enemyBullets, ENEMY.bulletSpeed, delta, area);
+
+    // The player's bullets hit the first enemy in their way
+    for (const bullet of [...this.playerBullets]) {
+      const target = this.enemies.find(
+        (e) => e.isAlive() && bulletHits(bullet, BULLET, e.figure.bounds()),
+      );
+      if (!target) continue;
+      this.playerBullets = this.playerBullets.filter((b) => b !== bullet);
+      this.hitEnemy(target, bullet.y, bullet.direction, 1);
     }
 
     // White figures' bullets that hit the player disappear, and the player blinks red
@@ -411,7 +439,7 @@ export class MainScene extends Phaser.Scene {
       delta,
       this.hanging
         ? {
-            index: this.hanging.index,
+            id: this.hanging.vine.id,
             angle: this.hanging.swing.angle,
             speed: this.hanging.swing.speed,
           }
@@ -443,10 +471,8 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
-    const oldX = this.player.getX();
-    let x = moveX(oldX, direction, PLAYER.walkSpeed, delta, PLAYER.minX, this.maxX());
-    // Flew past where you can walk: walk back there instead of popping
-    if (oldX > this.maxX()) x = Math.max(this.maxX(), oldX - (PLAYER.walkSpeed * delta) / 1000);
+    // The ruins go on forever: walk as far as you like either way
+    const x = moveX(this.player.getX(), direction, PLAYER.walkSpeed, delta, -Infinity, Infinity);
     this.player.setX(x);
 
     // In the air: fly up and come back down, and grab a vine if you reach one
@@ -470,11 +496,6 @@ export class MainScene extends Phaser.Scene {
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 
-  /** How far right you can go (closer to the enemies with the axe). */
-  private maxX(): number {
-    return this.player.getWeapon() === 'axe' ? PIG_AXE.maxX : PLAYER.maxX;
-  }
-
   /** How high the player's feet are right now. */
   private playerLift(): number {
     return PLAYER.feetY - this.player.getFeetY();
@@ -496,11 +517,12 @@ export class MainScene extends Phaser.Scene {
   private tryGrab(): boolean {
     if (this.time.now < this.regrabAt) return false;
     const handsY = this.player.bounds().top + 8;
-    for (let index = 0; index < LIANAS.anchors.length; index++) {
-      const angle = this.lianas.idleAngle(index);
-      const end = this.lianas.end(index, angle);
-      if (canGrab(this.player.getX(), handsY, end, LIANAS.grabReachX, LIANAS.grabReachY)) {
-        this.hanging = { index, swing: { angle, speed: 0 } };
+    const x = this.player.getX();
+    for (const vine of this.lianas.near(x - LIANAS.length, x + LIANAS.length)) {
+      const angle = this.lianas.idleAngle(vine.id);
+      const end = this.lianas.end(vine, angle);
+      if (canGrab(x, handsY, end, LIANAS.grabReachX, LIANAS.grabReachY)) {
+        this.hanging = { vine, swing: { angle, speed: 0 } };
         this.jumpLift = 0;
         this.jumpSpeed = 0;
         this.flight = null;
@@ -519,7 +541,7 @@ export class MainScene extends Phaser.Scene {
     if (!this.hanging) return;
     const rules = { ...LIANAS.swing, length: LIANAS.length };
     this.hanging.swing = pendulumStep(this.hanging.swing, input, delta, rules);
-    const end = this.lianas.end(this.hanging.index, this.hanging.swing.angle);
+    const end = this.lianas.end(this.hanging.vine, this.hanging.swing.angle);
     this.player.setX(end.x);
     const feetY = end.y + LIANAS.hangDrop * PLAYER.height;
     this.player.setLift(PLAYER.feetY - feetY);
@@ -552,7 +574,6 @@ export class MainScene extends Phaser.Scene {
     const f = this.flight;
     f.elapsed += delta / 1000;
     f.drop = stepDrop(f.drop, delta, PLAYER.gravity);
-    f.drop.x = Math.min(Math.max(f.drop.x, PLAYER.minX), LIANAS.flightMaxX);
     this.player.setX(f.drop.x);
     const lift = PLAYER.feetY - f.drop.y;
     if (lift <= 0) {
@@ -576,14 +597,17 @@ export class MainScene extends Phaser.Scene {
     this.tryGrab();
   }
 
-  /** Flying into the enemy: bounce off and fall on your back. */
+  /** Flying into an enemy: bounce off and fall on your back. */
   private crashedIntoEnemy(lift: number): boolean {
-    if (!this.flight || !this.enemy.isAlive()) return false;
+    if (!this.flight) return false;
     const middle = {
       x: this.player.getX(),
       y: PLAYER.feetY - lift - PLAYER.height / 2,
     };
-    if (!bumps(middle, this.enemy.figure.bounds(), KNOCKDOWN.margin)) return false;
+    const crashed = this.enemies.some(
+      (e) => e.isAlive() && bumps(middle, e.figure.bounds(), KNOCKDOWN.margin),
+    );
+    if (!crashed) return false;
     const back = this.flight.turn === 1 ? -1 : 1;
     // Carry on from wherever the flip was (as the shortest way round)
     const progress = this.flight.elapsed / this.flight.airTime;
@@ -609,8 +633,7 @@ export class MainScene extends Phaser.Scene {
     if (state.phase === 'fall') {
       lift = k.startLift * (1 - state.tip) + lyingLift * state.tip;
       // Bounce back off the one you hit
-      const x = this.player.getX() + (k.back * KNOCKDOWN.bounceBack * delta) / 1000;
-      this.player.setX(Math.min(Math.max(x, PLAYER.minX), LIANAS.flightMaxX));
+      this.player.setX(this.player.getX() + (k.back * KNOCKDOWN.bounceBack * delta) / 1000);
     }
     if (state.phase === 'lie' && k.elapsed - delta < KNOCKDOWN.fallMs) {
       // Thud!
@@ -630,24 +653,36 @@ export class MainScene extends Phaser.Scene {
   }
 
   /**
-   * The enemy got hit `times` times (a bullet once, a grenade more). Screams when it
-   * breaks: points, the record and a new enemy after a moment.
+   * An enemy got hit `times` times (a bullet once, a grenade more). Screams when it
+   * breaks: points and the record. New ones keep coming in by themselves.
    */
-  private hitEnemy(hitY: number, push: 1 | -1, times: number): void {
-    if (!this.enemy.isAlive()) return;
+  private hitEnemy(enemy: Foe, hitY: number, push: 1 | -1, times: number): void {
+    if (!enemy.isAlive()) return;
     let broke = false;
     for (let i = 0; i < times && !broke; i++) {
-      broke = this.enemy.takeHit({ x: this.enemy.figure.getX(), y: hitY }, push);
+      broke = enemy.takeHit({ x: enemy.figure.getX(), y: hitY }, push);
     }
     if (!broke) {
-      this.sfx.hurt(this.enemy.voice);
+      this.sfx.hurt(enemy.voice);
       return;
     }
-    this.sfx.scream(this.enemy.voice);
-    this.gainPoints(this.enemy.points);
-    this.time.delayedCall(ENEMY.respawnMs, () => {
-      this.spawnEnemy();
-    });
+    this.sfx.scream(enemy.voice);
+    this.gainPoints(enemy.points);
+    // Nobody left: the next one comes soon
+    if (!this.enemies.some((e) => e.isAlive())) {
+      this.nextSpawnAt = Math.min(this.nextSpawnAt, this.time.now + ENEMY.respawnMs);
+    }
+  }
+
+  /** The closest living enemy that `fits`, or null. */
+  private nearestEnemy(fits: (enemy: Foe) => boolean): Foe | null {
+    const x = this.player.getX();
+    let best: Foe | null = null;
+    for (const e of this.enemies) {
+      if (!e.isAlive() || !fits(e)) continue;
+      if (!best || Math.abs(e.figure.getX() - x) < Math.abs(best.figure.getX() - x)) best = e;
+    }
+    return best;
   }
 
   /** Points for breaking an enemy or catching a bubble: to spend, and toward the record. */
@@ -664,23 +699,29 @@ export class MainScene extends Phaser.Scene {
     if (!canShoot(this.time.now, this.lastGrenadeMs, GRENADE.cooldownMs)) return;
     this.lastGrenadeMs = this.time.now;
     const facing = this.player.getFacing();
-    // Aim at the enemy if it's in front of you, otherwise throw a fixed distance
-    const enemyX = this.enemy.figure.getX();
-    const enemyInFront = this.enemy.isAlive() && (enemyX - this.player.getX()) * facing > 0;
+    const playerX = this.player.getX();
+    // Aim at the closest enemy in front of you, otherwise throw a fixed distance
+    const inFront = this.nearestEnemy((e) => (e.figure.getX() - playerX) * facing > 0);
+    const left = this.cameras.main.scrollX;
     const target = Math.min(
-      Math.max(enemyInFront ? enemyX : this.player.getX() + facing * GRENADE.throwDistance, 20),
-      GAME_WIDTH - 20,
+      Math.max(
+        inFront ? inFront.figure.getX() : playerX + facing * GRENADE.throwDistance,
+        left + 20,
+      ),
+      left + GAME_WIDTH - 20,
     );
     this.grenades.throw(this.player.handPosition(), target, PLAYER.feetY, (x) => {
-      if (this.enemy.isAlive() && inBlast(this.enemy.figure.getX(), x, GRENADE.radius)) {
-        this.hitEnemy(PLAYER.feetY - 60, facing, GRENADE.damage);
+      // The blast hurts everyone near it
+      for (const e of this.enemies) {
+        if (e.isAlive() && inBlast(e.figure.getX(), x, GRENADE.radius)) {
+          this.hitEnemy(e, PLAYER.feetY - 60, facing, GRENADE.damage);
+        }
       }
     });
   }
 
   /** A white one has shot 10 times: it throws a grenade at you. */
-  private enemyThrowsGrenade(): void {
-    const enemy = this.enemy;
+  private enemyThrowsGrenade(enemy: Foe): void {
     if (!this.playerAlive || !enemy.isAlive()) return;
     this.grenades.throw(enemy.figure.handPosition(), this.player.getX(), PLAYER.feetY, (x) => {
       const close = inBlast(this.player.getX(), x, GRENADE.radius);
@@ -805,16 +846,32 @@ export class MainScene extends Phaser.Scene {
     return this.gun;
   }
 
-  /** Every 30th one is the giant, every 15th the axe guy, the others white stick figures. */
-  private spawnEnemy(): void {
+  /** Send in another enemy when it's time, as long as there are fewer than three. */
+  private spawnWhenThereIsRoom(): void {
     if (!this.playerAlive) return;
+    const alive = this.enemies.filter((e) => e.isAlive()).length;
+    if (!canSpawn(alive, ENEMY.maxAtOnce, this.time.now, this.nextSpawnAt)) return;
+    this.spawnEnemy();
+    const { min, max } = ENEMY.spawnGapMs;
+    this.nextSpawnAt = this.time.now + min + Math.random() * (max - min);
+  }
+
+  /**
+   * A new enemy walks in from just off the screen, on the left or the right.
+   * Which kind depends on the level and how many have come so far.
+   */
+  private spawnEnemy(): void {
     this.enemyCount += 1;
-    this.enemyShots = 0;
     const rules = DIFFICULTIES[this.difficulty];
     const next = enemyFor(rules, this.enemyCount);
+    const side = spawnSide(Math.random());
+    const left = this.cameras.main.scrollX;
+    const startX =
+      side === 1 ? left + GAME_WIDTH + WORLD.spawnOffscreen : left - WORLD.spawnOffscreen;
+    let enemy: Foe;
     if (next.kind !== 'white') {
       const base = next.kind === 'giant' ? GIANT : next.kind === 'brute' ? BRUTE : BOSS;
-      this.enemy = new Boss(
+      const boss = new Boss(
         this,
         base,
         (hitY, push, damage) => {
@@ -823,34 +880,42 @@ export class MainScene extends Phaser.Scene {
         },
         () => this.player.getX(),
         next.lives,
+        startX,
       );
-      this.enemy.figure.setOnStep(() => {
+      boss.figure.setOnStep(() => {
         this.sfx.footstep(true);
-        this.dustAt(this.enemy.figure.getX(), 2);
+        this.dustAt(boss.figure.getX(), 2);
       });
-      return;
+      enemy = boss;
+    } else {
+      // On most levels the white ones aim at the middle of you, wherever you are
+      const aimAt = rules.aimAtPlayer
+        ? (): { x: number; y: number } => {
+            const box = this.player.bounds();
+            return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
+          }
+        : null;
+      const { min, max } = ENEMY.standOff;
+      let shots = 0;
+      const white: Enemy = new Enemy(
+        this,
+        (muzzle, slope, direction) => {
+          this.shoot(muzzle, direction, white.figure, slope);
+          shots += 1;
+          // Every 10th shot it throws a grenade too
+          if (grenadeAfterShots(shots, GRENADE.enemyEveryShots)) this.enemyThrowsGrenade(white);
+        },
+        next.lives ?? ENEMY.lives,
+        aimAt,
+        { startX, standOff: min + Math.random() * (max - min), playerX: () => this.player.getX() },
+      );
+      white.figure.setOnStep(() => {
+        this.sfx.footstep(false, true);
+        this.dustAt(white.figure.getX());
+      });
+      enemy = white;
     }
-    // On most levels the white ones aim at the middle of you, wherever you are
-    const aimAt = rules.aimAtPlayer
-      ? (): { x: number; y: number } => {
-          const box = this.player.bounds();
-          return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
-        }
-      : null;
-    this.enemy = new Enemy(
-      this,
-      (muzzle, slope) => {
-        this.shoot(muzzle, -1, 'enemy', slope);
-        this.enemyShots += 1;
-        if (grenadeAfterShots(this.enemyShots, GRENADE.enemyEveryShots)) this.enemyThrowsGrenade();
-      },
-      next.lives ?? ENEMY.lives,
-      aimAt,
-    );
-    this.enemy.figure.setOnStep(() => {
-      this.sfx.footstep(false, true);
-      this.dustAt(this.enemy.figure.getX());
-    });
+    this.enemies.push(enemy);
   }
 
   /** Hearts, or "∞" on the test level where you can't die. */
@@ -877,7 +942,7 @@ export class MainScene extends Phaser.Scene {
   /** Out of lives: the player breaks in two like the white ones, and the shooting stops. */
   private breakPlayer(hitY: number, push: 1 | -1): void {
     this.playerAlive = false;
-    this.enemy.stopShooting();
+    for (const enemy of this.enemies) enemy.stopShooting();
     const p = this.player;
     new BrokenFigure(
       this,
@@ -940,13 +1005,13 @@ export class MainScene extends Phaser.Scene {
   private shoot(
     muzzle: { x: number; y: number },
     direction: 1 | -1,
-    shooter: 'player' | 'enemy',
+    /** Who shoots: the player or one of the white ones. */
+    gun: StickFigure,
     /** How steeply the bullet goes down (negative = up). Straight if not given. */
     slope = 0,
   ): void {
     const bullet: Bullet = { ...muzzle, direction, slope };
-    const gun = shooter === 'player' ? this.player : this.enemy.figure;
-    if (shooter === 'player') {
+    if (gun === this.player) {
       this.playerBullets.push(bullet);
       this.sfx.gunshot(this.player.getWeapon());
     } else {

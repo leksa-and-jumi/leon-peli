@@ -69,8 +69,10 @@ export function showGameOverSign(
     );
   }
 
-  // Above everything else in the game, even the dark screen edges
-  for (const o of [dim, box, skull, text, ok, okText, ...extras]) o.setDepth(GAME_OVER.depth);
+  // Above everything, and it stays on the screen however far you walked
+  for (const o of [dim, box, skull, text, ok, okText, ...extras]) {
+    o.setDepth(GAME_OVER.depth).setScrollFactor(0);
+  }
   ok.on('pointerover', () => ok.setFillStyle(button.hoverColor));
   ok.on('pointerout', () => ok.setFillStyle(button.color));
   ok.on('pointerdown', onOk);

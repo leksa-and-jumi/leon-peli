@@ -37,19 +37,21 @@ export class Boss implements Foe {
     private readonly getPlayerX: () => number,
     /** How many hits he takes, if different from `kind.lives` (like on Hard). */
     private readonly maxLives: number = kind.lives,
+    /** In the endless world: where he comes in. He can then follow you anywhere. */
+    private readonly startX: number | null = null,
   ) {
     this.points = kind.points;
     this.voice = kind.voice;
     this.lives = maxLives;
     this.figure = new StickFigure(
       scene,
-      ENEMY.startX,
+      startX ?? ENEMY.startX,
       PLAYER.feetY,
       {
         color: this.kind.color,
         outlineColor: this.kind.outlineColor,
         outlineAlpha: this.kind.outlineAlpha,
-        facing: -1,
+        facing: startX !== null && startX < getPlayerX() ? 1 : -1,
         height: this.kind.height,
         thickness: 'thickness' in kind ? kind.thickness : 1,
       },
@@ -104,7 +106,15 @@ export class Boss implements Foe {
     // Always follow the player, standing next to them on his side (and on the screen)
     const playerX = this.getPlayerX();
     const oldX = this.figure.getX();
-    const target = followTarget(oldX, playerX, this.kind.reach, this.kind.minX, this.kind.maxX);
+    // On the fixed screen he stays on it; in the endless world he can go anywhere
+    const free = this.startX !== null;
+    const target = followTarget(
+      oldX,
+      playerX,
+      this.kind.reach,
+      free ? -Infinity : this.kind.minX,
+      free ? Infinity : this.kind.maxX,
+    );
     const x = walkTowards(oldX, target, this.kind.walkSpeed, deltaMs);
     this.figure.setX(x);
     // Face the way he walks; when standing, face the player
