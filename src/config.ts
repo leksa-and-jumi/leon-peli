@@ -774,6 +774,9 @@ export const MENU = {
 export const RUINS = {
   seed: 2026,
   groundY: 470,
+  /** How many different mixes of ruins there are along the way. */
+  variants: 5,
+  layoutSeed: 777,
   /** The far-away ruins slide by this much slower than the near ones. */
   farParallax: 0.4,
   sky: { top: 0x0f0d24, bottom: 0x6b3a55 },

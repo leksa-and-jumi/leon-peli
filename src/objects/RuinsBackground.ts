@@ -3,6 +3,8 @@ import type { Atmosphere } from './Atmosphere';
 import { GAME_HEIGHT, GAME_WIDTH, LIANAS, RUINS, SKY_CYCLE, TREES } from '../config';
 import { branchHalfThickness, branchMiddleY, branchStartX, type TreeShape } from '../logic/trees';
 import { TREE_SHAPES, treeIndexAt } from './treeShapes';
+import { CLASSIC_RUINS, makeRuinLayout, ruinSpans, type RuinLayout } from '../logic/ruinLayout';
+import { tileVariant } from '../logic/world';
 import { nextBubbleDelay } from '../logic/bubbles';
 import { skyTintAt } from '../logic/sky';
 import { drawLeaf } from './leaf';
@@ -18,7 +20,20 @@ import {
 const { blockWidth, blockHeight, groundY, stone } = RUINS;
 /** Names of the baked pictures of the ruins. */
 const FAR_LAYER = 'ruins-far';
-const NEAR_LAYER = 'ruins-near';
+const NEAR_LAYER = 'ruins-near-';
+
+/** The different ruins: Leo's first ones, and a few new mixes. */
+const RUIN_LAYOUTS: readonly RuinLayout[] = [
+  CLASSIC_RUINS,
+  ...Array.from({ length: RUINS.variants - 1 }, (_, i) =>
+    makeRuinLayout(createRandom(RUINS.layoutSeed + i), GAME_WIDTH),
+  ),
+];
+
+/** Which ruins stand in stretch number `tile` (mixed differently from the trees). */
+function ruinIndexAt(tile: number): number {
+  return tileVariant(tile + 1000, RUIN_LAYOUTS.length);
+}
 const TREE_LAYER = 'tree-';
 const V = Phaser.Math.Vector2;
 
@@ -34,7 +49,8 @@ export class RuinsBackground {
   private readonly skyTint: Phaser.GameObjects.Rectangle;
   private readonly scene: Phaser.Scene;
   private readonly far: Phaser.GameObjects.TileSprite;
-  private readonly near: Phaser.GameObjects.TileSprite;
+  /** The ruins picture for each stretch on the screen. */
+  private readonly ruins: Phaser.GameObjects.Image[];
   /** One tree picture for each stretch on the screen (at most three can show at once). */
   private readonly trees: Phaser.GameObjects.Image[];
   private timeMs = 0;
@@ -73,20 +89,13 @@ export class RuinsBackground {
       });
     });
     this.trees = [0, 1, 2].map(() => scene.add.image(0, 0, `${TREE_LAYER}0`).setOrigin(0, 0));
-    this.near = this.bakeLayer(NEAR_LAYER, () => {
-      this.drawGround();
-      this.drawGroundShadow(20, 264);
-      this.drawGroundShadow(395, 150);
-      this.drawGroundShadow(339, 46);
-      this.drawGroundShadow(727, 50);
-      this.drawWall({ x: 20, width: 264, minRows: 3, maxRows: 9 });
-      this.drawArch(470, 150);
-      this.drawColumn(345, 230, true);
-      this.drawColumn(735, 300, false);
-      this.drawRubble();
-      this.drawFallenColumn(560, groundY + 62, 150);
-      this.drawGrass();
+    // The ground and the broken buildings: a few different ones, mixed along the way
+    RUIN_LAYOUTS.forEach((layout, index) => {
+      this.bakePicture(`${NEAR_LAYER}${String(index)}`, () => {
+        this.drawRuins(layout);
+      });
     });
+    this.ruins = [0, 1, 2].map(() => scene.add.image(0, 0, `${NEAR_LAYER}0`).setOrigin(0, 0));
     atmosphere.addGroundMist();
   }
 
@@ -117,9 +126,15 @@ export class RuinsBackground {
     // Walking slides the ruins by
     const scrollX = this.scene.cameras.main.scrollX;
     this.far.tilePositionX = scrollX * RUINS.farParallax;
-    this.near.tilePositionX = scrollX;
+
     // Put the right tree in each screen-wide stretch that can be seen
     const first = Math.floor(scrollX / GAME_WIDTH);
+    this.ruins.forEach((image, k) => {
+      const tile = first + k;
+      image
+        .setPosition(tile * GAME_WIDTH, 0)
+        .setTexture(`${NEAR_LAYER}${String(ruinIndexAt(tile))}`);
+    });
     this.trees.forEach((image, k) => {
       const tile = first + k;
       image
@@ -721,6 +736,18 @@ export class RuinsBackground {
         drawLeaf(this.g, xAt(a), under, angle, 10 + this.random() * 8, darkColors);
       }
     }
+  }
+
+  /** The ground with one mix of broken buildings standing on it. */
+  private drawRuins(layout: RuinLayout): void {
+    this.drawGround();
+    for (const span of ruinSpans(layout)) this.drawGroundShadow(span.left, span.right - span.left);
+    for (const wall of layout.walls) this.drawWall(wall);
+    for (const arch of layout.arches) this.drawArch(arch.centerX, arch.width);
+    for (const column of layout.columns) this.drawColumn(column.x, column.height, column.broken);
+    this.drawRubble();
+    if (layout.fallen) this.drawFallenColumn(layout.fallen.x, groundY + 62, layout.fallen.length);
+    this.drawGrass();
   }
 
   /** Little grass tufts growing between the floor slabs. */
