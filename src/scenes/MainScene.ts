@@ -11,6 +11,7 @@ import {
   DUST,
   CROUCH_HINT,
   ENEMY,
+  GAME_HEIGHT,
   GAME_OVER,
   GAME_WIDTH,
   GIANT,
@@ -375,7 +376,13 @@ export class MainScene extends Phaser.Scene {
     this.enemy.update(delta);
 
     this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
-    this.enemyBullets = moveBullets(this.enemyBullets, ENEMY.bulletSpeed, delta, GAME_WIDTH);
+    this.enemyBullets = moveBullets(
+      this.enemyBullets,
+      ENEMY.bulletSpeed,
+      delta,
+      GAME_WIDTH,
+      GAME_HEIGHT,
+    );
 
     // The player's bullets hit the enemy
     if (this.enemy.isAlive()) {
@@ -823,14 +830,22 @@ export class MainScene extends Phaser.Scene {
       });
       return;
     }
+    // On most levels the white ones aim at the middle of you, wherever you are
+    const aimAt = rules.aimAtPlayer
+      ? (): { x: number; y: number } => {
+          const box = this.player.bounds();
+          return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
+        }
+      : null;
     this.enemy = new Enemy(
       this,
-      (muzzle) => {
-        this.shoot(muzzle, -1, 'enemy');
+      (muzzle, slope) => {
+        this.shoot(muzzle, -1, 'enemy', slope);
         this.enemyShots += 1;
         if (grenadeAfterShots(this.enemyShots, GRENADE.enemyEveryShots)) this.enemyThrowsGrenade();
       },
       next.lives ?? ENEMY.lives,
+      aimAt,
     );
     this.enemy.figure.setOnStep(() => {
       this.sfx.footstep(false, true);
@@ -926,8 +941,10 @@ export class MainScene extends Phaser.Scene {
     muzzle: { x: number; y: number },
     direction: 1 | -1,
     shooter: 'player' | 'enemy',
+    /** How steeply the bullet goes down (negative = up). Straight if not given. */
+    slope = 0,
   ): void {
-    const bullet = { ...muzzle, direction };
+    const bullet: Bullet = { ...muzzle, direction, slope };
     const gun = shooter === 'player' ? this.player : this.enemy.figure;
     if (shooter === 'player') {
       this.playerBullets.push(bullet);

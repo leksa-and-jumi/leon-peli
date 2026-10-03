@@ -15,6 +15,7 @@ import {
 import type { Box } from '../logic/bullets';
 import { stepsBetween } from '../logic/steps';
 import { supportHand, swooshArc, weaponTilt } from '../logic/swing';
+import { turnAround } from '../logic/aim';
 import { figureSegments, joints, type Segment } from '../logic/cut';
 import {
   camoColorAt,
@@ -75,6 +76,8 @@ export class StickFigure {
   private walkStepMs: number | null = null;
   /** Called on every footstep, for the step sound. */
   private onStep: (() => void) | null = null;
+  /** How far the gun arm is turned up (negative) or down (positive), in radians. */
+  private aim = 0;
   /** Until this time the pose moves extra fast (the hard part of a swing). */
   private strikeUntil = 0;
   private destroyed = false;
@@ -137,11 +140,32 @@ export class StickFigure {
       this.look.facing,
       this.walkStepMs !== null ? this.walkPhase : undefined,
     );
+    const aimed = this.aimable()
+      ? {
+          ...pose,
+          gunHand: turnAround(pose.gunHand, pose.shoulder, this.aim, this.look.facing),
+        }
+      : pose;
     // The small gun is held with both hands (except when hanging from a vine)
     if (this.weapon === 'smallGun' && this.stance !== 'hang') {
-      return { ...pose, backHand: supportHand(pose.gunHand, this.look.facing) };
+      return { ...aimed, backHand: supportHand(aimed.gunHand, this.look.facing) };
     }
-    return pose;
+    return aimed;
+  }
+
+  /** Can the gun arm be turned to aim right now (holding a gun, not hanging or flipping)? */
+  private aimable(): boolean {
+    const gun = this.weapon !== 'axe' && this.weapon !== 'club';
+    return gun && this.aim !== 0 && this.stance !== 'hang' && this.stance !== 'tuck';
+  }
+
+  /** Point the gun arm up (negative) or down (positive), in radians. 0 = straight ahead. */
+  setAim(angle: number): void {
+    this.aim = angle;
+  }
+
+  getAim(): number {
+    return this.aimable() ? this.aim : 0;
   }
 
   /**
@@ -234,10 +258,15 @@ export class StickFigure {
   /** Where bullets come out of the gun, on the screen. */
   muzzlePosition(): { x: number; y: number } {
     const hand = this.pose().gunHand;
-    return {
-      x: this.x + hand.x + this.look.facing * WEAPONS[this.weapon].muzzleX,
-      y: this.feetY - this.lift + hand.y + BULLET.muzzleOffset.y,
-    };
+    const facing = this.look.facing;
+    // The muzzle sits in front of the hand, turned the way the gun aims
+    const tip = turnAround(
+      { x: hand.x + facing * WEAPONS[this.weapon].muzzleX, y: hand.y + BULLET.muzzleOffset.y },
+      hand,
+      this.getAim(),
+      facing,
+    );
+    return { x: this.x + tip.x, y: this.feetY - this.lift + tip.y };
   }
 
   /** Where the gun hand is on the screen (shells pop out here). */
@@ -331,7 +360,7 @@ export class StickFigure {
     const outfit: OutfitLook =
       this.hitColor !== null ? { kind: 'solid', color: this.hitColor } : lookOutfit(this.look);
     drawOutfit(this.g, segments, pose, outfit, true, 0, lineWidth);
-    drawGun(this.g, pose, this.look, this.weapon);
+    drawGun(this.g, pose, this.look, this.weapon, this.getAim());
   }
 }
 
@@ -770,13 +799,15 @@ export function drawGun(
   pose: Pose,
   look: StickFigureLook,
   weapon: Weapon = 'pistol',
+  /** A gun turned up (negative) or down (positive) to aim. */
+  aim = 0,
 ): void {
   const { x: handX, y: handY } = pose.gunHand;
   const { facing, outlineColor, outlineAlpha } = look;
   const parts = weaponParts(weapon);
   // An axe or club turns with the arm, so a swing really swings it
   const melee = weapon === 'axe' || weapon === 'club';
-  const tilt = melee ? weaponTilt(pose.shoulder, pose.gunHand, facing) : 0;
+  const tilt = melee ? weaponTilt(pose.shoulder, pose.gunHand, facing) : aim;
   const cos = Math.cos(tilt);
   const sin = Math.sin(tilt);
   const toScreen = ([dx, dy]: readonly [number, number]): Phaser.Math.Vector2 => {
@@ -805,7 +836,8 @@ export function drawGun(
 
   // Trigger guard: a little ring in front of the grip
   if (weapon === 'pistol' || weapon === 'rifle' || weapon === 'smallGun') {
+    const ring = toScreen([7, 3]);
     g.lineStyle(1.5, 0x1a1a1a, 1);
-    g.strokeCircle(handX + facing * 7, handY + 3, 3.5);
+    g.strokeCircle(ring.x, ring.y, 3.5);
   }
 }

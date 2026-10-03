@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GUN_FX } from '../config';
 import { bounceOnGround, stepDrop, type Drop } from '../logic/blood';
-import type { Bullet } from '../logic/bullets';
+import { bulletHeading, type Bullet } from '../logic/bullets';
 
 interface Shell {
   drop: Drop;
@@ -142,11 +142,18 @@ export class GunEffects {
     this.trails.clear();
     for (const b of bullets) {
       const steps = 6;
+      // The trail points back the way the bullet came (aimed bullets fly at an angle)
+      const heading = bulletHeading(b);
       for (let k = 0; k < steps; k++) {
-        const from = b.x - (b.direction * (length * k)) / steps;
-        const to = b.x - (b.direction * (length * (k + 1))) / steps;
+        const near = (length * k) / steps;
+        const far = (length * (k + 1)) / steps;
         this.trails.lineStyle(width * (1 - k / steps), color, 0.6 * (1 - k / steps));
-        this.trails.lineBetween(from, b.y, to, b.y);
+        this.trails.lineBetween(
+          b.x - heading.x * near,
+          b.y - heading.y * near,
+          b.x - heading.x * far,
+          b.y - heading.y * far,
+        );
       }
       this.trails.fillStyle(tip, 1);
       this.trails.fillCircle(b.x, b.y, width * 0.9);

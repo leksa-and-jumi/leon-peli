@@ -182,6 +182,13 @@ export const POINTS_PER_KILL = 1;
 
 /** The white stick figures that walk in from the right and shoot. */
 export const ENEMY = {
+  /** On every level except Easy, the white ones turn the gun arm toward you. */
+  aim: {
+    /** The arm turns at most this fast (radians per second), so quick moves can still dodge. */
+    turnSpeed: 1.6,
+    /** How far up or down the arm can point. */
+    maxAngle: 0.9,
+  },
   color: 0xffffff,
   outlineColor: 0x000000,
   outlineAlpha: 0.5,
@@ -633,6 +640,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
       { kind: 'giant', lives: 1 },
     ],
     invincible: true,
+    aimAtPlayer: true,
   },
   /** Only white ones, two hits each. */
   easy: {
@@ -650,6 +658,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
       { every: 5, kind: 'boss' },
     ],
     regular: { kind: 'white', lives: 3 },
+    aimAtPlayer: true,
   },
   /** Red guys often: 5 hits every 5th, 10 hits every 10th, giant every 30th. */
   hard: {
@@ -661,6 +670,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
       { every: 5, kind: 'boss', lives: 5 },
     ],
     regular: { kind: 'white', lives: 3 },
+    aimAtPlayer: true,
   },
   /** Red 5-hit guys all the time, a white one every 10th, the brute every 15th, the giant every 30th. */
   superHard: {
@@ -672,6 +682,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
       { every: 10, kind: 'white', lives: 3 },
     ],
     regular: { kind: 'boss', lives: 5 },
+    aimAtPlayer: true,
   },
 };
 

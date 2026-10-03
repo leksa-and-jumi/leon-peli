@@ -54,3 +54,20 @@ describe('bulletHits', () => {
     expect(bulletHits({ x: 300, y: 450, direction: -1 }, size, box)).toBe(false);
   });
 });
+
+describe('aimed bullets', () => {
+  it('fly along their slope at the same speed', () => {
+    const [b] = moveBullets([{ x: 700, y: 400, direction: -1, slope: -0.75 }], 1000, 100, 800);
+    expect(b?.x).toBeCloseTo(620);
+    expect(b?.y).toBeCloseTo(340);
+  });
+
+  it('are gone when they fly off the top or bottom', () => {
+    expect(moveBullets([{ x: 400, y: 10, direction: -1, slope: -1 }], 1000, 100, 800, 600)).toEqual(
+      [],
+    );
+    expect(moveBullets([{ x: 400, y: 590, direction: -1, slope: 1 }], 1000, 100, 800, 600)).toEqual(
+      [],
+    );
+  });
+});

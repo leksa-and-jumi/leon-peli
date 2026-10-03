@@ -23,6 +23,8 @@ export interface DifficultyRules {
   cycle?: readonly EnemyPick[];
   /** You can't lose lives (for testing). */
   invincible?: boolean;
+  /** The white ones aim their guns at you wherever you go. */
+  aimAtPlayer?: boolean;
 }
 
 /** Which enemy number `enemyNumber` (counted from 1) is in this difficulty. */
