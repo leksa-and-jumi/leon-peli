@@ -13,13 +13,16 @@ import { RuinsBackground } from '../objects/RuinsBackground';
  */
 export class MenuScene extends Phaser.Scene {
   private best: Record<string, number> = {};
+  private unfinished = new Set<string>();
 
   constructor() {
     super('MenuScene');
   }
 
   create(): void {
-    this.best = loadSave(browserStorage()).best;
+    const save = loadSave(browserStorage());
+    this.best = save.best;
+    this.unfinished = new Set(Object.keys(save.runs));
     const atmosphere = new Atmosphere(this);
     new RuinsBackground(this, atmosphere);
     new DemoBattle(this);
@@ -85,10 +88,16 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(MENU.depth);
     // This level's best score
     this.add
-      .text(x + width / 2 - 12, y, `🏆 ${String(this.best[level] ?? 0)}`, {
-        fontSize: '16px',
-        color: MENU.textColor,
-      })
+      .text(
+        x + width / 2 - 12,
+        y,
+        // ▶️ means a game here is waiting to be continued
+        `${this.unfinished.has(level) ? '▶️ ' : ''}🏆 ${String(this.best[level] ?? 0)}`,
+        {
+          fontSize: '16px',
+          color: MENU.textColor,
+        },
+      )
       .setOrigin(1, 0.5)
       .setDepth(MENU.depth);
     button.setInteractive({ useHandCursor: true });

@@ -8,7 +8,20 @@ export interface LevelWeapons {
   deaths: number;
 }
 
+/** A game that's still going on a level, so it can continue after closing the page. */
+export interface RunState {
+  score: number;
+  earned: number;
+  lives: number;
+  enemyCount: number;
+  playerX: number;
+  ownedOutfits: string[];
+  wornOutfit: string;
+}
+
 export interface SaveData {
+  /** Unfinished games, one per level. */
+  runs: Record<string, RunState>;
   /** Rifle and upgrade for each level (easy, normal, ...). */
   weapons: Record<string, LevelWeapons>;
   /** Sounds turned off with M. */
@@ -25,16 +38,17 @@ export interface SaveStorage {
 
 const SAVE_KEY = 'leon-peli-save';
 const NO_WEAPONS: LevelWeapons = { rifle: false, rifleUpgrade: false, deaths: 0 };
-const EMPTY: SaveData = { weapons: {}, muted: false, best: {} };
+const EMPTY: SaveData = { runs: {}, weapons: {}, muted: false, best: {} };
 
 /** Reads the save. Anything broken or missing means a fresh save. */
 export function loadSave(storage: SaveStorage | null): SaveData {
-  if (!storage) return { ...EMPTY, weapons: {}, best: {} };
+  if (!storage) return { ...EMPTY, runs: {}, weapons: {}, best: {} };
   try {
     const raw = storage.getItem(SAVE_KEY);
-    if (!raw) return { ...EMPTY, weapons: {}, best: {} };
+    if (!raw) return { ...EMPTY, runs: {}, weapons: {}, best: {} };
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return { ...EMPTY, weapons: {}, best: {} };
+    if (typeof parsed !== 'object' || parsed === null)
+      return { ...EMPTY, runs: {}, weapons: {}, best: {} };
     const muted = 'muted' in parsed && parsed.muted === true;
     const best: Record<string, number> = {};
     if ('best' in parsed && typeof parsed.best === 'object' && parsed.best !== null) {
@@ -54,9 +68,16 @@ export function loadSave(storage: SaveStorage | null): SaveData {
         };
       }
     }
-    return { weapons, muted, best };
+    const runs: Record<string, RunState> = {};
+    if ('runs' in parsed && typeof parsed.runs === 'object' && parsed.runs !== null) {
+      for (const [level, run] of Object.entries(parsed.runs)) {
+        const checked = checkRun(run);
+        if (checked) runs[level] = checked;
+      }
+    }
+    return { runs, weapons, muted, best };
   } catch {
-    return { ...EMPTY, weapons: {}, best: {} };
+    return { ...EMPTY, runs: {}, weapons: {}, best: {} };
   }
 }
 
@@ -122,4 +143,43 @@ export function afterDeath(
     lostRifle: false,
     deathsLeft: maxDeaths - deaths,
   };
+}
+
+/** A saved run, if it looks right; anything strange means no run. */
+function checkRun(run: unknown): RunState | null {
+  if (typeof run !== 'object' || run === null) return null;
+  const r = run as Record<string, unknown>;
+  const num = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
+  const score = num(r.score);
+  const earned = num(r.earned);
+  const lives = num(r.lives);
+  const enemyCount = num(r.enemyCount);
+  const playerX = num(r.playerX);
+  if (
+    score === null ||
+    earned === null ||
+    lives === null ||
+    enemyCount === null ||
+    playerX === null
+  ) {
+    return null;
+  }
+  if (lives < 1) return null;
+  const owned = Array.isArray(r.ownedOutfits)
+    ? r.ownedOutfits.filter((o): o is string => typeof o === 'string')
+    : [];
+  const worn = typeof r.wornOutfit === 'string' ? r.wornOutfit : 'black';
+  return { score, earned, lives, enemyCount, playerX, ownedOutfits: owned, wornOutfit: worn };
+}
+
+/** Remember the game going on at a level. */
+export function withRun(save: SaveData, level: string, run: RunState): SaveData {
+  return { ...save, runs: { ...save.runs, [level]: run } };
+}
+
+/** Forget the game at a level (after dying, the next one starts fresh). */
+export function withoutRun(save: SaveData, level: string): SaveData {
+  const runs = Object.fromEntries(Object.entries(save.runs).filter(([name]) => name !== level));
+  return { ...save, runs };
 }
