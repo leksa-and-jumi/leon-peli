@@ -20,6 +20,7 @@ import {
   OUTFITS,
   PIG_AXE,
   SPECIAL_BULLETS,
+  STAGES,
   SWING,
   LIANAS,
   PLAYER,
@@ -52,11 +53,16 @@ import {
 } from '../logic/liana';
 import { bumps, knockdownAt } from '../logic/knockdown';
 import { bulletPowers, poisonStep, type BulletPowers } from '../logic/ammo';
+import { canOpen, keysNeeded, nextStage, onlyGiants, stageLayout } from '../logic/stage';
+import { createRandom } from '../logic/ruins';
+import { HiddenKeys } from '../objects/HiddenKeys';
+import { StageDoor } from '../objects/StageDoor';
 import { canSpawn, followCamera, spawnSide, type RepeatedSpot } from '../logic/world';
 import { smoothingStep } from '../logic/pose';
 import {
   afterDeath,
   loadSave,
+  type RunState,
   recordScore,
   weaponsFor,
   withoutRun,
@@ -130,6 +136,18 @@ export class MainScene extends Phaser.Scene {
   private ownedOutfits = new Set<OutfitId>(['black']);
   /** Bullets bought in the shop for this game ('poison', 'explosive'). */
   private ownedItems = new Set<string>();
+  /** Which stage you're on (one door and its hidden keys), and the keys found so far. */
+  private stage = 1;
+  private stageSeed = 0;
+  private keysFound: number[] = [];
+  private door: StageDoor | null = null;
+  private hiddenKeys: HiddenKeys | null = null;
+  private stageText: Phaser.GameObjects.Text | null = null;
+  private doorArrow: Phaser.GameObjects.Text | null = null;
+  /** Standing at the door right now (so the sign shows once per visit). */
+  private atDoor = false;
+  /** Going through the door to the next stage. */
+  private leaving = false;
   /** Poisoned enemies, and when each one loses its next life. */
   private poisoned = new Map<Foe, number>();
   private wornOutfit: OutfitId = 'black';
@@ -170,6 +188,15 @@ export class MainScene extends Phaser.Scene {
     this.ownedItems = new Set<string>();
     this.poisoned = new Map<Foe, number>();
     this.wornOutfit = 'black';
+    this.stage = 1;
+    this.stageSeed = Math.floor(Math.random() * 1e9);
+    this.keysFound = [];
+    this.door = null;
+    this.hiddenKeys = null;
+    this.stageText = null;
+    this.doorArrow = null;
+    this.atDoor = false;
+    this.leaving = false;
     // An unfinished game on this level continues where it was left
     const run = loadSave(browserStorage()).runs[this.difficulty];
     if (run) {
@@ -180,6 +207,9 @@ export class MainScene extends Phaser.Scene {
       this.enemyCount = Math.max(run.enemyCount - 1, 0);
       for (const o of run.ownedOutfits) if (o in OUTFITS) this.ownedOutfits.add(o as OutfitId);
       for (const item of run.ownedItems) this.ownedItems.add(item);
+      this.stage = run.stage;
+      this.stageSeed = run.stageSeed;
+      this.keysFound = [...run.keysFound];
     }
 
     this.muted = loadSave(browserStorage()).muted;
@@ -189,6 +219,7 @@ export class MainScene extends Phaser.Scene {
     new RuinsBackground(this, atmosphere);
     atmosphere.addVignette(ATMOSPHERE.vignette.depth);
     this.lianas = new Lianas(this);
+    if (DIFFICULTIES[this.difficulty].stages === true) this.buildStage();
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
       outlineColor: PLAYER.outlineColor,
@@ -312,6 +343,8 @@ export class MainScene extends Phaser.Scene {
 
     // Every level has a button back to the menu (the game is saved, so you can go on later)
     this.addMenuButton();
+    if (this.door) this.addStageHud();
+    this.cameras.main.fadeIn(300);
 
     // Now and then a 3-point bubble floats up: catch it!
     this.bubbles = new PointBubbles(this, () => {
@@ -340,20 +373,127 @@ export class MainScene extends Phaser.Scene {
 
   /** Remember this game, so it continues if the page is closed (not after dying). */
   private saveRun(): void {
-    if (!this.playerAlive) return;
+    if (!this.playerAlive || this.leaving) return;
     writeSave(
       browserStorage(),
-      withRun(loadSave(browserStorage()), this.difficulty, {
-        score: this.score,
-        earned: this.earned,
-        lives: this.lives,
-        enemyCount: this.enemyCount,
-        playerX: this.player.getX(),
-        ownedOutfits: [...this.ownedOutfits],
-        wornOutfit: this.wornOutfit,
-        ownedItems: [...this.ownedItems],
-      }),
+      withRun(loadSave(browserStorage()), this.difficulty, this.runState()),
     );
+  }
+
+  /** Everything needed to go on with this game later. */
+  private runState(): RunState {
+    return {
+      score: this.score,
+      earned: this.earned,
+      lives: this.lives,
+      enemyCount: this.enemyCount,
+      playerX: this.player.getX(),
+      ownedOutfits: [...this.ownedOutfits],
+      wornOutfit: this.wornOutfit,
+      ownedItems: [...this.ownedItems],
+      stage: this.stage,
+      stageSeed: this.stageSeed,
+      keysFound: [...this.keysFound],
+    };
+  }
+
+  /** The door out of this stage and its hidden keys, always in the same places for this stage. */
+  private buildStage(): void {
+    const layout = stageLayout(createRandom(this.stageSeed), this.stage, PLAYER.x, STAGES);
+    this.door = new StageDoor(this, layout.doorX);
+    this.hiddenKeys = new HiddenKeys(this, layout.keys, this.keysFound, (number) => {
+      this.keysFound.push(number);
+      this.sfx.pop();
+      this.updateStageText();
+      this.saveRun();
+    });
+  }
+
+  /** "🚪 Stage 2 · 🔑 1/2" in the corner, plus a big banner when the stage starts. */
+  private addStageHud(): void {
+    this.stageText = this.add
+      .text(GAME_WIDTH - 16, 80, '', { fontSize: '18px', color: COLORS.text })
+      .setOrigin(1, 0)
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.updateStageText();
+    this.doorArrow = this.add
+      .text(0, 300, '', { fontSize: '30px' })
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    const banner = this.add
+      .text(GAME_WIDTH / 2, 230, `🚪 Stage ${String(this.stage)} / Taso ${String(this.stage)}`, {
+        fontSize: '44px',
+        color: COLORS.text,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.tweens.add({
+      targets: banner,
+      alpha: 0,
+      delay: STAGES.bannerMs - 600,
+      duration: 600,
+      onComplete: () => {
+        banner.destroy();
+      },
+    });
+  }
+
+  private updateStageText(): void {
+    const needed = keysNeeded(this.stage);
+    this.stageText?.setText(
+      `🚪 ${String(this.stage)}/${String(STAGES.last)}   🔑 ${String(this.keysFound.length)}/${String(needed)}`,
+    );
+  }
+
+  /** Pick up keys, try the door, and point the way to it when it's off the screen. */
+  private updateStage(): void {
+    const door = this.door;
+    if (!door || !this.playerAlive || this.leaving) return;
+    this.hiddenKeys?.update(this.player.bounds());
+    const there = door.reaches(this.player.getX()) && !this.hanging && !this.flight;
+    if (there && !this.atDoor) {
+      if (canOpen(this.keysFound.length, this.stage)) this.goToNextStage();
+      else door.showNeedKeys(keysNeeded(this.stage) - this.keysFound.length);
+    }
+    this.atDoor = there;
+    // An arrow at the screen edge shows which way the door is
+    const left = this.cameras.main.scrollX;
+    const arrow = this.doorArrow;
+    if (!arrow) return;
+    if (door.x < left) arrow.setText('⬅️🚪').setX(12).setVisible(true);
+    else if (door.x > left + GAME_WIDTH)
+      arrow
+        .setText('🚪➡️')
+        .setX(GAME_WIDTH - 82)
+        .setVisible(true);
+    else arrow.setVisible(false);
+  }
+
+  /** All the keys: the door swings open, and the next stage starts. */
+  private goToNextStage(): void {
+    this.leaving = true;
+    this.door?.swingOpen();
+    this.sfx.buy();
+    for (const enemy of this.enemies) enemy.stopShooting();
+    const next: RunState = {
+      ...this.runState(),
+      stage: nextStage(this.stage, STAGES.last),
+      stageSeed: Math.floor(Math.random() * 1e9),
+      keysFound: [],
+      playerX: PLAYER.x,
+    };
+    writeSave(browserStorage(), withRun(loadSave(browserStorage()), this.difficulty, next));
+    this.time.delayedCall(700, () => {
+      this.cameras.main.fadeOut(400);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.restart({ difficulty: this.difficulty });
+      });
+    });
   }
 
   private isCrouching(): boolean {
@@ -412,6 +552,7 @@ export class MainScene extends Phaser.Scene {
       smoothingStep(delta, WORLD.cameraSpeed),
     );
     this.spawnWhenThereIsRoom();
+    this.updateStage();
     for (const enemy of this.enemies) enemy.update(delta);
     // Broken ones are gone (their pieces stay on the ground by themselves)
     this.enemies = this.enemies.filter((e) => e.isAlive());
@@ -908,7 +1049,11 @@ export class MainScene extends Phaser.Scene {
   private spawnEnemy(): void {
     this.enemyCount += 1;
     const rules = DIFFICULTIES[this.difficulty];
-    const next = enemyFor(rules, this.enemyCount);
+    // The last stage behind the doors has only green giants
+    const next =
+      rules.stages === true && onlyGiants(this.stage, STAGES.last)
+        ? { kind: 'giant' as const }
+        : enemyFor(rules, this.enemyCount);
     const side = spawnSide(Math.random());
     const left = this.cameras.main.scrollX;
     const startX =
@@ -973,6 +1118,8 @@ export class MainScene extends Phaser.Scene {
 
   /** A bullet, axe or club hit the player: lose lives, and break on the last one. */
   private hurtPlayer(hitY: number, push: 1 | -1, damage = 1): void {
+    // Safe while going through the door
+    if (this.leaving) return;
     // On the test level you can't die: just blink
     if (DIFFICULTIES[this.difficulty].invincible) {
       this.sfx.hurt('player');

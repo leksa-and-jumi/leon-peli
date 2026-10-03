@@ -145,6 +145,9 @@ describe('unfinished games', () => {
     ownedOutfits: ['black', 'camo'],
     wornOutfit: 'camo',
     ownedItems: ['poison'],
+    stage: 3,
+    stageSeed: 1234,
+    keysFound: [0, 2],
   };
 
   it('remembers a game in progress on a level', () => {
@@ -165,6 +168,16 @@ describe('unfinished games', () => {
     delete older.ownedItems;
     storage.data.set('leon-peli-save', JSON.stringify({ runs: { normal: older } }));
     expect(loadSave(storage).runs.normal?.ownedItems).toEqual([]);
+  });
+
+  it('starts an older saved game on stage 1 with no keys', () => {
+    const storage = memoryStorage();
+    const older: Partial<RunState> = { ...run };
+    delete older.stage;
+    delete older.keysFound;
+    storage.data.set('leon-peli-save', JSON.stringify({ runs: { normal: older } }));
+    expect(loadSave(storage).runs.normal?.stage).toBe(1);
+    expect(loadSave(storage).runs.normal?.keysFound).toEqual([]);
   });
 
   it('ignores a broken game', () => {

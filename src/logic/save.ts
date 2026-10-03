@@ -19,6 +19,11 @@ export interface RunState {
   wornOutfit: string;
   /** Other things bought for this game, like poison or exploding bullets. */
   ownedItems: string[];
+  /** Which stage (door) you're on, and the number that hides its keys in the same places. */
+  stage: number;
+  stageSeed: number;
+  /** The keys already found on this stage (by number). */
+  keysFound: number[];
 }
 
 export interface SaveData {
@@ -175,6 +180,11 @@ function checkRun(run: unknown): RunState | null {
   const items = Array.isArray(r.ownedItems)
     ? r.ownedItems.filter((o): o is string => typeof o === 'string')
     : [];
+  const stage = typeof r.stage === 'number' && r.stage >= 1 ? Math.floor(r.stage) : 1;
+  const stageSeed = typeof r.stageSeed === 'number' ? r.stageSeed : 1;
+  const keysFound = Array.isArray(r.keysFound)
+    ? r.keysFound.filter((k): k is number => typeof k === 'number')
+    : [];
   return {
     score,
     earned,
@@ -184,6 +194,9 @@ function checkRun(run: unknown): RunState | null {
     ownedOutfits: owned,
     wornOutfit: worn,
     ownedItems: items,
+    stage,
+    stageSeed,
+    keysFound,
   };
 }
 

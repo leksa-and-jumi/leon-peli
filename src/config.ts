@@ -639,6 +639,37 @@ export const WORLD = {
   bulletMargin: 60,
 } as const;
 
+/** Doors and hidden keys: stage 1 needs one key, stage 2 two keys... up to 10, then again from 1. */
+export const STAGES = {
+  last: 10,
+  doorDistance: { min: 900, max: 1500 },
+  keyDistance: { min: 400, max: 1400, morePerStage: 150 },
+  keyY: { min: 370, max: 500 },
+  minGap: 150,
+  /** How close you must be to the door to try it. */
+  doorReach: 40,
+  door: {
+    width: 110,
+    height: 190,
+    stone: 0x8d8576,
+    stoneDark: 0x5e574c,
+    wood: 0x6d4c2f,
+    woodDark: 0x4a321c,
+    iron: 0x3a3a3a,
+    light: 0xffe082,
+  },
+  /** One colour for each key, so they're all different. */
+  keyColors: [
+    0xffd54f, 0xcfd8dc, 0xe53935, 0x42a5f5, 0x66bb6a, 0xab47bc, 0xffa726, 0xf48fb1, 0x26c6da,
+    0xffffff,
+  ],
+  keyRadius: 18,
+  /** Big "Stage 2" text at the start of a stage. */
+  bannerMs: 2200,
+  /** The "you need a key" sign stays this long. */
+  signMs: 2000,
+} as const;
+
 /** Bullets from the shop. */
 export const SPECIAL_BULLETS = {
   /** A poisoned enemy loses a life this often, until it breaks. */
@@ -695,6 +726,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     ],
     invincible: true,
     aimAtPlayer: true,
+    stages: true,
   },
   /** Only white ones, two hits each. */
   easy: {
@@ -713,6 +745,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     ],
     regular: { kind: 'white', lives: 3 },
     aimAtPlayer: true,
+    stages: true,
   },
   /** Red guys often: 5 hits every 5th, 10 hits every 10th, giant every 30th. */
   hard: {
@@ -725,6 +758,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     ],
     regular: { kind: 'white', lives: 3 },
     aimAtPlayer: true,
+    stages: true,
   },
   /** Red 5-hit guys all the time, a white one every 10th, the brute every 15th, the giant every 30th. */
   superHard: {
@@ -737,6 +771,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     ],
     regular: { kind: 'boss', lives: 5 },
     aimAtPlayer: true,
+    stages: true,
   },
 };
 
