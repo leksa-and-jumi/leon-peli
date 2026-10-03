@@ -21,6 +21,12 @@ describe('splitSegment', () => {
 });
 
 describe('outfitColor', () => {
+  it('a troll suit is its body color everywhere', () => {
+    const troll: OutfitLook = { kind: 'troll', color: 0x8d9a7a, nose: 0x6f7d5e, hair: 0x3e4a2f };
+    expect(outfitColor(troll, 0)).toBe(0x8d9a7a);
+    expect(outfitColor(troll, 9)).toBe(0x8d9a7a);
+  });
+
   it('a solid outfit is the same color everywhere', () => {
     const blue: OutfitLook = { kind: 'solid', color: 0x0000ff };
     expect(outfitColor(blue, 0)).toBe(0x0000ff);

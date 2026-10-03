@@ -14,6 +14,18 @@ export const COLORS = {
 /** How softly figures move between poses. Bigger = snappier. */
 export const MOTION = {
   smoothSpeed: 14,
+  /** Much faster for the hard, quick part of an axe or club swing. */
+  strikeSpeed: 45,
+} as const;
+
+/** Swinging an axe or club: lift it back behind the head, then strike down hard. */
+export const SWING = {
+  /** Lifting the weapon back before the strike. */
+  windupMs: 200,
+  /** The fast part of the strike. */
+  strikeMs: 120,
+  /** A pale trail showing where the weapon flew. */
+  swoosh: { color: 0xffffff, alpha: 0.5, width: 10, fadeMs: 220, extraRadius: 40 },
 } as const;
 
 /** Sounds, all made with code. */
@@ -367,6 +379,12 @@ export const WEAPONS = {
     cooldownMs: 0,
     colors: { wood: 0x7a5233, dark: 0x4e342e, knot: 0x3e2723, iron: 0x8a8f94, grip: 0x3b2a1f },
   },
+  /** The troll's small gun, held with both hands. Shoots any time, no waiting. */
+  smallGun: {
+    muzzleX: 24,
+    cooldownMs: 0,
+    colors: { body: 0x3949ab, dark: 0x1a237e, shine: 0x9fa8da },
+  },
   /** The boss's axe. It doesn't shoot. */
   axe: {
     muzzleX: 0,
@@ -419,6 +437,8 @@ export const OUTFITS = {
   /** Woodland camouflage: blotches of dark, green, olive, brown and sand. */
   camo: { kind: 'camo', colors: [0x1f2418, 0x3b4a2a, 0x5c6b3a, 0x5a4632, 0x8f8460] },
   pig: { kind: 'pig', color: 0xf48fb1, snout: 0xec6f9c, ear: 0xe57399 },
+  /** A mossy forest troll with a big nose, pointy ears and a hair tuft. */
+  troll: { kind: 'troll', color: 0x8d9a7a, nose: 0x6f7d5e, hair: 0x3e4a2f },
   rainbow: {
     kind: 'rainbow',
     colors: [0xe53935, 0xfb8c00, 0xfdd835, 0x43a047, 0x1e88e5, 0x3949ab, 0x8e24aa],
@@ -474,6 +494,14 @@ export const SHOP_ITEMS = [
     onlyOnce: true,
     outfit: 'rainbow',
   },
+  {
+    id: 'troll',
+    emoji: '🧌',
+    name: 'Troll suit + small gun 🔫\nPeikkopuku + pikkupyssy',
+    price: 500,
+    onlyOnce: true,
+    outfit: 'troll',
+  },
 ] as const satisfies readonly ShopItem[];
 
 /** One-color clothes, shown as color squares in the shop. Black is yours from the start. */
@@ -483,7 +511,7 @@ export const COLOR_ITEMS: readonly ShopItem[] = (
 
 export const SHOP = {
   panel: { width: 560, height: 570, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
-  rowHeight: 60,
+  rowHeight: 52,
   swatch: { size: 40, gap: 12, worn: 0xffd54f },
   buyButton: { width: 120, height: 44, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
   wearButton: { width: 120, height: 44, color: 0x1565c0, hoverColor: 0x1e88e5 },

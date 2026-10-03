@@ -8,11 +8,13 @@ import {
   PLAYER,
   RAINBOW_PIECE_LENGTH,
   ROUND_ENDS,
+  SWING,
   WEAPONS,
   type Weapon,
 } from '../config';
 import type { Box } from '../logic/bullets';
 import { stepsBetween } from '../logic/steps';
+import { supportHand, swooshArc, weaponTilt } from '../logic/swing';
 import { figureSegments, joints, type Segment } from '../logic/cut';
 import {
   camoColorAt,
@@ -66,6 +68,9 @@ export class StickFigure {
   private walkStepMs: number | null = null;
   /** Called on every footstep, for the step sound. */
   private onStep: (() => void) | null = null;
+  /** Until this time the pose moves extra fast (the hard part of a swing). */
+  private strikeUntil = 0;
+  private destroyed = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -97,7 +102,8 @@ export class StickFigure {
       this.walkPhase += (Math.PI * deltaMs) / this.walkStepMs;
       if (stepsBetween(before, this.walkPhase) > 0) this.onStep?.();
     }
-    const step = smoothingStep(deltaMs, MOTION.smoothSpeed);
+    const speed = this.scene.time.now < this.strikeUntil ? MOTION.strikeSpeed : MOTION.smoothSpeed;
+    const step = smoothingStep(deltaMs, speed);
     this.current = lerpPose(this.current, this.targetPose(), step);
     this.draw();
   }
@@ -118,12 +124,65 @@ export class StickFigure {
 
   /** The pose the figure wants to be in right now. */
   private targetPose(): Pose {
-    return stickFigurePose(
+    const pose = stickFigurePose(
       this.look.height ?? PLAYER.height,
       this.stance,
       this.look.facing,
       this.walkStepMs !== null ? this.walkPhase : undefined,
     );
+    // The small gun is held with both hands (except when hanging from a vine)
+    if (this.weapon === 'smallGun' && this.stance !== 'hang') {
+      return { ...pose, backHand: supportHand(pose.gunHand, this.look.facing) };
+    }
+    return pose;
+  }
+
+  /**
+   * Swing the axe or club: lift it back behind the head, then strike down hard
+   * with a swoosh. `onStrike` is called the moment it comes down.
+   * Afterwards the figure stays in the 'chop' stance until told otherwise.
+   */
+  swing(onStrike: () => void): void {
+    this.stance = 'windup';
+    this.scene.time.delayedCall(SWING.windupMs, () => {
+      if (this.destroyed) return;
+      const from = this.current;
+      this.stance = 'chop';
+      this.strikeUntil = this.scene.time.now + SWING.strikeMs;
+      this.drawSwoosh(from, this.targetPose());
+      onStrike();
+    });
+  }
+
+  /** A pale curved trail where the weapon flies, fading away fast. */
+  private drawSwoosh(from: Pose, to: Pose): void {
+    const ox = this.x;
+    const oy = this.feetY - this.lift;
+    const at = (p: Point): Point => ({ x: ox + p.x, y: oy + p.y });
+    const { color, alpha, width, fadeMs, extraRadius } = SWING.swoosh;
+    const arc = swooshArc(
+      at(from.shoulder),
+      at(from.gunHand),
+      at(to.gunHand),
+      this.look.facing,
+      extraRadius * ((this.look.height ?? PLAYER.height) / PLAYER.height),
+    );
+    const g = this.scene.add.graphics().setDepth(this.g.depth);
+    // A few arcs, the outer ones thinner, so it looks like a blur
+    for (let i = 0; i < 3; i++) {
+      g.lineStyle(width - i * 3, color, alpha * (1 - i * 0.3));
+      g.beginPath();
+      g.arc(arc.center.x, arc.center.y, arc.radius - i * 6, arc.start, arc.end, arc.anticlockwise);
+      g.strokePath();
+    }
+    this.scene.tweens.add({
+      targets: g,
+      alpha: 0,
+      duration: fadeMs,
+      onComplete: () => {
+        g.destroy();
+      },
+    });
   }
 
   getX(): number {
@@ -242,6 +301,7 @@ export class StickFigure {
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.stopTicking();
     this.g.destroy();
     this.shadow.destroy();
@@ -293,7 +353,9 @@ export function drawOutfit(
   let index = 0;
   for (const segment of segments) {
     const pieceLength =
-      outfit.kind === 'solid' || outfit.kind === 'pig' ? OUTFIT_PIECE_LENGTH : RAINBOW_PIECE_LENGTH;
+      outfit.kind === 'solid' || outfit.kind === 'pig' || outfit.kind === 'troll'
+        ? OUTFIT_PIECE_LENGTH
+        : RAINBOW_PIECE_LENGTH;
     for (const { from, to } of splitSegment(segment, pieceLength)) {
       const midX = (from.x + to.x) / 2;
       const midY = (from.y + to.y) / 2;
@@ -355,6 +417,42 @@ export function drawOutfit(
     g.fillCircle(c.x + facing * r * 0.95, c.y + r * 0.3, r * 0.1);
     g.fillStyle(0x000000, 1);
     g.fillCircle(c.x + facing * r * 0.25, c.y - r * 0.3, r * 0.13);
+  } else if (outfit.kind === 'troll') {
+    // A forest troll face: pointy ears, a hair tuft, a big long nose and a beady eye
+    const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
+    g.fillStyle(outfit.color, 1);
+    g.fillTriangle(
+      c.x - facing * r * 0.9,
+      c.y - r * 0.1,
+      c.x - facing * r * 0.4,
+      c.y - r * 0.5,
+      c.x - facing * r * 1.6,
+      c.y - r * 0.7,
+    );
+    g.fillCircle(c.x, c.y, r * 1.05);
+    g.fillStyle(outfit.hair, 1);
+    g.fillTriangle(
+      c.x - r * 0.4,
+      c.y - r * 0.85,
+      c.x + r * 0.3,
+      c.y - r * 0.9,
+      c.x - r * 0.2,
+      c.y - r * 1.6,
+    );
+    g.fillTriangle(
+      c.x - r * 0.1,
+      c.y - r * 0.9,
+      c.x + r * 0.5,
+      c.y - r * 0.8,
+      c.x + r * 0.35,
+      c.y - r * 1.45,
+    );
+    g.fillStyle(outfit.nose, 1);
+    g.fillEllipse(c.x + facing * r * 1.0, c.y + r * 0.2, r * 1.1, r * 0.65);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(c.x + facing * r * 0.3, c.y - r * 0.3, r * 0.14);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(c.x + facing * r * 0.34, c.y - r * 0.34, r * 0.05);
   } else if (outfit.kind === 'rainbow') {
     // The head gets the same stripes, one thin row at a time, plus a little shine
     for (let dy = -r; dy < r; dy += 1) {
@@ -545,6 +643,29 @@ function weaponParts(weapon: Weapon): GunPart[] {
     ];
   }
 
+  if (weapon === 'smallGun') {
+    const { body, dark, shine } = WEAPONS.smallGun.colors;
+    return [
+      // Short chunky body with a stubby barrel
+      box(-6, -9, 26, 9, body),
+      box(20, -7, 6, 4, dark),
+      // Grip in the gun hand and a front grip for the other hand
+      {
+        points: [
+          [-3, 0],
+          [4, 0],
+          [2, 11],
+          [-5, 10],
+        ],
+        color: dark,
+      },
+      box(-12, -3, 5, 9, dark),
+      // A little sight on top and a shine along it
+      box(8, -12, 4, 3, dark),
+      box(-6, -9, 26, 1.2, shine),
+    ];
+  }
+
   if (weapon === 'rifle') {
     const { body, dark, metal, shine } = WEAPONS.rifle.colors;
     return [
@@ -640,8 +761,16 @@ export function drawGun(
   const { x: handX, y: handY } = pose.gunHand;
   const { facing, outlineColor, outlineAlpha } = look;
   const parts = weaponParts(weapon);
-  const toScreen = ([dx, dy]: readonly [number, number]): Phaser.Math.Vector2 =>
-    new Phaser.Math.Vector2(handX + facing * dx, handY + dy);
+  // An axe or club turns with the arm, so a swing really swings it
+  const melee = weapon === 'axe' || weapon === 'club';
+  const tilt = melee ? weaponTilt(pose.shoulder, pose.gunHand, facing) : 0;
+  const cos = Math.cos(tilt);
+  const sin = Math.sin(tilt);
+  const toScreen = ([dx, dy]: readonly [number, number]): Phaser.Math.Vector2 => {
+    const rx = dx * cos - dy * sin;
+    const ry = dx * sin + dy * cos;
+    return new Phaser.Math.Vector2(handX + facing * rx, handY + ry);
+  };
 
   // Pale edge: each part pushed out a little from its middle
   g.fillStyle(outlineColor, outlineAlpha);
@@ -662,7 +791,7 @@ export function drawGun(
   }
 
   // Trigger guard: a little ring in front of the grip
-  if (weapon === 'pistol' || weapon === 'rifle') {
+  if (weapon === 'pistol' || weapon === 'rifle' || weapon === 'smallGun') {
     g.lineStyle(1.5, 0x1a1a1a, 1);
     g.strokeCircle(handX + facing * 7, handY + 3, 3.5);
   }

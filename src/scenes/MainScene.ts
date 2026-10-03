@@ -15,6 +15,7 @@ import {
   GRENADE,
   OUTFITS,
   PIG_AXE,
+  SWING,
   LIANAS,
   PLAYER,
   RELOAD_BAR,
@@ -23,6 +24,7 @@ import {
   START_POINTS,
   WEAPONS,
   type OutfitId,
+  type Weapon,
 } from '../config';
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
@@ -323,18 +325,21 @@ export class MainScene extends Phaser.Scene {
   /** In the pig suit: swing the axe at whoever is right in front of you. */
   private chopAxe(): void {
     this.chopping = true;
-    this.player.setStance('chop');
-    this.sfx.chop();
-    this.time.delayedCall(PIG_AXE.chopMs, () => {
+    // Lift it back, then strike: the hit lands when the axe comes down
+    this.player.swing(() => {
+      this.sfx.chop();
+      if (!this.playerAlive) return;
+      const facing = this.player.getFacing();
+      if (
+        this.enemy.isAlive() &&
+        inReach(this.player.getX(), facing, this.enemy.figure.getX(), PIG_AXE.reach)
+      ) {
+        this.hitEnemy(PLAYER.feetY - 70, facing, PIG_AXE.damage);
+      }
+    });
+    this.time.delayedCall(SWING.windupMs + PIG_AXE.chopMs, () => {
       this.chopping = false;
     });
-    const facing = this.player.getFacing();
-    if (
-      this.enemy.isAlive() &&
-      inReach(this.player.getX(), facing, this.enemy.figure.getX(), PIG_AXE.reach)
-    ) {
-      this.hitEnemy(PLAYER.feetY - 70, facing, PIG_AXE.damage);
-    }
   }
 
   update(_time: number, delta: number): void {
@@ -416,8 +421,9 @@ export class MainScene extends Phaser.Scene {
 
     // Legs swing while walking, and shuffle while walking crouched
     const holdsAxe = this.player.getWeapon() === 'axe';
-    const upright = holdsAxe ? (this.chopping ? 'chop' : 'raise') : 'stand';
-    this.player.setStance(this.isCrouching() ? 'crouch' : upright);
+    const upright = holdsAxe ? 'raise' : 'stand';
+    // While swinging, the swing moves the arms
+    if (!this.chopping) this.player.setStance(this.isCrouching() ? 'crouch' : upright);
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 
@@ -643,7 +649,7 @@ export class MainScene extends Phaser.Scene {
     }
     if (item.id === 'rifle') {
       this.gun = 'rifle';
-      this.player.setWeapon(this.wornOutfit === 'pig' ? 'axe' : 'rifle');
+      this.player.setWeapon(this.weaponFor(this.wornOutfit));
       const save = loadSave(browserStorage());
       writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifle: true, deaths: 0 }));
     }
@@ -680,8 +686,14 @@ export class MainScene extends Phaser.Scene {
     if (!outfit || !this.ownedOutfits.has(outfit)) return;
     this.wornOutfit = outfit;
     this.player.setOutfit(OUTFITS[outfit]);
-    // The pig fights with an axe; other clothes keep your gun
-    this.player.setWeapon(outfit === 'pig' ? 'axe' : this.gun);
+    this.player.setWeapon(this.weaponFor(outfit));
+  }
+
+  /** The pig fights with an axe, the troll with its small gun; other clothes keep your gun. */
+  private weaponFor(outfit: OutfitId): Weapon {
+    if (outfit === 'pig') return 'axe';
+    if (outfit === 'troll') return 'smallGun';
+    return this.gun;
   }
 
   /** Every 30th one is the giant, every 15th the axe guy, the others white stick figures. */

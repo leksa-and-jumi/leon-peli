@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Voice } from '../audio/Sfx';
-import { ENEMY, PLAYER, type BigFoeKind } from '../config';
+import { ENEMY, PLAYER, SWING, type BigFoeKind } from '../config';
 import { healthFraction } from '../logic/health';
 import { loseLife } from '../logic/lives';
 import { canShoot } from '../logic/reload';
@@ -127,13 +127,16 @@ export class Boss implements Foe {
     }
   }
 
-  /** Swing the axe down, hurt the player, then raise it again. */
+  /** Swing the axe or club down, hurt the player, then raise it again. */
   private chop(): void {
     if (!this.alive || !this.canChop) return;
     this.chopping = true;
-    this.figure.setStance('chop');
-    this.onChop(this.figure.muzzlePosition().y, this.figure.getFacing(), this.kind.damage);
-    this.scene.time.delayedCall(this.kind.chopDownMs, () => {
+    // Lift it back behind the head, then bring it down hard
+    this.figure.swing(() => {
+      if (!this.alive || !this.canChop) return;
+      this.onChop(this.figure.muzzlePosition().y, this.figure.getFacing(), this.kind.damage);
+    });
+    this.scene.time.delayedCall(SWING.windupMs + this.kind.chopDownMs, () => {
       this.chopping = false;
       if (this.alive) this.figure.setStance('raise');
     });
