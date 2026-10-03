@@ -1,7 +1,7 @@
 {
   "name": "leon-peli",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "description": "Leo's own game / Leon oma peli",
   "scripts": {
