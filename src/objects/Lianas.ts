@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, LIANAS } from '../config';
+import { GAME_WIDTH, LIANAS, TREES } from '../config';
 import { ropeEnd, type Spot } from '../logic/liana';
-import { repeatedSpots, type RepeatedSpot } from '../logic/world';
+import { tiledSpots, type RepeatedSpot } from '../logic/world';
+import { treeAt } from './treeShapes';
 import { drawLeaf } from './leaf';
+
+/** Each tree has this many vines. */
+const VINES_PER_TREE = TREES.vineSpots.length;
 
 /** Points along a vine, from the branch (t = 0) to the end (t = 1). */
 const STEPS = 26;
@@ -19,9 +23,9 @@ export class Lianas {
     this.g = scene.add.graphics();
   }
 
-  /** The vines hanging between `fromX` and `toX` (they repeat with the ruins, forever). */
+  /** The vines hanging between `fromX` and `toX`, from whichever tree stands there. */
   near(fromX: number, toX: number): RepeatedSpot[] {
-    return repeatedSpots(LIANAS.anchors, GAME_WIDTH, fromX, toX);
+    return tiledSpots((tile) => treeAt(tile).anchors, GAME_WIDTH, fromX, toX, VINES_PER_TREE);
   }
 
   /** The end of the vine hanging from `anchor`, leaning by `angle`. */
@@ -51,8 +55,7 @@ export class Lianas {
         ? -held.speed * LIANAS.bend
         : Math.sin(this.timeMs / 700 + vine.id * 2.3) * 2;
       // Copies of the same vine look the same (same kinks and twists)
-      const look =
-        ((vine.id % LIANAS.anchors.length) + LIANAS.anchors.length) % LIANAS.anchors.length;
+      const look = ((vine.id % VINES_PER_TREE) + VINES_PER_TREE) % VINES_PER_TREE;
       this.drawVine(vine, this.end(vine, angle), bend, look);
     }
   }
