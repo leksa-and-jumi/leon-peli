@@ -1,22 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jumpStep, overPit, safeSpotBeside } from './pits';
-
-const pits = [
-  { left: 200, right: 260 },
-  { left: 400, right: 470 },
-];
-
-describe('overPit', () => {
-  it('finds the pit under the feet', () => {
-    expect(overPit(230, pits, 6)).toEqual(pits[0]);
-    expect(overPit(450, pits, 6)).toEqual(pits[1]);
-  });
-
-  it('is safe on solid ground and right at the edge', () => {
-    expect(overPit(100, pits, 6)).toBeNull();
-    expect(overPit(203, pits, 6)).toBeNull();
-  });
-});
+import { jumpStep } from './hop';
 
 describe('jumpStep', () => {
   it('goes up at first', () => {
@@ -45,12 +28,5 @@ describe('jumpStep', () => {
     }
     // Walking at 220 px/s
     expect((220 * airMs) / 1000).toBeGreaterThan(100);
-  });
-});
-
-describe('safeSpotBeside', () => {
-  it('puts you back on the side you came from', () => {
-    expect(safeSpotBeside({ left: 200, right: 260 }, 1, 20)).toBe(180);
-    expect(safeSpotBeside({ left: 200, right: 260 }, -1, 20)).toBe(280);
   });
 });

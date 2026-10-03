@@ -123,28 +123,23 @@ export const GRENADE = {
   colors: { body: 0x3f4f2a, lever: 0x9e9e9e },
 } as const;
 
-/** Holes in the ground you have to jump over. */
-export const PITS = {
-  holes: [
-    { left: 205, right: 280 },
-    { left: 405, right: 485 },
+/** Jungle vines hanging from a big branch: jump into one to swing, Space lets go with a flip. */
+export const LIANAS = {
+  /** Where each vine hangs from (on the branch at the top). */
+  anchors: [
+    { x: 250, y: 32 },
+    { x: 480, y: 32 },
   ],
-  /** How far into the hole your feet must be before you fall. */
-  grip: 8,
-  /** Where the hole starts below the ground line. */
-  top: 500,
-  colors: {
-    deep: 0x020202,
-    wall: 0x4a3c2c,
-    rim: 0x6e6455,
-    edge: 0x9a8e7c,
-    sign: 0xffc107,
-    post: 0x6d4c41,
-  },
-  /** Falling in: how deep you sink, how long it takes, and where you come back. */
-  fallDepth: 90,
-  fallMs: 450,
-  respawnGap: 22,
+  length: 300,
+  /** How close your hands must get to the end to grab it. */
+  grabReachX: 34,
+  grabReachY: 45,
+  swing: { gravity: 1400, push: 3.2, damping: 0.25, maxAngle: 1.05 },
+  /** After letting go, you can't grab again for a moment. */
+  regrabMs: 500,
+  /** Hanging: your feet are this many player-heights below your hands. */
+  hangDrop: 1.05,
+  colors: { vine: 0x3d5e2c, leaf: 0x6b8f45, branch: 0x2b2016, branchLight: 0x4a3a28 },
 } as const;
 
 /** Points for breaking one white stick figure. */

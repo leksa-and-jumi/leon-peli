@@ -15,7 +15,7 @@ import {
   GRENADE,
   OUTFITS,
   PIG_AXE,
-  PITS,
+  LIANAS,
   PLAYER,
   RELOAD_BAR,
   RIFLE_DEATHS,
@@ -31,7 +31,9 @@ import { addPoints, formatBest, formatScore } from '../logic/score';
 import { grenadeAfterShots, inBlast } from '../logic/grenade';
 import { inReach } from '../logic/melee';
 import { moveDirection, moveX } from '../logic/move';
-import { jumpStep, overPit, safeSpotBeside, type Pit } from '../logic/pits';
+import { stepDrop, type Drop } from '../logic/blood';
+import { jumpStep } from '../logic/hop';
+import { canGrab, flightTime, pendulumStep, releaseVelocity, type Swing } from '../logic/liana';
 import {
   afterDeath,
   loadSave,
@@ -50,6 +52,7 @@ import { Atmosphere } from '../objects/Atmosphere';
 import { Boss } from '../objects/Boss';
 import { Enemy, type Foe } from '../objects/Enemy';
 import { Grenades } from '../objects/Grenades';
+import { Lianas } from '../objects/Lianas';
 import { GunEffects } from '../objects/GunEffects';
 import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
@@ -83,7 +86,13 @@ export class MainScene extends Phaser.Scene {
   /** Jumping: how high the feet are and how fast they're going up. */
   private jumpLift = 0;
   private jumpSpeed = 0;
-  private falling = false;
+  /** Holding a vine: which one, and how it swings. */
+  private hanging: { index: number; swing: Swing } | null = null;
+  /** Flying off a vine with a flip. */
+  private flight: { drop: Drop; spin: number; spinSpeed: number } | null = null;
+  /** After letting go, no grabbing again until this time. */
+  private regrabAt = 0;
+  private lianas!: Lianas;
   private lastGrenadeMs: number | null = null;
   private enemyShots = 0;
   private grenades!: Grenades;
@@ -115,7 +124,9 @@ export class MainScene extends Phaser.Scene {
     this.earned = 0;
     this.jumpLift = 0;
     this.jumpSpeed = 0;
-    this.falling = false;
+    this.hanging = null;
+    this.flight = null;
+    this.regrabAt = 0;
     this.lastGrenadeMs = null;
     this.enemyShots = 0;
     this.enemyCount = 0;
@@ -138,6 +149,7 @@ export class MainScene extends Phaser.Scene {
     const atmosphere = new Atmosphere(this);
     new RuinsBackground(this, atmosphere);
     atmosphere.addVignette(ATMOSPHERE.vignette.depth);
+    this.lianas = new Lianas(this);
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
       outlineColor: PLAYER.outlineColor,
@@ -155,10 +167,7 @@ export class MainScene extends Phaser.Scene {
     this.player.setWeapon(this.gun);
     this.rifleUpgrade = levelWeapons.rifleUpgrade;
     if (run) {
-      // Back where you were, but never over a pit (you might have saved mid-jump)
-      const x = Math.min(Math.max(run.playerX, PLAYER.minX), PLAYER.maxX);
-      const pit = overPit(x, PITS.holes, 0);
-      this.player.setX(pit ? safeSpotBeside(pit, 1, PITS.respawnGap) : x);
+      this.player.setX(Math.min(Math.max(run.playerX, PLAYER.minX), PLAYER.maxX));
       const worn = run.wornOutfit in OUTFITS ? (run.wornOutfit as OutfitId) : 'black';
       if (this.ownedOutfits.has(worn))
         this.wear({ id: worn, emoji: '', name: '', price: 0, outfit: worn });
@@ -295,7 +304,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   private tryShoot(): void {
-    if (!this.playerAlive) return;
+    // Both hands are busy holding a vine
+    if (!this.playerAlive || this.hanging) return;
     // The gun has to reload between shots
     if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
     this.lastShotMs = this.time.now;
@@ -356,30 +366,43 @@ export class MainScene extends Phaser.Scene {
 
     this.gunFx.update(delta, [...this.playerBullets, ...this.enemyBullets]);
     this.grenades.update(delta);
+    this.lianas.draw(
+      delta,
+      this.hanging ? { index: this.hanging.index, angle: this.hanging.swing.angle } : null,
+    );
     this.drawReloadBar();
   }
 
   /** A/D or the arrows walk left and right. S or the down arrow crouches while held down. */
   private movePlayer(delta: number): void {
-    // Falling into a pit: no moving until back on solid ground
-    if (this.falling) return;
     const direction = moveDirection(
       this.leftKeys.some((k) => k.isDown),
       this.rightKeys.some((k) => k.isDown),
     );
     // Turn the way you walk (and the gun turns too)
     if (direction !== 0) this.player.setFacing(direction);
+
+    // On a vine, A/D swing it; flying off a vine does a flip
+    if (this.hanging) {
+      this.updateHanging(delta, direction);
+      return;
+    }
+    if (this.flight) {
+      this.updateFlight(delta);
+      return;
+    }
+
     const x = moveX(
       this.player.getX(),
       direction,
       PLAYER.walkSpeed,
       delta,
       PLAYER.minX,
-      this.player.getWeapon() === 'axe' ? PIG_AXE.maxX : PLAYER.maxX,
+      this.maxX(),
     );
     this.player.setX(x);
 
-    // In the air: fly up and come back down
+    // In the air: fly up and come back down, and grab a vine if you reach one
     if (this.jumpLift > 0 || this.jumpSpeed > 0) {
       const step = jumpStep(this.jumpLift, this.jumpSpeed, delta, PLAYER.gravity);
       this.jumpLift = step.lift;
@@ -387,14 +410,8 @@ export class MainScene extends Phaser.Scene {
       this.player.setLift(this.jumpLift);
       this.player.setStance('jump');
       this.player.setWalking(null);
+      if (this.tryGrab()) return;
       if (!step.landed) return;
-    }
-
-    // On the ground over a hole: fall in!
-    const pit = overPit(x, PITS.holes, PITS.grip);
-    if (pit) {
-      this.fallInto(pit);
-      return;
     }
 
     // Legs swing while walking, and shuffle while walking crouched
@@ -404,36 +421,102 @@ export class MainScene extends Phaser.Scene {
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 
-  /** Space: jump, if standing on the ground. */
+  /** How far right you can go (closer to the enemies with the axe). */
+  private maxX(): number {
+    return this.player.getWeapon() === 'axe' ? PIG_AXE.maxX : PLAYER.maxX;
+  }
+
+  /** How high the player's feet are right now. */
+  private playerLift(): number {
+    return PLAYER.feetY - this.player.getFeetY();
+  }
+
+  /** Space: jump from the ground, or let go of a vine and flip through the air. */
   private startJump(): void {
-    if (!this.playerAlive || this.falling || this.jumpLift > 0) return;
+    if (!this.playerAlive) return;
+    if (this.hanging) {
+      this.letGo();
+      return;
+    }
+    if (this.flight || this.jumpLift > 0) return;
     this.jumpSpeed = PLAYER.jumpSpeed;
     this.sfx.footstep();
   }
 
-  /** Down the hole: sink, lose a heart, and come back next to the edge. */
-  private fallInto(pit: Pit): void {
-    this.falling = true;
-    this.player.setWalking(null);
+  /** While jumping or flying: grab the end of a vine if your hands reach it. */
+  private tryGrab(): boolean {
+    if (this.time.now < this.regrabAt) return false;
+    const handsY = this.player.bounds().top + 8;
+    for (let index = 0; index < LIANAS.anchors.length; index++) {
+      const angle = this.lianas.idleAngle(index);
+      const end = this.lianas.end(index, angle);
+      if (canGrab(this.player.getX(), handsY, end, LIANAS.grabReachX, LIANAS.grabReachY)) {
+        this.hanging = { index, swing: { angle, speed: 0 } };
+        this.jumpLift = 0;
+        this.jumpSpeed = 0;
+        this.flight = null;
+        this.player.setSpin(0);
+        this.player.setWalking(null);
+        this.player.setStance('hang');
+        this.sfx.footstep();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Swinging on a vine: A/D push the swing, and you hang from its end. */
+  private updateHanging(delta: number, input: -1 | 0 | 1): void {
+    if (!this.hanging) return;
+    const rules = { ...LIANAS.swing, length: LIANAS.length };
+    this.hanging.swing = pendulumStep(this.hanging.swing, input, delta, rules);
+    const end = this.lianas.end(this.hanging.index, this.hanging.swing.angle);
+    this.player.setX(end.x);
+    const feetY = end.y + LIANAS.hangDrop * PLAYER.height;
+    this.player.setLift(PLAYER.feetY - feetY);
+    this.player.setStance('hang');
+  }
+
+  /** Let go of the vine: fly off the way you were swinging and do one flip before landing. */
+  private letGo(): void {
+    if (!this.hanging) return;
+    const v = releaseVelocity(this.hanging.swing, LIANAS.length);
+    const lift = this.playerLift();
+    const airTime = flightTime(Math.max(lift, 0), -v.vy, PLAYER.gravity);
+    const turn = v.vx === 0 ? this.player.getFacing() : Math.sign(v.vx);
+    this.flight = {
+      drop: { x: this.player.getX(), y: this.player.getFeetY(), vx: v.vx, vy: v.vy },
+      spin: 0,
+      spinSpeed: (turn * Math.PI * 2) / Math.max(airTime, 0.3),
+    };
+    this.hanging = null;
+    this.regrabAt = this.time.now + LIANAS.regrabMs;
+    this.sfx.footstep();
+  }
+
+  /** Flying after letting go: fall with gravity, spin, and land on your feet. */
+  private updateFlight(delta: number): void {
+    if (!this.flight) return;
+    const f = this.flight;
+    f.drop = stepDrop(f.drop, delta, PLAYER.gravity);
+    f.drop.x = Math.min(Math.max(f.drop.x, PLAYER.minX), this.maxX());
+    this.player.setX(f.drop.x);
+    const lift = PLAYER.feetY - f.drop.y;
+    if (lift <= 0) {
+      // Landed!
+      this.flight = null;
+      this.player.setLift(0);
+      this.player.setSpin(0);
+      this.player.setStance('stand');
+      this.dustAt(this.player.getX(), 2);
+      this.sfx.footstep(true);
+      return;
+    }
+    f.spin += (f.spinSpeed * delta) / 1000;
+    this.player.setLift(lift);
+    this.player.setSpin(f.spin);
     this.player.setStance('jump');
-    const fall = { depth: 0 };
-    this.tweens.add({
-      targets: fall,
-      depth: PITS.fallDepth,
-      duration: PITS.fallMs,
-      ease: 'Quad.easeIn',
-      onUpdate: () => {
-        this.player.setLift(-fall.depth);
-      },
-      onComplete: () => {
-        this.hurtPlayer(PLAYER.feetY - PITS.fallDepth, this.player.getFacing());
-        if (!this.playerAlive) return;
-        this.player.setX(safeSpotBeside(pit, this.player.getFacing(), PITS.respawnGap));
-        this.player.setLift(0);
-        this.player.setStance('stand');
-        this.falling = false;
-      },
-    });
+    this.tryGrab();
   }
 
   /**
@@ -462,7 +545,7 @@ export class MainScene extends Phaser.Scene {
 
   /** G: throw a grenade the way you're facing, at the enemy if it's there (once every 30 seconds). */
   private throwGrenade(): void {
-    if (!this.playerAlive || this.falling) return;
+    if (!this.playerAlive || this.hanging) return;
     if (!canShoot(this.time.now, this.lastGrenadeMs, GRENADE.cooldownMs)) return;
     this.lastGrenadeMs = this.time.now;
     const facing = this.player.getFacing();
@@ -486,8 +569,8 @@ export class MainScene extends Phaser.Scene {
     if (!this.playerAlive || !enemy.isAlive()) return;
     this.grenades.throw(enemy.figure.handPosition(), this.player.getX(), PLAYER.feetY, (x) => {
       const close = inBlast(this.player.getX(), x, GRENADE.radius);
-      const jumpedOver = this.jumpLift > GRENADE.safeHeight;
-      if (this.playerAlive && !this.falling && close && !jumpedOver) {
+      const jumpedOver = this.playerLift() > GRENADE.safeHeight;
+      if (this.playerAlive && close && !jumpedOver) {
         this.hurtPlayer(PLAYER.feetY - 60, x < this.player.getX() ? 1 : -1, GRENADE.enemyDamage);
       }
     });
