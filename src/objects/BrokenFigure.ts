@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BLOOD, BREAK, GAME_WIDTH, PLAYER, type Weapon } from '../config';
+import { BLOOD, BREAK, GAME_WIDTH, type Weapon } from '../config';
 import { arcPoint } from '../logic/arc';
 import { dropShape, stepDrop, type Drop } from '../logic/blood';
 import { cutTracked, figureSegments, pieceSegment, type Segment } from '../logic/cut';
@@ -9,6 +9,7 @@ import {
   drawHead,
   drawOutfit,
   drawSegments,
+  lookLineWidth,
   headCenter,
   lookOutfit,
   type StickFigureLook,
@@ -210,15 +211,16 @@ export class BrokenFigure {
       gunHand: { x: pose.gunHand.x, y: pose.gunHand.y + shiftY },
     };
     g.clear();
-    const edge = PLAYER.lineWidth + 3;
-    drawSegments(g, shifted, edge, look.outlineColor, look.outlineAlpha);
-    if (withHead) drawHead(g, shiftedPose, edge, look.outlineColor, look.outlineAlpha);
-    drawOutfit(g, shifted, shiftedPose, lookOutfit(look), withHead, shiftY);
+    const lineWidth = lookLineWidth(look);
+    const edge = lineWidth + 3;
+    drawSegments(g, shifted, edge, look.outlineColor, look.outlineAlpha, lineWidth);
+    if (withHead) drawHead(g, shiftedPose, edge, look.outlineColor, look.outlineAlpha, lineWidth);
+    drawOutfit(g, shifted, shiftedPose, lookOutfit(look), withHead, shiftY, lineWidth);
     if (gun) drawGun(g, shiftedPose, look, gun);
 
     // Red at the ends where it broke
     g.fillStyle(BLOOD.color, 1);
-    for (const p of cutEnds) g.fillCircle(p.x, p.y + shiftY, PLAYER.lineWidth * 0.8);
+    for (const p of cutEnds) g.fillCircle(p.x, p.y + shiftY, lineWidth * 0.8);
     const first = cutEnds[0];
     if (first) this.cutEnds.set(g, { x: first.x, y: first.y + shiftY });
   }

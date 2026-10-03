@@ -151,7 +151,30 @@ export const LIANAS = {
   regrabMs: 500,
   /** Hanging: your feet are this many player-heights below your hands. */
   hangDrop: 1.05,
-  colors: { vine: 0x3d5e2c, leaf: 0x6b8f45, branch: 0x2b2016, branchLight: 0x4a3a28 },
+  /** Flying off a vine can take you this far right (even into the enemies). */
+  flightMaxX: 770,
+  /** Letting go, you push off a little upward, for a higher flip. */
+  releaseBoost: 260,
+  /** Part of the flight where you're tucked up tight (between these). */
+  flip: { openStart: 0.12, openEnd: 0.85 },
+  /** Landing from a flip: you bend your knees for a moment. */
+  landingMs: 200,
+  /** A held vine bends behind you while swinging (pixels per swing speed). */
+  bend: 14,
+  colors: {
+    vine: 0x3d5e2c,
+    wood: 0x4a3b22,
+    woodDark: 0x2e2414,
+    strand: 0x5d7a35,
+    shine: 0x8aa05a,
+    leaf: 0x4f7f2e,
+    leafLight: 0x7fae4a,
+    leafVein: 0x2f4a1c,
+    branch: 0x46352a,
+    branchLight: 0x8a7458,
+    bark: 0x271c13,
+    moss: 0x5f8034,
+  },
 } as const;
 
 /** Points for breaking one white stick figure. */
@@ -241,8 +264,43 @@ export const GIANT = {
   healthBar: { width: 100, height: 10, gap: 14, back: 0x3a332b, fill: 0x7cb342 },
 } as const;
 
-/** Everything that's different between the axe guy and the giant. */
-export type BigFoeKind = typeof BOSS | typeof GIANT;
+/** The brute on super hard: thick and strong, and one smash takes all your lives. */
+export const BRUTE = {
+  weapon: 'club',
+  voice: 'giant',
+  /** More than you'll ever have: one smash and you're out. */
+  damage: 99,
+  height: 150,
+  /** Lines this many times thicker than the others. */
+  thickness: 2.2,
+  color: 0x6d4c41,
+  outlineColor: 0xf3e6c4,
+  outlineAlpha: 0.75,
+  walkSpeed: 55,
+  stepMs: 280,
+  lives: 15,
+  points: 8,
+  reach: 95,
+  minX: 40,
+  maxX: 740,
+  chopIntervalMs: 1500,
+  chopDownMs: 300,
+  healthBar: { width: 80, height: 9, gap: 14, back: 0x3a332b, fill: 0x8d6e63 },
+} as const;
+
+/** Crashing into someone after letting go of a vine: fall on your back, then get up. */
+export const KNOCKDOWN = {
+  fallMs: 320,
+  lieMs: 700,
+  riseMs: 450,
+  /** You bounce back this fast off the one you hit. */
+  bounceBack: 160,
+  /** How close counts as a crash. */
+  margin: 10,
+} as const;
+
+/** Everything that's different between the axe guy, the giant and the brute. */
+export type BigFoeKind = typeof BOSS | typeof GIANT | typeof BRUTE;
 
 /** How a hit white stick figure breaks in two. */
 export const BREAK = {
@@ -575,12 +633,13 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     ],
     regular: { kind: 'white', lives: 3 },
   },
-  /** Red 5-hit guys all the time, a white one every 10th, the giant every 15th. */
+  /** Red 5-hit guys all the time, a white one every 10th, the brute every 15th, the giant every 30th. */
   superHard: {
     label: 'Super hard\nSupervaikea',
     emoji: '🔥',
     specials: [
-      { every: 15, kind: 'giant' },
+      { every: 30, kind: 'giant' },
+      { every: 15, kind: 'brute' },
       { every: 10, kind: 'white', lives: 3 },
     ],
     regular: { kind: 'boss', lives: 5 },

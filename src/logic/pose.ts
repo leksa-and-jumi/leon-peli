@@ -101,6 +101,19 @@ const HANG: typeof STAND = {
   gunHand: { x: 0.05, y: -1.05 },
 };
 
+/** Tucked up tight in a flip: knees pulled to the chest, hands holding the shins. */
+const TUCK: typeof STAND = {
+  hip: { x: -0.02, y: -0.46 },
+  neck: { x: 0.06, y: -0.8 },
+  shoulder: { x: 0.05, y: -0.74 },
+  backKnee: { x: 0.14, y: -0.68 },
+  backFoot: { x: 0.04, y: -0.44 },
+  frontKnee: { x: 0.18, y: -0.66 },
+  frontFoot: { x: 0.08, y: -0.42 },
+  backHand: { x: 0.13, y: -0.56 },
+  gunHand: { x: 0.2, y: -0.58 },
+};
+
 /** Walking with the axe raised. */
 const RAISE_STRIDE: typeof STAND = { ...STRIDE, gunHand: RAISE.gunHand };
 
@@ -113,6 +126,7 @@ const STANCES = {
   raise: RAISE,
   chop: CHOP,
   windup: WINDUP,
+  tuck: TUCK,
   raiseStride: RAISE_STRIDE,
   hang: HANG,
 };

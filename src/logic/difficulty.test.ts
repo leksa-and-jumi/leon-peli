@@ -42,7 +42,8 @@ describe('enemyFor', () => {
 describe('super hard', () => {
   const superHard: DifficultyRules = {
     specials: [
-      { every: 15, kind: 'giant' },
+      { every: 30, kind: 'giant' },
+      { every: 15, kind: 'brute' },
       { every: 10, kind: 'white', lives: 3 },
     ],
     regular: { kind: 'boss', lives: 5 },
@@ -53,9 +54,10 @@ describe('super hard', () => {
       expect(enemyFor(superHard, n)).toEqual({ kind: 'boss', lives: 5 });
   });
 
-  it('a white one every 10th and the giant every 15th', () => {
+  it('a white one every 10th, the brute every 15th and the giant every 30th', () => {
     expect(enemyFor(superHard, 10)).toEqual({ kind: 'white', lives: 3 });
-    expect(enemyFor(superHard, 15)).toEqual({ kind: 'giant' });
+    expect(enemyFor(superHard, 15)).toEqual({ kind: 'brute' });
+    expect(enemyFor(superHard, 45)).toEqual({ kind: 'brute' });
     expect(enemyFor(superHard, 30)).toEqual({ kind: 'giant' });
     expect(enemyFor(superHard, 20)).toEqual({ kind: 'white', lives: 3 });
   });

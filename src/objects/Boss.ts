@@ -11,7 +11,7 @@ import { StickFigure } from './StickFigure';
 
 /**
  * A big enemy that follows the player wherever they go and swings when close:
- * the red axe guy (every 15th) or the giant with a club (every 30th).
+ * the red axe guy (every 15th), the giant with a club (every 30th) or the thick brute.
  * Has a health bar over his head. `kind` holds his size, speed, lives and so on.
  */
 export class Boss implements Foe {
@@ -51,6 +51,7 @@ export class Boss implements Foe {
         outlineAlpha: this.kind.outlineAlpha,
         facing: -1,
         height: this.kind.height,
+        thickness: 'thickness' in kind ? kind.thickness : 1,
       },
       'raise',
     );

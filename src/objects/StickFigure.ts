@@ -44,6 +44,13 @@ export interface StickFigureLook {
   height?: number;
   /** Clothes. Without them the figure is plain `color`. */
   outfit?: OutfitLook;
+  /** Lines this many times thicker than normal, for chunky figures. */
+  thickness?: number;
+}
+
+/** How thick a figure's lines are. */
+export function lookLineWidth(look: StickFigureLook): number {
+  return PLAYER.lineWidth * (look.thickness ?? 1);
 }
 
 /**
@@ -318,11 +325,12 @@ export class StickFigure {
     const segments = figureSegments(pose);
     this.g.clear();
     // Edge first, then the figure on top of it
-    drawSegments(this.g, segments, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
-    drawHead(this.g, pose, PLAYER.lineWidth + 3, outlineColor, outlineAlpha);
+    const lineWidth = lookLineWidth(this.look);
+    drawSegments(this.g, segments, lineWidth + 3, outlineColor, outlineAlpha, lineWidth);
+    drawHead(this.g, pose, lineWidth + 3, outlineColor, outlineAlpha, lineWidth);
     const outfit: OutfitLook =
       this.hitColor !== null ? { kind: 'solid', color: this.hitColor } : lookOutfit(this.look);
-    drawOutfit(this.g, segments, pose, outfit);
+    drawOutfit(this.g, segments, pose, outfit, true, 0, lineWidth);
     drawGun(this.g, pose, this.look, this.weapon);
   }
 }
@@ -344,6 +352,7 @@ export function drawOutfit(
   withHead = true,
   /** Where the feet line is in these coordinates (moved for broken pieces). */
   feetY = 0,
+  lineWidth: number = PLAYER.lineWidth,
 ): void {
   // Rainbow stripes go from the top of the head (red) down to the feet (purple)
   const headTop = pose.neck.y - pose.headRadius * 2;
@@ -365,7 +374,7 @@ export function drawOutfit(
           : outfit.kind === 'camo'
             ? camoColorAt(outfit.colors, midX, midY - feetY)
             : outfitColor(outfit, index);
-      g.lineStyle(PLAYER.lineWidth, color, 1);
+      g.lineStyle(lineWidth, color, 1);
       g.lineBetween(from.x, from.y, to.x, to.y);
       index += 1;
     }
@@ -379,7 +388,7 @@ export function drawOutfit(
           ? camoColorAt(outfit.colors, j.x, j.y - feetY)
           : outfitColor(outfit, Math.round(Math.abs(j.x) + Math.abs(j.y)));
     g.fillStyle(color, 1);
-    g.fillCircle(j.x, j.y, roundEnd(PLAYER.lineWidth, j.end));
+    g.fillCircle(j.x, j.y, roundEnd(lineWidth, j.end, lineWidth));
   }
   if (!withHead) return;
 
@@ -489,6 +498,8 @@ export function drawSegments(
   lineWidth: number,
   color: number,
   alpha: number,
+  /** The figure's own line width (the edge is drawn a bit wider than it). */
+  base: number = PLAYER.lineWidth,
 ): void {
   g.lineStyle(lineWidth, color, alpha);
   for (const { from, to } of segments) {
@@ -497,13 +508,13 @@ export function drawSegments(
   // Round knees and elbows, and round balls for hands and feet
   g.fillStyle(color, alpha);
   for (const j of joints(segments)) {
-    g.fillCircle(j.x, j.y, roundEnd(lineWidth, j.end));
+    g.fillCircle(j.x, j.y, roundEnd(lineWidth, j.end, base));
   }
 }
 
 /** How big the round end of a line is: hands and feet are a bit bigger than knees. */
-function roundEnd(lineWidth: number, end: boolean): number {
-  return end ? lineWidth / 2 + PLAYER.lineWidth * ROUND_ENDS.handGrow : lineWidth / 2;
+function roundEnd(lineWidth: number, end: boolean, base: number = PLAYER.lineWidth): number {
+  return end ? lineWidth / 2 + base * ROUND_ENDS.handGrow : lineWidth / 2;
 }
 
 /** Where the middle of the head is. */
@@ -518,10 +529,12 @@ export function drawHead(
   lineWidth: number,
   color: number,
   alpha: number,
+  /** The figure's own line width (the edge is drawn a bit wider than it). */
+  base: number = PLAYER.lineWidth,
 ): void {
   const center = headCenter(pose);
   g.fillStyle(color, alpha);
-  g.fillCircle(center.x, center.y, pose.headRadius + (lineWidth - PLAYER.lineWidth) / 2);
+  g.fillCircle(center.x, center.y, pose.headRadius + (lineWidth - base) / 2);
 }
 
 /** A filled shape of a weapon: points measured forward from the hand (x) and down (y). */

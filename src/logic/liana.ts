@@ -75,3 +75,17 @@ export function canGrab(
 export function flightTime(height: number, up: number, gravity: number): number {
   return (up + Math.sqrt(Math.max(up * up + 2 * gravity * height, 0))) / gravity;
 }
+
+/**
+ * How far round the flip is (radians, 0 to one full turn) at `progress` 0..1 of the flight.
+ * Starts and ends slowly, spins fast in the middle, like a real somersault.
+ */
+export function flipSpin(progress: number): number {
+  const p = Math.min(Math.max(progress, 0), 1);
+  return Math.PI * 2 * (p - Math.sin(Math.PI * 2 * p) / (Math.PI * 2));
+}
+
+/** Tucked up tight in the middle of the flip, opened out at the start and before landing. */
+export function flipTucked(progress: number, openStart: number, openEnd: number): boolean {
+  return progress > openStart && progress < openEnd;
+}
