@@ -336,6 +336,9 @@ export const GUN_FX = {
   },
 } as const;
 
+/** After this many deaths on a level, the rifle bought there is gone. */
+export const RIFLE_DEATHS = 5;
+
 /** The guns. `muzzleX` is how far in front of the hand the bullet comes out. */
 export const WEAPONS = {
   pistol: { muzzleX: 30, cooldownMs: BULLET.cooldownMs },
@@ -386,7 +389,7 @@ export const GAME_OVER = {
   textColor: '#ffffff',
   recordColor: '#ffd54f',
   dimAlpha: 0.35,
-  panel: { width: 380, height: 290, color: 0x1b1533, alpha: 0.92, border: 0xc62828 },
+  panel: { width: 400, height: 320, color: 0x1b1533, alpha: 0.92, border: 0xc62828 },
   button: { width: 120, height: 48, color: 0xc62828, hoverColor: 0xe53935 },
 } as const;
 

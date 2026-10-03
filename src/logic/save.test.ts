@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { loadSave, recordScore, writeSave, type SaveData, type SaveStorage } from './save';
+import {
+  afterDeath,
+  loadSave,
+  recordScore,
+  weaponsFor,
+  withWeapons,
+  writeSave,
+  type SaveData,
+  type SaveStorage,
+} from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -12,37 +21,30 @@ function memoryStorage(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
+const fresh: SaveData = { weapons: {}, muted: false, best: {} };
+
 describe('save', () => {
-  it('starts without the rifle', () => {
-    expect(loadSave(memoryStorage())).toEqual({
-      rifle: false,
-      rifleUpgrade: false,
-      muted: false,
-      best: {},
-    });
+  it('starts empty', () => {
+    expect(loadSave(memoryStorage())).toEqual(fresh);
   });
 
-  it('remembers the rifle after saving', () => {
+  it('remembers what was saved', () => {
     const storage = memoryStorage();
-    writeSave(storage, { rifle: true, rifleUpgrade: false, muted: false, best: {} });
-    expect(loadSave(storage)).toEqual({ rifle: true, rifleUpgrade: false, muted: false, best: {} });
+    const save = withWeapons({ ...fresh, muted: true, best: { easy: 4 } }, 'easy', { rifle: true });
+    writeSave(storage, save);
+    expect(loadSave(storage)).toEqual(save);
   });
 
   it('ignores a broken save', () => {
     const storage = memoryStorage();
     storage.data.set('leon-peli-save', '{not json');
-    expect(loadSave(storage)).toEqual({
-      rifle: false,
-      rifleUpgrade: false,
-      muted: false,
-      best: {},
-    });
+    expect(loadSave(storage)).toEqual(fresh);
   });
 
   it('works without any storage', () => {
-    expect(loadSave(null)).toEqual({ rifle: false, rifleUpgrade: false, muted: false, best: {} });
+    expect(loadSave(null)).toEqual(fresh);
     expect(() => {
-      writeSave(null, { rifle: true, rifleUpgrade: false, muted: false, best: {} });
+      writeSave(null, fresh);
     }).not.toThrow();
   });
 
@@ -55,43 +57,57 @@ describe('save', () => {
         throw new Error('blocked');
       },
     };
-    expect(loadSave(blocked)).toEqual({
-      rifle: false,
-      rifleUpgrade: false,
-      muted: false,
-      best: {},
-    });
+    expect(loadSave(blocked)).toEqual(fresh);
     expect(() => {
-      writeSave(blocked, { rifle: true, rifleUpgrade: false, muted: false, best: {} });
+      writeSave(blocked, fresh);
     }).not.toThrow();
   });
-});
 
-describe('muted', () => {
-  it('remembers that sounds are off', () => {
+  it('forgets the old rifle that worked on every level', () => {
     const storage = memoryStorage();
-    writeSave(storage, { rifle: false, rifleUpgrade: false, muted: true, best: {} });
-    expect(loadSave(storage)).toEqual({ rifle: false, rifleUpgrade: false, muted: true, best: {} });
-  });
-
-  it('reads an old save without the sound setting', () => {
-    const storage = memoryStorage();
-    storage.data.set('leon-peli-save', JSON.stringify({ rifle: true }));
-    expect(loadSave(storage)).toEqual({ rifle: true, rifleUpgrade: false, muted: false, best: {} });
+    storage.data.set('leon-peli-save', JSON.stringify({ rifle: true, muted: true }));
+    expect(loadSave(storage)).toEqual({ ...fresh, muted: true });
   });
 });
 
-describe('rifle upgrade', () => {
-  it('remembers the upgrade', () => {
-    const storage = memoryStorage();
-    writeSave(storage, { rifle: true, rifleUpgrade: true, muted: false, best: {} });
-    expect(loadSave(storage).rifleUpgrade).toBe(true);
+describe('rifle per level', () => {
+  it('a rifle bought on easy is not on normal', () => {
+    const save = withWeapons(fresh, 'easy', { rifle: true });
+    expect(weaponsFor(save, 'easy').rifle).toBe(true);
+    expect(weaponsFor(save, 'normal').rifle).toBe(false);
+  });
+
+  it('counts deaths and loses the rifle and upgrade on the 5th', () => {
+    let save = withWeapons(fresh, 'hard', { rifle: true, rifleUpgrade: true });
+    for (let i = 1; i <= 4; i++) {
+      const result = afterDeath(save, 'hard', 5);
+      expect(result.lostRifle).toBe(false);
+      expect(result.deathsLeft).toBe(5 - i);
+      save = result.save;
+    }
+    const last = afterDeath(save, 'hard', 5);
+    expect(last.lostRifle).toBe(true);
+    expect(weaponsFor(last.save, 'hard')).toEqual({ rifle: false, rifleUpgrade: false, deaths: 0 });
+  });
+
+  it('dying without the rifle counts nothing', () => {
+    const result = afterDeath(fresh, 'easy', 5);
+    expect(result.deathsLeft).toBeNull();
+    expect(result.save).toEqual(fresh);
+  });
+
+  it('dying on one level does not touch the rifle on another', () => {
+    const save = withWeapons(fresh, 'easy', { rifle: true });
+    const result = afterDeath(save, 'normal', 5);
+    expect(weaponsFor(result.save, 'easy')).toEqual({
+      rifle: true,
+      rifleUpgrade: false,
+      deaths: 0,
+    });
   });
 });
 
 describe('best scores', () => {
-  const fresh: SaveData = { rifle: false, rifleUpgrade: false, muted: false, best: {} };
-
   it('a first score is a new record', () => {
     const { save, newRecord } = recordScore(fresh, 'easy', 7);
     expect(newRecord).toBe(true);
@@ -99,8 +115,7 @@ describe('best scores', () => {
   });
 
   it('a lower score is not a record and keeps the old best', () => {
-    const withBest = { ...fresh, best: { easy: 10 } };
-    const { save, newRecord } = recordScore(withBest, 'easy', 6);
+    const { save, newRecord } = recordScore({ ...fresh, best: { easy: 10 } }, 'easy', 6);
     expect(newRecord).toBe(false);
     expect(save.best.easy).toBe(10);
   });
