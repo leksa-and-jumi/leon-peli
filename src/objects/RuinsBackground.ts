@@ -465,24 +465,55 @@ export class RuinsBackground {
     }
   }
 
-  /** Dark holes in the floor where slabs have fallen in. */
+  /**
+   * Big dark holes in the floor where slabs have fallen in: a broken stone rim,
+   * a lit far wall going down into blackness, and a yellow warning sign next to them.
+   */
   private drawPits(): void {
     const { top, colors } = PITS;
     for (const { left, right } of PITS.holes) {
-      const width = right - left;
-      // Broken rim of stones around the hole
-      this.g.fillStyle(colors.rim, 1);
-      this.g.fillRoundedRect(left - 6, top - 6, width + 12, GAME_HEIGHT - top + 12, 10);
-      // The hole: dark at the bottom, a bit lighter near the top edge
-      this.g.fillGradientStyle(colors.rim, colors.rim, colors.deep, colors.deep, 1);
-      this.g.fillRoundedRect(left, top, width, GAME_HEIGHT - top, 8);
-      // Jagged lit edge stones along the top
-      this.g.fillStyle(colors.edge, 1);
-      for (let x = left - 4; x < right + 4; x += 9) {
-        const h = 3 + this.random() * 5;
-        this.g.fillRect(x, top - 6, 7, h);
+      // A jagged outline for the hole's opening
+      const outline: Phaser.Math.Vector2[] = [];
+      for (let x = left; x <= right; x += 8) {
+        outline.push(new V(x, top + this.random() * 6));
       }
+      outline.push(new V(right, GAME_HEIGHT), new V(left, GAME_HEIGHT));
+
+      // Broken stone rim, a bit bigger than the hole
+      this.g.fillStyle(colors.rim, 1);
+      this.g.fillPoints(
+        outline.map((p) => new V(p.x + (p.x < (left + right) / 2 ? -7 : 7), p.y - 7)),
+        true,
+      );
+      // The hole itself: black
+      this.g.fillStyle(colors.deep, 1);
+      this.g.fillPoints(outline, true);
+      // The far wall of the hole, lit at the top and fading into the dark
+      this.g.fillGradientStyle(colors.wall, colors.wall, colors.deep, colors.deep, 1);
+      this.g.fillRect(left + 4, top + 6, right - left - 8, 34);
+      // Light catching the broken edge, and stones about to fall in
+      this.g.lineStyle(2, colors.edge, 1);
+      this.g.strokePoints(outline.slice(0, -2), false);
+      this.g.fillStyle(colors.edge, 1);
+      for (let x = left; x < right; x += 14) {
+        this.g.fillRect(x + this.random() * 6, top - 3 + this.random() * 4, 5, 3);
+      }
+      this.drawWarningSign(left - 18, top + 2);
     }
+  }
+
+  /** A little yellow "!" sign on a wooden post, standing at (x, groundY). */
+  private drawWarningSign(x: number, groundY: number): void {
+    const { sign, post } = PITS.colors;
+    this.g.fillStyle(post, 1);
+    this.g.fillRect(x - 2, groundY - 38, 4, 38);
+    this.g.fillStyle(0x000000, 1);
+    this.g.fillTriangle(x, groundY - 62, x - 15, groundY - 34, x + 15, groundY - 34);
+    this.g.fillStyle(sign, 1);
+    this.g.fillTriangle(x, groundY - 58, x - 12, groundY - 36, x + 12, groundY - 36);
+    this.g.fillStyle(0x000000, 1);
+    this.g.fillRect(x - 1.5, groundY - 52, 3, 9);
+    this.g.fillCircle(x, groundY - 39.5, 1.8);
   }
 
   /** Little grass tufts growing between the floor slabs. */
