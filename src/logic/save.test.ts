@@ -144,6 +144,7 @@ describe('unfinished games', () => {
     playerX: 300,
     ownedOutfits: ['black', 'camo'],
     wornOutfit: 'camo',
+    ownedItems: ['poison'],
   };
 
   it('remembers a game in progress on a level', () => {
@@ -156,6 +157,14 @@ describe('unfinished games', () => {
   it('forgets it after dying', () => {
     const save = withoutRun(withRun(fresh, 'normal', run), 'normal');
     expect(save.runs.normal).toBeUndefined();
+  });
+
+  it('reads an older saved game without bought items', () => {
+    const storage = memoryStorage();
+    const older: Partial<RunState> = { ...run };
+    delete older.ownedItems;
+    storage.data.set('leon-peli-save', JSON.stringify({ runs: { normal: older } }));
+    expect(loadSave(storage).runs.normal?.ownedItems).toEqual([]);
   });
 
   it('ignores a broken game', () => {

@@ -109,13 +109,13 @@ export class ShopScene extends Phaser.Scene {
     );
 
     SHOP_ITEMS.forEach((item: ShopItem, i) => {
-      const y = top + 100 + i * rowHeight;
+      const y = top + SHOP.firstRowY + i * rowHeight;
       this.content.add(
-        this.add.text(left + 30, y, item.emoji, { fontSize: '40px' }).setOrigin(0, 0.5),
+        this.add.text(left + 30, y, item.emoji, { fontSize: SHOP.emojiSize }).setOrigin(0, 0.5),
       );
       this.content.add(
         this.add
-          .text(left + 90, y, item.name, { fontSize: '20px', color: SHOP.textColor })
+          .text(left + 80, y, item.name, { fontSize: SHOP.nameSize, color: SHOP.textColor })
           .setOrigin(0, 0.5),
       );
       const buttonX = left + panel.width - 30 - buyButton.width / 2;
@@ -152,7 +152,7 @@ export class ShopScene extends Phaser.Scene {
       });
     });
 
-    this.drawColors(left, top + 100 + SHOP_ITEMS.length * rowHeight - 10, score);
+    this.drawColors(left, top + SHOP.firstRowY + SHOP_ITEMS.length * rowHeight - 12, score);
   }
 
   /** One-color clothes as a row of color squares. */
@@ -169,7 +169,7 @@ export class ShopScene extends Phaser.Scene {
     );
     const rowWidth = COLOR_ITEMS.length * size + (COLOR_ITEMS.length - 1) * gap;
     const startX = GAME_WIDTH / 2 - rowWidth / 2 + size / 2;
-    const swatchY = y + 46;
+    const swatchY = y + 40;
 
     COLOR_ITEMS.forEach((item, i) => {
       const outfit = item.outfit !== undefined ? OUTFITS[item.outfit as OutfitId] : undefined;
