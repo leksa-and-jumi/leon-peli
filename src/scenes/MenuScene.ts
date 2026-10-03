@@ -4,7 +4,7 @@ import type { Difficulty } from '../logic/difficulty';
 import { Atmosphere } from '../objects/Atmosphere';
 import { RuinsBackground } from '../objects/RuinsBackground';
 
-/** The start menu: pick Easy, Normal or Hard (or press 1, 2 or 3). */
+/** The start menu: pick Easy, Normal, Hard or Super hard (or press 1–4). */
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super('MenuScene');
@@ -37,15 +37,15 @@ export class MenuScene extends Phaser.Scene {
       .text(cx, 160, MENU.subtitle, { fontSize: '22px', color: MENU.textColor })
       .setOrigin(0.5);
 
-    const levels: Difficulty[] = ['easy', 'normal', 'hard'];
+    const levels: Difficulty[] = ['easy', 'normal', 'hard', 'superHard'];
     const { height, gap } = MENU.button;
     levels.forEach((level, i) => {
-      this.addLevelButton(level, cx, 240 + i * (height + gap));
+      this.addLevelButton(level, cx, 225 + i * (height + gap));
     });
 
     const keyboard = this.input.keyboard;
     levels.forEach((level, i) => {
-      keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE'][i] ?? ''}`, () => {
+      keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i] ?? ''}`, () => {
         this.start(level);
       });
     });

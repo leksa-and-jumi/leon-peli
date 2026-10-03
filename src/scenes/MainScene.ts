@@ -353,7 +353,7 @@ export class MainScene extends Phaser.Scene {
       (muzzle) => {
         this.shoot(muzzle, -1, 'enemy');
       },
-      next.lives ?? rules.whiteLives,
+      next.lives ?? ENEMY.lives,
     );
     this.enemy.figure.setOnStep(() => {
       this.sfx.footstep(false, true);
