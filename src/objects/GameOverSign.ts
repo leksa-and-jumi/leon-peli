@@ -2,7 +2,12 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_OVER, GAME_WIDTH } from '../config';
 
 /** "You died" sign in the middle of the screen, with an OK button to play again. */
-export function showGameOverSign(scene: Phaser.Scene, onOk: () => void): void {
+export function showGameOverSign(
+  scene: Phaser.Scene,
+  onOk: () => void,
+  /** The score, if it was a new record for this level. */
+  newRecord: number | null = null,
+): void {
   const { panel, button } = GAME_OVER;
   const cx = GAME_WIDTH / 2;
   const cy = GAME_HEIGHT / 2;
@@ -34,8 +39,21 @@ export function showGameOverSign(scene: Phaser.Scene, onOk: () => void): void {
   const okText = scene.add
     .text(cx, buttonY, 'OK', { fontSize: '28px', color: GAME_OVER.textColor, fontStyle: 'bold' })
     .setOrigin(0.5);
+  const extras: Phaser.GameObjects.Text[] = [];
+  if (newRecord !== null) {
+    extras.push(
+      scene.add
+        .text(cx, cy + 58, `🏆 New record! / Uusi ennätys! ${String(newRecord)}`, {
+          fontSize: '18px',
+          color: GAME_OVER.recordColor,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5),
+    );
+  }
+
   // Above everything else in the game, even the dark screen edges
-  for (const o of [dim, box, skull, text, ok, okText]) o.setDepth(GAME_OVER.depth);
+  for (const o of [dim, box, skull, text, ok, okText, ...extras]) o.setDepth(GAME_OVER.depth);
   ok.on('pointerover', () => ok.setFillStyle(button.hoverColor));
   ok.on('pointerout', () => ok.setFillStyle(button.color));
   ok.on('pointerdown', onOk);

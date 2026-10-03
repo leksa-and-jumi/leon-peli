@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addPoints, formatScore } from './score';
+import { addPoints, formatBest, formatScore } from './score';
 
 describe('addPoints', () => {
   it('adds points to the score', () => {
@@ -14,5 +14,11 @@ describe('addPoints', () => {
 describe('formatScore', () => {
   it('shows the score with a star, so no reading is needed', () => {
     expect(formatScore(7)).toBe('⭐ 7');
+  });
+});
+
+describe('formatBest', () => {
+  it('shows the record in English and Finnish', () => {
+    expect(formatBest(12)).toBe('🏆 Best / Ennätys: 12');
   });
 });

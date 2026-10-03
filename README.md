@@ -18,6 +18,10 @@
 
 🇫🇮 Valitse taso alkuvalikosta: 😊 Helppo (vain valkoisia, 2 osumaa), 🙂 Normaali, 😈 Vaikea (punaisia joka 5. ja 10., jättiläinen joka 30.), 🔥 Supervaikea (koko ajan punaisia, valkoinen joka 10., jättiläinen joka 15.).
 
+🇬🇧 Your best score on each level is saved 🏆.
+
+🇫🇮 Paras tuloksesi jokaisella tasolla tallentuu 🏆.
+
 | Key / Näppäin              | 🇬🇧           | 🇫🇮                |
 | -------------------------- | ------------ | ----------------- |
 | A / D, ← / →               | move         | liiku             |

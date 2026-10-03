@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {
   BULLET,
+  CAMO_HELMET,
   MOTION,
   SHADOW,
   OUTFIT_PIECE_LENGTH,
@@ -13,7 +14,13 @@ import {
 import type { Box } from '../logic/bullets';
 import { stepsBetween } from '../logic/steps';
 import { figureSegments, joints, type Segment } from '../logic/cut';
-import { outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from '../logic/outfit';
+import {
+  camoColorAt,
+  outfitColor,
+  rainbowColorAt,
+  splitSegment,
+  type OutfitLook,
+} from '../logic/outfit';
 import {
   lerpPose,
   poseBounds,
@@ -268,12 +275,16 @@ export function drawOutfit(
 
   let index = 0;
   for (const segment of segments) {
-    const pieceLength = outfit.kind === 'rainbow' ? RAINBOW_PIECE_LENGTH : OUTFIT_PIECE_LENGTH;
+    const pieceLength = outfit.kind === 'solid' ? OUTFIT_PIECE_LENGTH : RAINBOW_PIECE_LENGTH;
     for (const { from, to } of splitSegment(segment, pieceLength)) {
+      const midX = (from.x + to.x) / 2;
+      const midY = (from.y + to.y) / 2;
       const color =
         outfit.kind === 'rainbow'
-          ? stripeAt((from.y + to.y) / 2, outfit.colors)
-          : outfitColor(outfit, index);
+          ? stripeAt(midY, outfit.colors)
+          : outfit.kind === 'camo'
+            ? camoColorAt(outfit.colors, midX, midY - feetY)
+            : outfitColor(outfit, index);
       g.lineStyle(PLAYER.lineWidth, color, 1);
       g.lineBetween(from.x, from.y, to.x, to.y);
       index += 1;
@@ -284,7 +295,9 @@ export function drawOutfit(
     const color =
       outfit.kind === 'rainbow'
         ? stripeAt(j.y, outfit.colors)
-        : outfitColor(outfit, Math.round(Math.abs(j.x) + Math.abs(j.y)));
+        : outfit.kind === 'camo'
+          ? camoColorAt(outfit.colors, j.x, j.y - feetY)
+          : outfitColor(outfit, Math.round(Math.abs(j.x) + Math.abs(j.y)));
     g.fillStyle(color, 1);
     g.fillCircle(j.x, j.y, roundEnd(PLAYER.lineWidth, j.end));
   }
@@ -305,16 +318,22 @@ export function drawOutfit(
     g.fillStyle(0xffffff, 0.45);
     g.fillCircle(c.x + r * 0.35, c.y - r * 0.4, r * 0.25);
   } else {
-    // Camo: a base color with darker and lighter spots
-    const [dark, base, brown, light] = outfit.colors;
-    g.fillStyle(base ?? 0, 1);
-    g.fillCircle(c.x, c.y, r);
-    g.fillStyle(dark ?? 0, 1);
-    g.fillCircle(c.x - r * 0.35, c.y - r * 0.3, r * 0.35);
-    g.fillStyle(brown ?? 0, 1);
-    g.fillCircle(c.x + r * 0.4, c.y + r * 0.25, r * 0.3);
-    g.fillStyle(light ?? 0, 1);
-    g.fillCircle(c.x - r * 0.1, c.y + r * 0.5, r * 0.22);
+    // Camo: blotchy face paint and a soldier's helmet on top
+    for (let dy = -r; dy < r; dy += 1) {
+      const half = Math.sqrt(Math.max(r * r - (dy + 0.5) * (dy + 0.5), 0));
+      for (let dx = -half; dx < half; dx += 2) {
+        g.fillStyle(camoColorAt(outfit.colors, c.x + dx, c.y + dy - feetY), 1);
+        g.fillRect(c.x + dx, c.y + dy, 2.2, 1.2);
+      }
+    }
+    const { color: helmet, rim, shine } = CAMO_HELMET;
+    g.fillStyle(helmet, 1);
+    g.slice(c.x, c.y - r * 0.15, r * 1.15, Math.PI, Math.PI * 2);
+    g.fillPath();
+    g.fillStyle(rim, 1);
+    g.fillRect(c.x - r * 1.3, c.y - r * 0.2, r * 2.6, r * 0.22);
+    g.fillStyle(shine, 0.35);
+    g.fillEllipse(c.x + r * 0.3, c.y - r * 0.85, r * 0.6, r * 0.25);
   }
 }
 

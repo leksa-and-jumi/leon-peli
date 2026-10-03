@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from './outfit';
+import { camoColorAt, outfitColor, rainbowColorAt, splitSegment, type OutfitLook } from './outfit';
 
 describe('splitSegment', () => {
   const line = { from: { x: 0, y: 0 }, to: { x: 0, y: -40 } };
@@ -62,5 +62,33 @@ describe('rainbowColorAt', () => {
   it('stays inside the colors', () => {
     expect(rainbowColorAt(colors, -1)).toBe(1);
     expect(rainbowColorAt(colors, 5)).toBe(4);
+  });
+});
+
+describe('camoColorAt', () => {
+  const colors = [1, 2, 3, 4, 5];
+
+  it('only uses camo colors', () => {
+    for (let x = -50; x < 50; x += 7) {
+      for (let y = -120; y < 0; y += 9) expect(colors).toContain(camoColorAt(colors, x, y));
+    }
+  });
+
+  it('makes blotches: spots right next to each other are usually the same color', () => {
+    let same = 0;
+    let total = 0;
+    for (let x = -40; x < 40; x += 2) {
+      for (let y = -120; y < 0; y += 4) {
+        total += 1;
+        if (camoColorAt(colors, x, y) === camoColorAt(colors, x + 1, y)) same += 1;
+      }
+    }
+    expect(same / total).toBeGreaterThan(0.7);
+  });
+
+  it('uses more than one color', () => {
+    const seen = new Set<number>();
+    for (let x = -60; x < 60; x += 3) seen.add(camoColorAt(colors, x, -60));
+    expect(seen.size).toBeGreaterThan(2);
   });
 });

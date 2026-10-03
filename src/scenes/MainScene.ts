@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { browserStorage } from '../browserStorage';
 import {
   ATMOSPHERE,
   BOSS,
@@ -21,9 +22,9 @@ import {
 import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
-import { addPoints, formatScore } from '../logic/score';
+import { addPoints, formatBest, formatScore } from '../logic/score';
 import { moveDirection, moveX } from '../logic/move';
-import { loadSave, writeSave, type SaveStorage } from '../logic/save';
+import { loadSave, recordScore, writeSave } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
 import { enemyFor, type Difficulty } from '../logic/difficulty';
 import { BrokenFigure } from '../objects/BrokenFigure';
@@ -61,6 +62,10 @@ export class MainScene extends Phaser.Scene {
   private ownedOutfits = new Set<OutfitId>(['black']);
   private wornOutfit: OutfitId = 'black';
   private difficulty: Difficulty = 'normal';
+  /** Points earned this game (spending in the shop doesn't lower it). This is what records count. */
+  private earned = 0;
+  private bestBefore = 0;
+  private bestText!: Phaser.GameObjects.Text;
   private scoreText!: Phaser.GameObjects.Text;
   private reloadBar!: Phaser.GameObjects.Graphics;
 
@@ -77,6 +82,7 @@ export class MainScene extends Phaser.Scene {
     this.playerAlive = true;
     this.lastShotMs = null;
     this.score = START_POINTS;
+    this.earned = 0;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
@@ -108,6 +114,14 @@ export class MainScene extends Phaser.Scene {
       .setDepth(ATMOSPHERE.hudDepth);
     this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' }).setDepth(ATMOSPHERE.hudDepth);
     this.reloadBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
+    this.bestBefore = loadSave(browserStorage()).best[this.difficulty] ?? 0;
+    this.bestText = this.add
+      .text(GAME_WIDTH - 16, 52, formatBest(this.bestBefore), {
+        fontSize: '16px',
+        color: COLORS.text,
+      })
+      .setOrigin(1, 0)
+      .setDepth(ATMOSPHERE.hudDepth);
     this.scoreText = this.add
       .text(GAME_WIDTH / 2, 16, formatScore(this.score), {
         fontSize: '28px',
@@ -187,6 +201,8 @@ export class MainScene extends Phaser.Scene {
         if (broke) {
           this.score = addPoints(this.score, this.enemy.points);
           this.scoreText.setText(formatScore(this.score));
+          this.earned = addPoints(this.earned, this.enemy.points);
+          this.bestText.setText(formatBest(Math.max(this.bestBefore, this.earned)));
           this.time.delayedCall(ENEMY.respawnMs, () => {
             this.spawnEnemy();
           });
@@ -388,11 +404,19 @@ export class MainScene extends Phaser.Scene {
     );
     p.destroy();
 
+    // Save the best score of this level
+    const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
+    writeSave(browserStorage(), record.save);
+
     this.time.delayedCall(GAME_OVER.delayMs, () => {
-      showGameOverSign(this, () => {
-        // Play again on the same level
-        this.scene.restart({ difficulty: this.difficulty });
-      });
+      showGameOverSign(
+        this,
+        () => {
+          // Play again on the same level
+          this.scene.restart({ difficulty: this.difficulty });
+        },
+        record.newRecord ? this.earned : null,
+      );
     });
   }
 
@@ -443,13 +467,4 @@ export class MainScene extends Phaser.Scene {
 /** Which outfit a shop item gives, or null if it isn't clothes. */
 function outfitOf(item: ShopItem): OutfitId | null {
   return item.outfit !== undefined && item.outfit in OUTFITS ? (item.outfit as OutfitId) : null;
-}
-
-/** The browser's storage for the save, or null if the browser doesn't allow it. */
-function browserStorage(): SaveStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
 }
