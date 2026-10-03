@@ -4,8 +4,11 @@ import {
   loadSave,
   recordScore,
   weaponsFor,
+  withoutRun,
+  withRun,
   withWeapons,
   writeSave,
+  type RunState,
   type SaveData,
   type SaveStorage,
 } from './save';
@@ -21,7 +24,7 @@ function memoryStorage(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
-const fresh: SaveData = { weapons: {}, muted: false, best: {} };
+const fresh: SaveData = { runs: {}, weapons: {}, muted: false, best: {} };
 
 describe('save', () => {
   it('starts empty', () => {
@@ -129,5 +132,38 @@ describe('best scores', () => {
     const storage = memoryStorage();
     storage.data.set('leon-peli-save', JSON.stringify({ best: { easy: 5, normal: 'lots' } }));
     expect(loadSave(storage).best).toEqual({ easy: 5 });
+  });
+});
+
+describe('unfinished games', () => {
+  const run: RunState = {
+    score: 12,
+    earned: 20,
+    lives: 3,
+    enemyCount: 9,
+    playerX: 300,
+    ownedOutfits: ['black', 'camo'],
+    wornOutfit: 'camo',
+  };
+
+  it('remembers a game in progress on a level', () => {
+    const storage = memoryStorage();
+    writeSave(storage, withRun(fresh, 'normal', run));
+    expect(loadSave(storage).runs.normal).toEqual(run);
+    expect(loadSave(storage).runs.easy).toBeUndefined();
+  });
+
+  it('forgets it after dying', () => {
+    const save = withoutRun(withRun(fresh, 'normal', run), 'normal');
+    expect(save.runs.normal).toBeUndefined();
+  });
+
+  it('ignores a broken game', () => {
+    const storage = memoryStorage();
+    storage.data.set(
+      'leon-peli-save',
+      JSON.stringify({ runs: { easy: { score: 'lots' }, hard: { ...run, lives: 0 } } }),
+    );
+    expect(loadSave(storage).runs).toEqual({});
   });
 });

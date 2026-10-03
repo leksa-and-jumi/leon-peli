@@ -19,6 +19,7 @@ import {
   PLAYER,
   RELOAD_BAR,
   RIFLE_DEATHS,
+  RUN_SAVE_EVERY_MS,
   START_POINTS,
   WEAPONS,
   type OutfitId,
@@ -36,6 +37,8 @@ import {
   loadSave,
   recordScore,
   weaponsFor,
+  withoutRun,
+  withRun,
   withWeapons,
   writeSave,
 } from '../logic/save';
@@ -118,6 +121,16 @@ export class MainScene extends Phaser.Scene {
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
+    // An unfinished game on this level continues where it was left
+    const run = loadSave(browserStorage()).runs[this.difficulty];
+    if (run) {
+      this.score = run.score;
+      this.earned = run.earned;
+      this.lives = run.lives;
+      // The enemy that was coming comes again
+      this.enemyCount = Math.max(run.enemyCount - 1, 0);
+      for (const o of run.ownedOutfits) if (o in OUTFITS) this.ownedOutfits.add(o as OutfitId);
+    }
 
     this.muted = loadSave(browserStorage()).muted;
     this.sfx = new Sfx(this, this.muted);
@@ -141,7 +154,34 @@ export class MainScene extends Phaser.Scene {
     this.chopping = false;
     this.player.setWeapon(this.gun);
     this.rifleUpgrade = levelWeapons.rifleUpgrade;
+    if (run) {
+      // Back where you were, but never over a pit (you might have saved mid-jump)
+      const x = Math.min(Math.max(run.playerX, PLAYER.minX), PLAYER.maxX);
+      const pit = overPit(x, PITS.holes, 0);
+      this.player.setX(pit ? safeSpotBeside(pit, 1, PITS.respawnGap) : x);
+      const worn = run.wornOutfit in OUTFITS ? (run.wornOutfit as OutfitId) : 'black';
+      if (this.ownedOutfits.has(worn))
+        this.wear({ id: worn, emoji: '', name: '', price: 0, outfit: worn });
+    }
     this.spawnEnemy();
+
+    // Keep saving while playing, so closing the page doesn't lose the game
+    this.time.addEvent({
+      delay: RUN_SAVE_EVERY_MS,
+      loop: true,
+      callback: () => {
+        this.saveRun();
+      },
+    });
+    const saveOnLeave = (): void => {
+      this.saveRun();
+    };
+    window.addEventListener('pagehide', saveOnLeave);
+    document.addEventListener('visibilitychange', saveOnLeave);
+    this.events.once('shutdown', () => {
+      window.removeEventListener('pagehide', saveOnLeave);
+      document.removeEventListener('visibilitychange', saveOnLeave);
+    });
     this.gunFx = new GunEffects(this);
     this.grenades = new Grenades(this, () => {
       this.sfx.explosion();
@@ -157,7 +197,7 @@ export class MainScene extends Phaser.Scene {
     this.grenadeBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
     this.bestBefore = loadSave(browserStorage()).best[this.difficulty] ?? 0;
     this.bestText = this.add
-      .text(GAME_WIDTH - 16, 52, formatBest(this.bestBefore), {
+      .text(GAME_WIDTH - 16, 52, formatBest(Math.max(this.bestBefore, this.earned)), {
         fontSize: '16px',
         color: COLORS.text,
       })
@@ -202,10 +242,52 @@ export class MainScene extends Phaser.Scene {
     });
 
     // A mouse click or a tap on the laptop's touchpad shoots (not the right button)
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.rightButtonDown() || pointer.middleButtonDown()) return;
-      this.tryShoot();
+    this.input.on(
+      'pointerdown',
+      (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+        if (pointer.rightButtonDown() || pointer.middleButtonDown()) return;
+        // Clicking a button (like 🏠 on the test level) doesn't shoot
+        if (over.length > 0) return;
+        this.tryShoot();
+      },
+    );
+
+    // The test level has a button back to the menu
+    if (this.difficulty === 'test') this.addMenuButton();
+  }
+
+  private addMenuButton(): void {
+    const button = this.add
+      .text(GAME_WIDTH / 2, 62, '🏠 Menu / Valikko', {
+        fontSize: '18px',
+        color: COLORS.text,
+        backgroundColor: '#2e7d32',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setInteractive({ useHandCursor: true });
+    button.on('pointerdown', () => {
+      this.saveRun();
+      this.scene.start('MenuScene');
     });
+  }
+
+  /** Remember this game, so it continues if the page is closed (not after dying). */
+  private saveRun(): void {
+    if (!this.playerAlive) return;
+    writeSave(
+      browserStorage(),
+      withRun(loadSave(browserStorage()), this.difficulty, {
+        score: this.score,
+        earned: this.earned,
+        lives: this.lives,
+        enemyCount: this.enemyCount,
+        playerX: this.player.getX(),
+        ownedOutfits: [...this.ownedOutfits],
+        wornOutfit: this.wornOutfit,
+      }),
+    );
   }
 
   private isCrouching(): boolean {
@@ -602,7 +684,8 @@ export class MainScene extends Phaser.Scene {
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
     // With the rifle, every death counts: after 5 it's gone from this level
     const death = afterDeath(record.save, this.difficulty, RIFLE_DEATHS);
-    writeSave(browserStorage(), death.save);
+    // Dying ends this game: next time the level starts fresh
+    writeSave(browserStorage(), withoutRun(death.save, this.difficulty));
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
       showGameOverSign(
