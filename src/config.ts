@@ -293,6 +293,8 @@ export const WEAPONS = {
   rifle: {
     muzzleX: 55,
     cooldownMs: 1000,
+    /** With the upgrade from the shop. */
+    upgradedCooldownMs: 300,
     colors: { body: 0x2f2f2f, dark: 0x1a1a1a, metal: 0x4a4a4a, shine: 0x9e9e9e },
   },
   /** The giant's big wooden club. */
@@ -369,6 +371,14 @@ export const SHOP_ITEMS = [
   { id: 'life', emoji: '❤️', name: 'Extra life\nLisäelämä', price: 3 },
   { id: 'rifle', emoji: '🔫', name: 'Assault rifle\nRynnäkkökivääri', price: 15, onlyOnce: true },
   {
+    id: 'rifleUpgrade',
+    emoji: '⚡',
+    name: 'Rifle upgrade\nKiväärin päivitys',
+    price: 30,
+    onlyOnce: true,
+    needs: 'rifle',
+  },
+  {
     id: 'camo',
     emoji: '🪖',
     name: 'Camo suit\nMaastopuku',
@@ -393,7 +403,7 @@ export const COLOR_ITEMS: readonly ShopItem[] = (
 
 export const SHOP = {
   panel: { width: 560, height: 570, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
-  rowHeight: 78,
+  rowHeight: 68,
   swatch: { size: 40, gap: 12, worn: 0xffd54f },
   buyButton: { width: 120, height: 44, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
   wearButton: { width: 120, height: 44, color: 0x1565c0, hoverColor: 0x1e88e5 },
