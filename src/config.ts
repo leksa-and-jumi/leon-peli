@@ -588,6 +588,35 @@ export const ATMOSPHERE = {
   hudDepth: 100,
 } as const;
 
+/** Bubbles with 3 points that float up now and then: touch or click one to catch it. */
+export const BUBBLES = {
+  points: 3,
+  radius: 20,
+  /** Random wait between bubbles. */
+  minDelayMs: 6000,
+  maxDelayMs: 14000,
+  rise: { riseSpeed: 95, wobble: 14, wobbleSpeed: 2.2 },
+  /** They start just below the ground and come up somewhere you can reach. */
+  startY: 600,
+  minX: 60,
+  maxX: 580,
+  depth: 40,
+  colors: { fill: 0x29b6f6, edge: 0xe1f5fe, shine: 0xffffff, text: '#fff59d', pop: 0xfff59d },
+} as const;
+
+/** The sky slowly changes colour: night, deep blue, dawn glow, purple, and round again. */
+export const SKY_CYCLE = {
+  cycleMs: 120000,
+  stops: [
+    { color: 0x000000, alpha: 0 },
+    { color: 0x1a3f8f, alpha: 0.35 },
+    { color: 0xd8642c, alpha: 0.3 },
+    { color: 0x8e2a9a, alpha: 0.3 },
+  ],
+  /** A shooting star now and then. */
+  shootingStar: { minDelayMs: 4000, maxDelayMs: 12000, durationMs: 700, length: 90 },
+} as const;
+
 /** The difficulty levels in the start menu. */
 type Level = DifficultyRules & { label: string; emoji: string };
 
@@ -612,13 +641,13 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     specials: [],
     regular: { kind: 'white', lives: 2 },
   },
-  /** The game as it was: axe guy every 15th, giant every 30th. */
+  /** Red axe guy every 5th, green giant every 10th, white ones the rest. */
   normal: {
     label: 'Normal\nNormaali',
     emoji: '🙂',
     specials: [
-      { every: 30, kind: 'giant' },
-      { every: 15, kind: 'boss' },
+      { every: 10, kind: 'giant' },
+      { every: 5, kind: 'boss' },
     ],
     regular: { kind: 'white', lives: 3 },
   },

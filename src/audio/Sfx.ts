@@ -337,6 +337,13 @@ export class Sfx {
   }
 
   /** A little "pling" when buying something. */
+  /** Catching a points bubble: a quick pop and a happy little chime. */
+  pop(): void {
+    this.tone('sine', 500, 1400, 0.08, 0.3);
+    this.tone('triangle', 1320, 1320, 0.12, 0.2, undefined, 0.07);
+    this.tone('triangle', 1760, 1760, 0.18, 0.2, undefined, 0.14);
+  }
+
   buy(): void {
     this.tone('sine', 880, 880, 0.1, 0.25);
     this.tone('sine', 1320, 1320, 0.16, 0.25, undefined, 0.08);

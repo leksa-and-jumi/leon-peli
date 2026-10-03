@@ -4,8 +4,8 @@ import { enemyFor, type DifficultyRules } from './difficulty';
 const easy: DifficultyRules = { specials: [], regular: { kind: 'white', lives: 2 } };
 const normal: DifficultyRules = {
   specials: [
-    { every: 30, kind: 'giant' },
-    { every: 15, kind: 'boss' },
+    { every: 10, kind: 'giant' },
+    { every: 5, kind: 'boss' },
   ],
   regular: { kind: 'white', lives: 3 },
 };
@@ -23,10 +23,13 @@ describe('enemyFor', () => {
     for (const n of [1, 15, 30]) expect(enemyFor(easy, n)).toEqual({ kind: 'white', lives: 2 });
   });
 
-  it('normal has the axe guy every 15th and the giant every 30th', () => {
+  it('normal has a red guy every 5th, a green giant every 10th, white ones the rest', () => {
+    expect(enemyFor(normal, 5)).toEqual({ kind: 'boss' });
     expect(enemyFor(normal, 15)).toEqual({ kind: 'boss' });
-    expect(enemyFor(normal, 30)).toEqual({ kind: 'giant' });
-    expect(enemyFor(normal, 7)).toEqual({ kind: 'white', lives: 3 });
+    expect(enemyFor(normal, 10)).toEqual({ kind: 'giant' });
+    expect(enemyFor(normal, 20)).toEqual({ kind: 'giant' });
+    for (const n of [1, 2, 3, 4, 6, 7])
+      expect(enemyFor(normal, n)).toEqual({ kind: 'white', lives: 3 });
   });
 
   it('hard: a 5-hit red guy every 5th, a 10-hit one every 10th, the giant every 30th', () => {
