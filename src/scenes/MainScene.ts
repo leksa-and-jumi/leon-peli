@@ -3,6 +3,7 @@ import { browserStorage } from '../browserStorage';
 import {
   ATMOSPHERE,
   BOSS,
+  BRUTE,
   BULLET,
   COLORS,
   DIFFICULTIES,
@@ -13,6 +14,7 @@ import {
   GAME_WIDTH,
   GIANT,
   GRENADE,
+  KNOCKDOWN,
   OUTFITS,
   PIG_AXE,
   SWING,
@@ -35,7 +37,16 @@ import { inReach } from '../logic/melee';
 import { moveDirection, moveX } from '../logic/move';
 import { stepDrop, type Drop } from '../logic/blood';
 import { jumpStep } from '../logic/hop';
-import { canGrab, flightTime, pendulumStep, releaseVelocity, type Swing } from '../logic/liana';
+import {
+  canGrab,
+  flightTime,
+  flipSpin,
+  flipTucked,
+  pendulumStep,
+  releaseVelocity,
+  type Swing,
+} from '../logic/liana';
+import { bumps, knockdownAt } from '../logic/knockdown';
 import {
   afterDeath,
   loadSave,
@@ -91,7 +102,13 @@ export class MainScene extends Phaser.Scene {
   /** Holding a vine: which one, and how it swings. */
   private hanging: { index: number; swing: Swing } | null = null;
   /** Flying off a vine with a flip. */
-  private flight: { drop: Drop; spin: number; spinSpeed: number } | null = null;
+  /** Flying off a vine: where you are, how long you've flown, and which way you flip. */
+  private flight: { drop: Drop; elapsed: number; airTime: number; turn: 1 | -1 } | null = null;
+  /** Crashed into someone: lying on your back, then getting up by yourself. */
+  private knocked: { elapsed: number; startLift: number; startSpin: number; back: 1 | -1 } | null =
+    null;
+  /** Bending the knees for a moment after landing a flip. */
+  private landingUntil = 0;
   /** After letting go, no grabbing again until this time. */
   private regrabAt = 0;
   private lianas!: Lianas;
@@ -128,6 +145,8 @@ export class MainScene extends Phaser.Scene {
     this.jumpSpeed = 0;
     this.hanging = null;
     this.flight = null;
+    this.knocked = null;
+    this.landingUntil = 0;
     this.regrabAt = 0;
     this.lastGrenadeMs = null;
     this.enemyShots = 0;
@@ -257,14 +276,14 @@ export class MainScene extends Phaser.Scene {
       'pointerdown',
       (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
         if (pointer.rightButtonDown() || pointer.middleButtonDown()) return;
-        // Clicking a button (like 🏠 on the test level) doesn't shoot
+        // Clicking a button (like 🏠 back to the menu) doesn't shoot
         if (over.length > 0) return;
         this.tryShoot();
       },
     );
 
-    // The test level has a button back to the menu
-    if (this.difficulty === 'test') this.addMenuButton();
+    // Every level has a button back to the menu (the game is saved, so you can go on later)
+    this.addMenuButton();
   }
 
   private addMenuButton(): void {
@@ -307,7 +326,7 @@ export class MainScene extends Phaser.Scene {
 
   private tryShoot(): void {
     // Both hands are busy holding a vine
-    if (!this.playerAlive || this.hanging) return;
+    if (!this.playerAlive || this.hanging || this.knocked) return;
     // The gun has to reload between shots
     if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
     this.lastShotMs = this.time.now;
@@ -373,7 +392,13 @@ export class MainScene extends Phaser.Scene {
     this.grenades.update(delta);
     this.lianas.draw(
       delta,
-      this.hanging ? { index: this.hanging.index, angle: this.hanging.swing.angle } : null,
+      this.hanging
+        ? {
+            index: this.hanging.index,
+            angle: this.hanging.swing.angle,
+            speed: this.hanging.swing.speed,
+          }
+        : null,
     );
     this.drawReloadBar();
   }
@@ -396,15 +421,15 @@ export class MainScene extends Phaser.Scene {
       this.updateFlight(delta);
       return;
     }
+    if (this.knocked) {
+      this.updateKnockdown(delta);
+      return;
+    }
 
-    const x = moveX(
-      this.player.getX(),
-      direction,
-      PLAYER.walkSpeed,
-      delta,
-      PLAYER.minX,
-      this.maxX(),
-    );
+    const oldX = this.player.getX();
+    let x = moveX(oldX, direction, PLAYER.walkSpeed, delta, PLAYER.minX, this.maxX());
+    // Flew past where you can walk: walk back there instead of popping
+    if (oldX > this.maxX()) x = Math.max(this.maxX(), oldX - (PLAYER.walkSpeed * delta) / 1000);
     this.player.setX(x);
 
     // In the air: fly up and come back down, and grab a vine if you reach one
@@ -421,7 +446,8 @@ export class MainScene extends Phaser.Scene {
 
     // Legs swing while walking, and shuffle while walking crouched
     const holdsAxe = this.player.getWeapon() === 'axe';
-    const upright = holdsAxe ? 'raise' : 'stand';
+    const landing = this.time.now < this.landingUntil;
+    const upright = landing ? 'crouch' : holdsAxe ? 'raise' : 'stand';
     // While swinging, the swing moves the arms
     if (!this.chopping) this.player.setStance(this.isCrouching() ? 'crouch' : upright);
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
@@ -444,7 +470,7 @@ export class MainScene extends Phaser.Scene {
       this.letGo();
       return;
     }
-    if (this.flight || this.jumpLift > 0) return;
+    if (this.flight || this.knocked || this.jumpLift > 0) return;
     this.jumpSpeed = PLAYER.jumpSpeed;
     this.sfx.footstep();
   }
@@ -486,14 +512,17 @@ export class MainScene extends Phaser.Scene {
   /** Let go of the vine: fly off the way you were swinging and do one flip before landing. */
   private letGo(): void {
     if (!this.hanging) return;
-    const v = releaseVelocity(this.hanging.swing, LIANAS.length);
+    const swing = releaseVelocity(this.hanging.swing, LIANAS.length);
+    // Push off a little upward, for a higher flip
+    const v = { vx: swing.vx, vy: swing.vy - LIANAS.releaseBoost };
     const lift = this.playerLift();
     const airTime = flightTime(Math.max(lift, 0), -v.vy, PLAYER.gravity);
-    const turn = v.vx === 0 ? this.player.getFacing() : Math.sign(v.vx);
+    const turn = v.vx === 0 ? this.player.getFacing() : v.vx > 0 ? 1 : -1;
     this.flight = {
       drop: { x: this.player.getX(), y: this.player.getFeetY(), vx: v.vx, vy: v.vy },
-      spin: 0,
-      spinSpeed: (turn * Math.PI * 2) / Math.max(airTime, 0.3),
+      elapsed: 0,
+      airTime: Math.max(airTime, 0.3),
+      turn,
     };
     this.hanging = null;
     this.regrabAt = this.time.now + LIANAS.regrabMs;
@@ -504,25 +533,83 @@ export class MainScene extends Phaser.Scene {
   private updateFlight(delta: number): void {
     if (!this.flight) return;
     const f = this.flight;
+    f.elapsed += delta / 1000;
     f.drop = stepDrop(f.drop, delta, PLAYER.gravity);
-    f.drop.x = Math.min(Math.max(f.drop.x, PLAYER.minX), this.maxX());
+    f.drop.x = Math.min(Math.max(f.drop.x, PLAYER.minX), LIANAS.flightMaxX);
     this.player.setX(f.drop.x);
     const lift = PLAYER.feetY - f.drop.y;
     if (lift <= 0) {
-      // Landed!
+      // Landed! Bend the knees and kick up dust
       this.flight = null;
       this.player.setLift(0);
       this.player.setSpin(0);
-      this.player.setStance('stand');
+      this.player.setStance('crouch');
+      this.landingUntil = this.time.now + LIANAS.landingMs;
       this.dustAt(this.player.getX(), 2);
       this.sfx.footstep(true);
       return;
     }
-    f.spin += (f.spinSpeed * delta) / 1000;
+    // Open at the start, tucked up tight while spinning fast, open again to land
+    const progress = f.elapsed / f.airTime;
+    const { openStart, openEnd } = LIANAS.flip;
     this.player.setLift(lift);
-    this.player.setSpin(f.spin);
-    this.player.setStance('jump');
+    this.player.setSpin(f.turn * flipSpin(progress));
+    this.player.setStance(flipTucked(progress, openStart, openEnd) ? 'tuck' : 'jump');
+    if (this.crashedIntoEnemy(lift)) return;
     this.tryGrab();
+  }
+
+  /** Flying into the enemy: bounce off and fall on your back. */
+  private crashedIntoEnemy(lift: number): boolean {
+    if (!this.flight || !this.enemy.isAlive()) return false;
+    const middle = {
+      x: this.player.getX(),
+      y: PLAYER.feetY - lift - PLAYER.height / 2,
+    };
+    if (!bumps(middle, this.enemy.figure.bounds(), KNOCKDOWN.margin)) return false;
+    const back = this.flight.turn === 1 ? -1 : 1;
+    // Carry on from wherever the flip was (as the shortest way round)
+    const progress = this.flight.elapsed / this.flight.airTime;
+    const spin = this.flight.turn * flipSpin(progress);
+    const startSpin = Math.atan2(Math.sin(spin), Math.cos(spin));
+    this.flight = null;
+    this.knocked = { elapsed: 0, startLift: lift, startSpin, back };
+    this.player.setWalking(null);
+    this.player.setStance('stand');
+    this.sfx.hurt('player');
+    return true;
+  }
+
+  /** Knocked down: fall over onto your back, lie there, then get up by yourself. */
+  private updateKnockdown(delta: number): void {
+    if (!this.knocked) return;
+    const k = this.knocked;
+    k.elapsed += delta;
+    const state = knockdownAt(k.elapsed, KNOCKDOWN);
+    // Lying flat, the middle of the body is just above the ground
+    const lyingLift = -(PLAYER.height / 2 - PLAYER.lineWidth);
+    let lift = lyingLift * state.tip;
+    if (state.phase === 'fall') {
+      lift = k.startLift * (1 - state.tip) + lyingLift * state.tip;
+      // Bounce back off the one you hit
+      const x = this.player.getX() + (k.back * KNOCKDOWN.bounceBack * delta) / 1000;
+      this.player.setX(Math.min(Math.max(x, PLAYER.minX), LIANAS.flightMaxX));
+    }
+    if (state.phase === 'lie' && k.elapsed - delta < KNOCKDOWN.fallMs) {
+      // Thud!
+      this.dustAt(this.player.getX(), 2);
+      this.sfx.footstep(true);
+    }
+    // Falling backwards: the head goes the way you bounce
+    const flat = k.back * (Math.PI / 2) * state.tip;
+    this.player.setSpin(state.phase === 'fall' ? k.startSpin * (1 - state.tip) + flat : flat);
+    this.player.setLift(lift);
+    this.player.setStance(state.phase === 'rise' ? 'crouch' : 'stand');
+    if (state.phase === 'done') {
+      this.knocked = null;
+      this.player.setSpin(0);
+      this.player.setLift(0);
+    }
   }
 
   /**
@@ -551,7 +638,7 @@ export class MainScene extends Phaser.Scene {
 
   /** G: throw a grenade the way you're facing, at the enemy if it's there (once every 30 seconds). */
   private throwGrenade(): void {
-    if (!this.playerAlive || this.hanging) return;
+    if (!this.playerAlive || this.hanging || this.knocked) return;
     if (!canShoot(this.time.now, this.lastGrenadeMs, GRENADE.cooldownMs)) return;
     this.lastGrenadeMs = this.time.now;
     const facing = this.player.getFacing();
@@ -704,7 +791,7 @@ export class MainScene extends Phaser.Scene {
     const rules = DIFFICULTIES[this.difficulty];
     const next = enemyFor(rules, this.enemyCount);
     if (next.kind !== 'white') {
-      const base = next.kind === 'giant' ? GIANT : BOSS;
+      const base = next.kind === 'giant' ? GIANT : next.kind === 'brute' ? BRUTE : BOSS;
       this.enemy = new Boss(
         this,
         base,

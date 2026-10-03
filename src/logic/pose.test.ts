@@ -175,3 +175,12 @@ describe('axe swing', () => {
     expect(chop.gunHand.y).toBeGreaterThan(chop.shoulder.y);
   });
 });
+
+describe('tuck', () => {
+  it('pulls the knees up higher than the hip, for a tight flip', () => {
+    const tuck = stickFigurePose(100, 'tuck');
+    expect(tuck.frontKnee.y).toBeLessThan(tuck.hip.y);
+    expect(tuck.backKnee.y).toBeLessThan(tuck.hip.y);
+    expect(tuck.frontFoot.y).toBeLessThan(-30);
+  });
+});

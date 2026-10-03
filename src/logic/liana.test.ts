@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   canGrab,
   flightTime,
+  flipSpin,
+  flipTucked,
   pendulumStep,
   releaseVelocity,
   ropeEnd,
@@ -71,5 +73,32 @@ describe('flightTime', () => {
 
   it('takes longer when thrown upward', () => {
     expect(flightTime(100, 400, 1400)).toBeGreaterThan(flightTime(100, 0, 1400));
+  });
+});
+
+describe('flipSpin', () => {
+  it('goes from upright to one full turn', () => {
+    expect(flipSpin(0)).toBe(0);
+    expect(flipSpin(1)).toBeCloseTo(Math.PI * 2);
+    expect(flipSpin(0.5)).toBeCloseTo(Math.PI);
+  });
+
+  it('spins fastest in the middle', () => {
+    const start = flipSpin(0.1) - flipSpin(0);
+    const middle = flipSpin(0.55) - flipSpin(0.45);
+    expect(middle).toBeGreaterThan(start);
+  });
+
+  it('stays between no turn and one turn outside 0..1', () => {
+    expect(flipSpin(-1)).toBe(0);
+    expect(flipSpin(2)).toBeCloseTo(Math.PI * 2);
+  });
+});
+
+describe('flipTucked', () => {
+  it('tucks only in the middle of the flight', () => {
+    expect(flipTucked(0.05, 0.12, 0.85)).toBe(false);
+    expect(flipTucked(0.5, 0.12, 0.85)).toBe(true);
+    expect(flipTucked(0.9, 0.12, 0.85)).toBe(false);
   });
 });
