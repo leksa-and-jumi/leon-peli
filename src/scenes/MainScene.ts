@@ -4,6 +4,7 @@ import {
   BOSS,
   BULLET,
   COLORS,
+  DIFFICULTIES,
   DUST,
   CROUCH_HINT,
   ENEMY,
@@ -24,7 +25,7 @@ import { addPoints, formatScore } from '../logic/score';
 import { moveDirection, moveX } from '../logic/move';
 import { loadSave, writeSave, type SaveStorage } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
-import { enemyKind } from '../logic/spawn';
+import { enemyFor, type Difficulty } from '../logic/difficulty';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Sfx } from '../audio/Sfx';
 import { Atmosphere } from '../objects/Atmosphere';
@@ -59,6 +60,7 @@ export class MainScene extends Phaser.Scene {
   private muted = false;
   private ownedOutfits = new Set<OutfitId>(['black']);
   private wornOutfit: OutfitId = 'black';
+  private difficulty: Difficulty = 'normal';
   private scoreText!: Phaser.GameObjects.Text;
   private reloadBar!: Phaser.GameObjects.Graphics;
 
@@ -66,7 +68,8 @@ export class MainScene extends Phaser.Scene {
     super('MainScene');
   }
 
-  create(): void {
+  create(data: { difficulty?: Difficulty } = {}): void {
+    this.difficulty = data.difficulty ?? 'normal';
     // Start fresh (also when playing again after the OK button)
     this.playerBullets = [];
     this.enemyBullets = [];
@@ -325,16 +328,19 @@ export class MainScene extends Phaser.Scene {
   private spawnEnemy(): void {
     if (!this.playerAlive) return;
     this.enemyCount += 1;
-    const kind = enemyKind(this.enemyCount, BOSS.every, GIANT.every);
-    if (kind !== 'white') {
+    const rules = DIFFICULTIES[this.difficulty];
+    const next = enemyFor(rules, this.enemyCount);
+    if (next.kind !== 'white') {
+      const base = next.kind === 'giant' ? GIANT : BOSS;
       this.enemy = new Boss(
         this,
-        kind === 'giant' ? GIANT : BOSS,
+        base,
         (hitY, push, damage) => {
           this.sfx.chop();
           if (this.playerAlive) this.hurtPlayer(hitY, push, damage);
         },
         () => this.player.getX(),
+        next.lives,
       );
       this.enemy.figure.setOnStep(() => {
         this.sfx.footstep(true);
@@ -342,9 +348,13 @@ export class MainScene extends Phaser.Scene {
       });
       return;
     }
-    this.enemy = new Enemy(this, (muzzle) => {
-      this.shoot(muzzle, -1, 'enemy');
-    });
+    this.enemy = new Enemy(
+      this,
+      (muzzle) => {
+        this.shoot(muzzle, -1, 'enemy');
+      },
+      next.lives ?? rules.whiteLives,
+    );
     this.enemy.figure.setOnStep(() => {
       this.sfx.footstep(false, true);
       this.dustAt(this.enemy.figure.getX());
@@ -380,7 +390,8 @@ export class MainScene extends Phaser.Scene {
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
       showGameOverSign(this, () => {
-        this.scene.restart();
+        // Play again on the same level
+        this.scene.restart({ difficulty: this.difficulty });
       });
     });
   }

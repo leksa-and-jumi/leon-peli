@@ -35,10 +35,12 @@ export class Boss implements Foe {
     private readonly onChop: (hitY: number, push: 1 | -1, damage: number) => void,
     /** Where the player is now, so he can follow. */
     private readonly getPlayerX: () => number,
+    /** How many hits he takes, if different from `kind.lives` (like on Hard). */
+    private readonly maxLives: number = kind.lives,
   ) {
     this.points = kind.points;
     this.voice = kind.voice;
-    this.lives = kind.lives;
+    this.lives = maxLives;
     this.figure = new StickFigure(
       scene,
       ENEMY.startX,
@@ -146,6 +148,6 @@ export class Boss implements Foe {
     this.healthBar.fillStyle(back, 1);
     this.healthBar.fillRect(x, y, width, height);
     this.healthBar.fillStyle(fill, 1);
-    this.healthBar.fillRect(x, y, width * healthFraction(this.lives, this.kind.lives), height);
+    this.healthBar.fillRect(x, y, width * healthFraction(this.lives, this.maxLives), height);
   }
 }

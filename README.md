@@ -14,6 +14,10 @@
 
 🇫🇮 Tikku-ukkosi taistelee valkoisia tikku-ukkoja vastaan vanhoissa raunioissa 🏛️. Joka 15. vihollinen on iso punainen kirvesmies 🪓.
 
+🇬🇧 Pick a level in the start menu: 😊 Easy (only white ones, 2 hits), 🙂 Normal, 😈 Hard (red guys every 5th and 10th, giant every 30th).
+
+🇫🇮 Valitse taso alkuvalikosta: 😊 Helppo (vain valkoisia, 2 osumaa), 🙂 Normaali, 😈 Vaikea (punaisia joka 5. ja 10., jättiläinen joka 30.).
+
 | Key / Näppäin              | 🇬🇧           | 🇫🇮                |
 | -------------------------- | ------------ | ----------------- |
 | A / D, ← / →               | move         | liiku             |

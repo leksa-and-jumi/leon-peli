@@ -1,3 +1,4 @@
+import type { Difficulty, DifficultyRules } from './logic/difficulty';
 import type { OutfitLook } from './logic/outfit';
 import type { ShopItem } from './logic/shop';
 
@@ -420,6 +421,50 @@ export const ATMOSPHERE = {
   vignette: { size: 140, alpha: 0.55, depth: 50 },
   /** Texts and bars stay above the dark edges. */
   hudDepth: 100,
+} as const;
+
+/** The difficulty levels in the start menu. */
+export const DIFFICULTIES: Record<Difficulty, DifficultyRules & { label: string; emoji: string }> =
+  {
+    /** Only white ones, two hits each. */
+    easy: { label: 'Easy\nHelppo', emoji: '😊', specials: [], whiteLives: 2 },
+    /** The game as it was: axe guy every 15th, giant every 30th. */
+    normal: {
+      label: 'Normal\nNormaali',
+      emoji: '🙂',
+      specials: [
+        { every: 30, kind: 'giant' },
+        { every: 15, kind: 'boss' },
+      ],
+      whiteLives: 3,
+    },
+    /** Red guys all the time: 5 hits every 5th, 10 hits every 10th, giant every 30th. */
+    hard: {
+      label: 'Hard\nVaikea',
+      emoji: '😈',
+      specials: [
+        { every: 30, kind: 'giant' },
+        { every: 10, kind: 'boss', lives: 10 },
+        { every: 5, kind: 'boss', lives: 5 },
+      ],
+      whiteLives: 3,
+    },
+  };
+
+/** How the start menu looks. */
+export const MENU = {
+  title: 'LEON PELI',
+  subtitle: 'Choose a level / Valitse taso',
+  dimAlpha: 0.45,
+  button: {
+    width: 260,
+    height: 70,
+    gap: 22,
+    color: 0x2e7d32,
+    hoverColor: 0x43a047,
+    locked: 0x555555,
+  },
+  textColor: '#ffffff',
 } as const;
 
 /** Ruins background. Same seed = same ruins every time. */
