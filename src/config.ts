@@ -333,8 +333,9 @@ export const GAME_OVER = {
   depth: 200,
   text: 'You died!\nSinä kuolit!',
   textColor: '#ffffff',
+  recordColor: '#ffd54f',
   dimAlpha: 0.35,
-  panel: { width: 340, height: 260, color: 0x1b1533, alpha: 0.92, border: 0xc62828 },
+  panel: { width: 380, height: 290, color: 0x1b1533, alpha: 0.92, border: 0xc62828 },
   button: { width: 120, height: 48, color: 0xc62828, hoverColor: 0xe53935 },
 } as const;
 
@@ -350,7 +351,8 @@ export const OUTFITS = {
   yellow: { kind: 'solid', color: 0xfdd835 },
   orange: { kind: 'solid', color: 0xfb8c00 },
   purple: { kind: 'solid', color: 0x8e24aa },
-  camo: { kind: 'camo', colors: [0x4b5320, 0x6b8e23, 0x3b2f1e, 0x8f8a5a] },
+  /** Woodland camouflage: blotches of dark, green, olive, brown and sand. */
+  camo: { kind: 'camo', colors: [0x1f2418, 0x3b4a2a, 0x5c6b3a, 0x5a4632, 0x8f8460] },
   rainbow: {
     kind: 'rainbow',
     colors: [0xe53935, 0xfb8c00, 0xfdd835, 0x43a047, 0x1e88e5, 0x3949ab, 0x8e24aa],
@@ -358,6 +360,9 @@ export const OUTFITS = {
 } as const satisfies Record<string, OutfitLook>;
 
 export type OutfitId = keyof typeof OUTFITS;
+
+/** The helmet that comes with the camo suit. */
+export const CAMO_HELMET = { color: 0x4b5320, rim: 0x3a4119, shine: 0xffffff } as const;
 
 /** How long each colored piece of a camo or rainbow outfit is. */
 export const OUTFIT_PIECE_LENGTH = 7;
@@ -467,13 +472,27 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
   },
 };
 
+/** The battle that plays by itself behind the start menu. */
+export const DEMO = {
+  heroX: 110,
+  shootEveryMs: 650,
+  respawnMs: 900,
+  /** Every this many enemies is a red axe guy. */
+  bossEvery: 4,
+  bossLives: 6,
+  explosionEveryMs: 1400,
+  glow: { color: 0xff6a1a, alpha: 0.28, height: 130 },
+} as const;
+
 /** How the start menu looks. */
 export const MENU = {
   title: 'LEON PELI',
   subtitle: 'Choose a level / Valitse taso',
-  dimAlpha: 0.45,
+  dimAlpha: 0.2,
+  /** Buttons and texts are drawn above the battle. */
+  depth: 100,
   button: {
-    width: 280,
+    width: 320,
     height: 64,
     gap: 16,
     color: 0x2e7d32,

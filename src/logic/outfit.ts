@@ -55,3 +55,17 @@ export function rainbowColorAt(colors: readonly number[], fraction: number): num
   const f = Math.min(Math.max(fraction, 0), 0.9999);
   return colors[Math.floor(f * colors.length)] ?? 0;
 }
+
+/**
+ * Camouflage color at a spot (x, y): smooth wavy "noise" makes blotches,
+ * so nearby spots usually share a color, like a real camo pattern.
+ */
+export function camoColorAt(colors: readonly number[], x: number, y: number): number {
+  const n =
+    Math.sin(x * 0.31 + y * 0.07) +
+    Math.sin(y * 0.27 - x * 0.11 + 1.7) +
+    Math.sin((x + y) * 0.17 + 4.2) * 0.8;
+  // n is between about -2.8 and 2.8; turn it into a color number
+  const t = Math.min(Math.max((n + 2.8) / 5.6, 0), 0.9999);
+  return colors[Math.floor(t * colors.length)] ?? 0;
+}
