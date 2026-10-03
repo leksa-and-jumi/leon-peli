@@ -17,6 +17,7 @@ import {
   PITS,
   PLAYER,
   RELOAD_BAR,
+  RIFLE_DEATHS,
   START_POINTS,
   WEAPONS,
   type OutfitId,
@@ -28,7 +29,14 @@ import { addPoints, formatBest, formatScore } from '../logic/score';
 import { grenadeAfterShots, inBlast } from '../logic/grenade';
 import { moveDirection, moveX } from '../logic/move';
 import { jumpStep, overPit, safeSpotBeside, type Pit } from '../logic/pits';
-import { loadSave, recordScore, writeSave } from '../logic/save';
+import {
+  afterDeath,
+  loadSave,
+  recordScore,
+  weaponsFor,
+  withWeapons,
+  writeSave,
+} from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
 import { enemyFor, type Difficulty } from '../logic/difficulty';
 import { BrokenFigure } from '../objects/BrokenFigure';
@@ -121,10 +129,10 @@ export class MainScene extends Phaser.Scene {
       this.sfx.footstep();
       this.dustAt(this.player.getX());
     });
-    // A bought rifle is saved, so it's still yours after dying
-    const save = loadSave(browserStorage());
-    if (save.rifle) this.player.setWeapon('rifle');
-    this.rifleUpgrade = save.rifleUpgrade;
+    // A bought rifle is saved for this level, so it's still yours after dying (up to 5 times)
+    const levelWeapons = weaponsFor(loadSave(browserStorage()), this.difficulty);
+    if (levelWeapons.rifle) this.player.setWeapon('rifle');
+    this.rifleUpgrade = levelWeapons.rifleUpgrade;
     this.spawnEnemy();
     this.gunFx = new GunEffects(this);
     this.grenades = new Grenades(this, () => {
@@ -438,11 +446,13 @@ export class MainScene extends Phaser.Scene {
     }
     if (item.id === 'rifle') {
       this.player.setWeapon('rifle');
-      writeSave(browserStorage(), { ...loadSave(browserStorage()), rifle: true });
+      const save = loadSave(browserStorage());
+      writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifle: true, deaths: 0 }));
     }
     if (item.id === 'rifleUpgrade') {
       this.rifleUpgrade = true;
-      writeSave(browserStorage(), { ...loadSave(browserStorage()), rifleUpgrade: true });
+      const save = loadSave(browserStorage());
+      writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifleUpgrade: true }));
     }
     const outfit = outfitOf(item);
     if (outfit) {
@@ -555,7 +565,9 @@ export class MainScene extends Phaser.Scene {
 
     // Save the best score of this level
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
-    writeSave(browserStorage(), record.save);
+    // With the rifle, every death counts: after 5 it's gone from this level
+    const death = afterDeath(record.save, this.difficulty, RIFLE_DEATHS);
+    writeSave(browserStorage(), death.save);
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
       showGameOverSign(
@@ -565,6 +577,7 @@ export class MainScene extends Phaser.Scene {
           this.scene.start('MenuScene');
         },
         record.newRecord ? this.earned : null,
+        death.lostRifle ? 0 : death.deathsLeft,
       );
     });
   }

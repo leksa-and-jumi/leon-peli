@@ -18,9 +18,9 @@
 
 🇫🇮 Valitse taso alkuvalikosta: 😊 Helppo (vain valkoisia, 2 osumaa), 🙂 Normaali, 😈 Vaikea (punaisia joka 5. ja 10., jättiläinen joka 30.), 🔥 Supervaikea (koko ajan punaisia, valkoinen joka 10., jättiläinen joka 15.), 🧪 Testi (valkoinen, punainen, vihreä vuorotellen, yksi osuma, et voi kuolla).
 
-🇬🇧 Your best score on each level is saved 🏆.
+🇬🇧 Your best score on each level is saved 🏆. The rifle 🔫 is earned on each level separately, and it's gone after 5 deaths on that level.
 
-🇫🇮 Paras tuloksesi jokaisella tasolla tallentuu 🏆.
+🇫🇮 Paras tuloksesi jokaisella tasolla tallentuu 🏆. Kivääri 🔫 ansaitaan jokaisella tasolla erikseen, ja se katoaa 5 kuoleman jälkeen sillä tasolla.
 
 | Key / Näppäin       | 🇬🇧                   | 🇫🇮                      |
 | ------------------- | -------------------- | ----------------------- |
