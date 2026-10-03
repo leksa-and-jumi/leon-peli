@@ -24,7 +24,7 @@ export class HiddenKeys {
     spots.forEach((spot, number) => {
       if (found.includes(number)) return;
       const color = STAGES.keyColors[number % STAGES.keyColors.length] ?? 0xffd54f;
-      const view = scene.add.container(spot.x, spot.y, [drawKey(scene, color)]);
+      const view = scene.add.container(spot.x, spot.y, [drawKey(scene, color, number)]);
       // It bobs gently and glints now and then
       scene.tweens.add({
         targets: view,
@@ -60,18 +60,63 @@ export class HiddenKeys {
   }
 }
 
-/** A chunky old key: a ring to hold, a long stem and teeth, with a soft glow. */
-function drawKey(scene: Phaser.Scene, color: number): Phaser.GameObjects.Graphics {
+/**
+ * A chunky old key with a soft glow. Every key number looks a bit different:
+ * the handle can be a ring, a clover, a square, a heart or a diamond, and the
+ * stem and teeth change too.
+ */
+function drawKey(scene: Phaser.Scene, color: number, number: number): Phaser.GameObjects.Graphics {
   const g = scene.add.graphics();
   g.fillStyle(color, 0.25);
   g.fillCircle(0, 0, 22);
-  g.lineStyle(5, color, 1);
-  g.strokeCircle(-10, 0, 7);
+  g.lineStyle(4, color, 1);
   g.fillStyle(color, 1);
-  g.fillRect(-3, -2.5, 22, 5);
-  g.fillRect(12, 2, 4, 7);
-  g.fillRect(17, 2, 3, 5);
+  // The handle
+  const bow = number % 5;
+  const bx = -11;
+  if (bow === 0) {
+    g.strokeCircle(bx, 0, 7);
+  } else if (bow === 1) {
+    for (const [dx, dy] of [
+      [0, -5],
+      [-5, 3],
+      [5, 3],
+    ] as const) {
+      g.strokeCircle(bx + dx, dy, 3.5);
+    }
+  } else if (bow === 2) {
+    g.strokeRect(bx - 7, -7, 14, 14);
+  } else if (bow === 3) {
+    g.fillCircle(bx - 3.5, -2.5, 4.5);
+    g.fillCircle(bx + 3.5, -2.5, 4.5);
+    g.fillTriangle(bx - 8, -1, bx + 8, -1, bx, 8);
+  } else {
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(bx, -9),
+        new Phaser.Math.Vector2(bx + 8, 0),
+        new Phaser.Math.Vector2(bx, 9),
+        new Phaser.Math.Vector2(bx - 8, 0),
+      ],
+      true,
+    );
+  }
+  // A little gem in the middle of some handles
+  if (number % 2 === 1) {
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(bx, 0, 2);
+    g.fillStyle(color, 1);
+  }
+  // The stem gets longer on some keys
+  const stem = 18 + (number % 3) * 4;
+  g.fillRect(-3, -2.5, stem + 3, 5);
+  // Teeth: a different pattern for every key
+  const pattern = ((number + 1) * 37) % 64;
+  for (let t = 0; t < 3; t++) {
+    const tall = 3 + ((pattern >> (t * 2)) & 3) * 2;
+    g.fillRect(stem - 4 - t * 5, 2, 3.5, tall);
+  }
   g.fillStyle(0xffffff, 0.8);
-  g.fillCircle(-13, -3, 1.6);
+  g.fillCircle(bx - 3, -3, 1.4);
   return g;
 }

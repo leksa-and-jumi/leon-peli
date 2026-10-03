@@ -63,6 +63,8 @@ import {
   afterDeath,
   loadSave,
   type RunState,
+  stageFor,
+  withStage,
   recordScore,
   weaponsFor,
   withoutRun,
@@ -188,7 +190,8 @@ export class MainScene extends Phaser.Scene {
     this.ownedItems = new Set<string>();
     this.poisoned = new Map<Foe, number>();
     this.wornOutfit = 'black';
-    this.stage = 1;
+    // You go on from the stage you reached on this level, even after dying
+    this.stage = stageFor(loadSave(browserStorage()), this.difficulty);
     this.stageSeed = Math.floor(Math.random() * 1e9);
     this.keysFound = [];
     this.door = null;
@@ -487,7 +490,8 @@ export class MainScene extends Phaser.Scene {
       keysFound: [],
       playerX: PLAYER.x,
     };
-    writeSave(browserStorage(), withRun(loadSave(browserStorage()), this.difficulty, next));
+    const save = withRun(loadSave(browserStorage()), this.difficulty, next);
+    writeSave(browserStorage(), withStage(save, this.difficulty, next.stage));
     this.time.delayedCall(700, () => {
       this.cameras.main.fadeOut(400);
       this.cameras.main.once('camerafadeoutcomplete', () => {
