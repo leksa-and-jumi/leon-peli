@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_OVER, GAME_WIDTH } from '../config';
 
-/** "You died" sign in the middle of the screen, with an OK button to play again. */
+/** "You died" sign in the middle of the screen, with an OK button back to the menu. */
 export function showGameOverSign(
   scene: Phaser.Scene,
   onOk: () => void,

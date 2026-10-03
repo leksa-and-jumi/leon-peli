@@ -412,8 +412,8 @@ export class MainScene extends Phaser.Scene {
       showGameOverSign(
         this,
         () => {
-          // Play again on the same level
-          this.scene.restart({ difficulty: this.difficulty });
+          // Back to the start menu to pick a level again
+          this.scene.start('MenuScene');
         },
         record.newRecord ? this.earned : null,
       );
