@@ -12,6 +12,7 @@ import {
   GAME_OVER,
   GAME_WIDTH,
   GIANT,
+  GRENADE,
   OUTFITS,
   PITS,
   PLAYER,
@@ -24,6 +25,7 @@ import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
 import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatBest, formatScore } from '../logic/score';
+import { grenadeAfterShots, inBlast } from '../logic/grenade';
 import { moveDirection, moveX } from '../logic/move';
 import { jumpStep, overPit, safeSpotBeside, type Pit } from '../logic/pits';
 import { loadSave, recordScore, writeSave } from '../logic/save';
@@ -34,6 +36,7 @@ import { Sfx } from '../audio/Sfx';
 import { Atmosphere } from '../objects/Atmosphere';
 import { Boss } from '../objects/Boss';
 import { Enemy, type Foe } from '../objects/Enemy';
+import { Grenades } from '../objects/Grenades';
 import { GunEffects } from '../objects/GunEffects';
 import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
@@ -64,6 +67,10 @@ export class MainScene extends Phaser.Scene {
   private jumpLift = 0;
   private jumpSpeed = 0;
   private falling = false;
+  private lastGrenadeMs: number | null = null;
+  private enemyShots = 0;
+  private grenades!: Grenades;
+  private grenadeBar!: Phaser.GameObjects.Graphics;
   private muted = false;
   private ownedOutfits = new Set<OutfitId>(['black']);
   private wornOutfit: OutfitId = 'black';
@@ -92,6 +99,8 @@ export class MainScene extends Phaser.Scene {
     this.jumpLift = 0;
     this.jumpSpeed = 0;
     this.falling = false;
+    this.lastGrenadeMs = null;
+    this.enemyShots = 0;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
@@ -118,11 +127,18 @@ export class MainScene extends Phaser.Scene {
     this.rifleUpgrade = save.rifleUpgrade;
     this.spawnEnemy();
     this.gunFx = new GunEffects(this);
+    this.grenades = new Grenades(this, () => {
+      this.sfx.explosion();
+    });
     this.add
       .text(16, 16, CROUCH_HINT, { fontSize: '18px', color: COLORS.text })
       .setDepth(ATMOSPHERE.hudDepth);
     this.add.text(16, RELOAD_BAR.y - 8, '🔫', { fontSize: '20px' }).setDepth(ATMOSPHERE.hudDepth);
     this.reloadBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
+    this.add
+      .text(16, RELOAD_BAR.y + RELOAD_BAR.gap - 8, '💣', { fontSize: '20px' })
+      .setDepth(ATMOSPHERE.hudDepth);
+    this.grenadeBar = this.add.graphics().setDepth(ATMOSPHERE.hudDepth);
     this.bestBefore = loadSave(browserStorage()).best[this.difficulty] ?? 0;
     this.bestText = this.add
       .text(GAME_WIDTH - 16, 52, formatBest(this.bestBefore), {
@@ -140,7 +156,7 @@ export class MainScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(ATMOSPHERE.hudDepth);
     this.livesText = this.add
-      .text(GAME_WIDTH - 16, 16, formatLives(this.lives, PLAYER.lives), { fontSize: '26px' })
+      .text(GAME_WIDTH - 16, 16, this.livesLabel(), { fontSize: '26px' })
       .setOrigin(1, 0)
       .setDepth(ATMOSPHERE.hudDepth);
 
@@ -150,6 +166,9 @@ export class MainScene extends Phaser.Scene {
     }
     const { KeyCodes } = Phaser.Input.Keyboard;
     this.crouchKeys = [keyboard.addKey(KeyCodes.S), keyboard.addKey(KeyCodes.DOWN)];
+    keyboard.on('keydown-G', () => {
+      this.throwGrenade();
+    });
     keyboard.on('keydown-M', () => {
       this.toggleSound();
     });
@@ -196,27 +215,13 @@ export class MainScene extends Phaser.Scene {
     this.playerBullets = moveBullets(this.playerBullets, BULLET.speed, delta, GAME_WIDTH);
     this.enemyBullets = moveBullets(this.enemyBullets, ENEMY.bulletSpeed, delta, GAME_WIDTH);
 
-    // The player's bullets hit a white figure: the second hit breaks it in two
+    // The player's bullets hit the enemy
     if (this.enemy.isAlive()) {
       const enemyBox = this.enemy.figure.bounds();
       const hitBullet = this.playerBullets.find((b) => bulletHits(b, BULLET, enemyBox));
       if (hitBullet) {
         this.playerBullets = this.playerBullets.filter((b) => b !== hitBullet);
-        const broke = this.enemy.takeHit(
-          { x: this.enemy.figure.getX(), y: hitBullet.y },
-          hitBullet.direction,
-        );
-        if (broke) this.sfx.scream(this.enemy.voice);
-        else this.sfx.hurt(this.enemy.voice);
-        if (broke) {
-          this.score = addPoints(this.score, this.enemy.points);
-          this.scoreText.setText(formatScore(this.score));
-          this.earned = addPoints(this.earned, this.enemy.points);
-          this.bestText.setText(formatBest(Math.max(this.bestBefore, this.earned)));
-          this.time.delayedCall(ENEMY.respawnMs, () => {
-            this.spawnEnemy();
-          });
-        }
+        this.hitEnemy(hitBullet.y, hitBullet.direction, 1);
       }
     }
 
@@ -231,6 +236,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.gunFx.update(delta, [...this.playerBullets, ...this.enemyBullets]);
+    this.grenades.update(delta);
     this.drawReloadBar();
   }
 
@@ -309,6 +315,63 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The enemy got hit `times` times (a bullet once, a grenade more). Screams when it
+   * breaks: points, the record and a new enemy after a moment.
+   */
+  private hitEnemy(hitY: number, push: 1 | -1, times: number): void {
+    if (!this.enemy.isAlive()) return;
+    let broke = false;
+    for (let i = 0; i < times && !broke; i++) {
+      broke = this.enemy.takeHit({ x: this.enemy.figure.getX(), y: hitY }, push);
+    }
+    if (!broke) {
+      this.sfx.hurt(this.enemy.voice);
+      return;
+    }
+    this.sfx.scream(this.enemy.voice);
+    this.score = addPoints(this.score, this.enemy.points);
+    this.scoreText.setText(formatScore(this.score));
+    this.earned = addPoints(this.earned, this.enemy.points);
+    this.bestText.setText(formatBest(Math.max(this.bestBefore, this.earned)));
+    this.time.delayedCall(ENEMY.respawnMs, () => {
+      this.spawnEnemy();
+    });
+  }
+
+  /** G: throw a grenade the way you're facing, at the enemy if it's there (once every 30 seconds). */
+  private throwGrenade(): void {
+    if (!this.playerAlive || this.falling) return;
+    if (!canShoot(this.time.now, this.lastGrenadeMs, GRENADE.cooldownMs)) return;
+    this.lastGrenadeMs = this.time.now;
+    const facing = this.player.getFacing();
+    // Aim at the enemy if it's in front of you, otherwise throw a fixed distance
+    const enemyX = this.enemy.figure.getX();
+    const enemyInFront = this.enemy.isAlive() && (enemyX - this.player.getX()) * facing > 0;
+    const target = Math.min(
+      Math.max(enemyInFront ? enemyX : this.player.getX() + facing * GRENADE.throwDistance, 20),
+      GAME_WIDTH - 20,
+    );
+    this.grenades.throw(this.player.handPosition(), target, PLAYER.feetY, (x) => {
+      if (this.enemy.isAlive() && inBlast(this.enemy.figure.getX(), x, GRENADE.radius)) {
+        this.hitEnemy(PLAYER.feetY - 60, facing, GRENADE.damage);
+      }
+    });
+  }
+
+  /** A white one has shot 10 times: it throws a grenade at you. */
+  private enemyThrowsGrenade(): void {
+    const enemy = this.enemy;
+    if (!this.playerAlive || !enemy.isAlive()) return;
+    this.grenades.throw(enemy.figure.handPosition(), this.player.getX(), PLAYER.feetY, (x) => {
+      const close = inBlast(this.player.getX(), x, GRENADE.radius);
+      const jumpedOver = this.jumpLift > GRENADE.safeHeight;
+      if (this.playerAlive && !this.falling && close && !jumpedOver) {
+        this.hurtPlayer(PLAYER.feetY - 60, x < this.player.getX() ? 1 : -1, GRENADE.enemyDamage);
+      }
+    });
+  }
+
   /** M turns all sounds off and on. The choice is saved. */
   private toggleSound(): void {
     this.muted = !this.muted;
@@ -331,6 +394,15 @@ export class MainScene extends Phaser.Scene {
     this.reloadBar.fillRect(x, y, width, height);
     this.reloadBar.fillStyle(progress >= 1 ? ready : filling, 1);
     this.reloadBar.fillRect(x, y, width * progress, height);
+
+    // The grenade bar fills up over 30 seconds
+    const grenadeReady = reloadProgress(this.time.now, this.lastGrenadeMs, GRENADE.cooldownMs);
+    const gy = y + RELOAD_BAR.gap;
+    this.grenadeBar.clear();
+    this.grenadeBar.fillStyle(empty, 1);
+    this.grenadeBar.fillRect(x, gy, width, height);
+    this.grenadeBar.fillStyle(grenadeReady >= 1 ? ready : filling, 1);
+    this.grenadeBar.fillRect(x, gy, width * grenadeReady, height);
   }
 
   /** K opens the shop. The game waits until the shop closes. */
@@ -362,7 +434,7 @@ export class MainScene extends Phaser.Scene {
     this.sfx.buy();
     if (item.id === 'life') {
       this.lives += 1;
-      this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+      this.livesText.setText(this.livesLabel());
     }
     if (item.id === 'rifle') {
       this.player.setWeapon('rifle');
@@ -406,6 +478,7 @@ export class MainScene extends Phaser.Scene {
   private spawnEnemy(): void {
     if (!this.playerAlive) return;
     this.enemyCount += 1;
+    this.enemyShots = 0;
     const rules = DIFFICULTIES[this.difficulty];
     const next = enemyFor(rules, this.enemyCount);
     if (next.kind !== 'white') {
@@ -430,6 +503,8 @@ export class MainScene extends Phaser.Scene {
       this,
       (muzzle) => {
         this.shoot(muzzle, -1, 'enemy');
+        this.enemyShots += 1;
+        if (grenadeAfterShots(this.enemyShots, GRENADE.enemyEveryShots)) this.enemyThrowsGrenade();
       },
       next.lives ?? ENEMY.lives,
     );
@@ -439,10 +514,22 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  /** Hearts, or "∞" on the test level where you can't die. */
+  private livesLabel(): string {
+    if (DIFFICULTIES[this.difficulty].invincible) return '♾️ 🧪';
+    return formatLives(this.lives, PLAYER.lives);
+  }
+
   /** A bullet, axe or club hit the player: lose lives, and break on the last one. */
   private hurtPlayer(hitY: number, push: 1 | -1, damage = 1): void {
+    // On the test level you can't die: just blink
+    if (DIFFICULTIES[this.difficulty].invincible) {
+      this.sfx.hurt('player');
+      this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);
+      return;
+    }
     this.lives = loseLife(this.lives, damage);
-    this.livesText.setText(formatLives(this.lives, PLAYER.lives));
+    this.livesText.setText(this.livesLabel());
     this.sfx[this.lives === 0 ? 'scream' : 'hurt']('player');
     if (this.lives === 0) this.breakPlayer(hitY, push);
     else this.player.flash(PLAYER.hitColor, PLAYER.hitFlashMs);

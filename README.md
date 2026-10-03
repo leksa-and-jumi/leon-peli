@@ -14,21 +14,23 @@
 
 🇫🇮 Tikku-ukkosi taistelee valkoisia tikku-ukkoja vastaan vanhoissa raunioissa 🏛️. Joka 15. vihollinen on iso punainen kirvesmies 🪓.
 
-🇬🇧 Pick a level in the start menu: 😊 Easy (only white ones, 2 hits), 🙂 Normal, 😈 Hard (red guys every 5th and 10th, giant every 30th), 🔥 Super hard (red guys all the time, white every 10th, giant every 15th).
+🇬🇧 Pick a level in the start menu: 😊 Easy (only white ones, 2 hits), 🙂 Normal, 😈 Hard (red guys every 5th and 10th, giant every 30th), 🔥 Super hard (red guys all the time, white every 10th, giant every 15th), 🧪 Test (white, red, green in turns, one hit each, you can't die).
 
-🇫🇮 Valitse taso alkuvalikosta: 😊 Helppo (vain valkoisia, 2 osumaa), 🙂 Normaali, 😈 Vaikea (punaisia joka 5. ja 10., jättiläinen joka 30.), 🔥 Supervaikea (koko ajan punaisia, valkoinen joka 10., jättiläinen joka 15.).
+🇫🇮 Valitse taso alkuvalikosta: 😊 Helppo (vain valkoisia, 2 osumaa), 🙂 Normaali, 😈 Vaikea (punaisia joka 5. ja 10., jättiläinen joka 30.), 🔥 Supervaikea (koko ajan punaisia, valkoinen joka 10., jättiläinen joka 15.), 🧪 Testi (valkoinen, punainen, vihreä vuorotellen, yksi osuma, et voi kuolla).
 
 🇬🇧 Your best score on each level is saved 🏆.
 
 🇫🇮 Paras tuloksesi jokaisella tasolla tallentuu 🏆.
 
-| Key / Näppäin              | 🇬🇧           | 🇫🇮                |
-| -------------------------- | ------------ | ----------------- |
-| A / D, ← / →               | move         | liiku             |
-| S, ↓                       | crouch       | kyykisty          |
-| 🖱️ click / klikkaus, Space | shoot        | ammu              |
-| K                          | shop         | kauppa            |
-| M                          | sound on/off | äänet päälle/pois |
+| Key / Näppäin       | 🇬🇧                   | 🇫🇮                      |
+| ------------------- | -------------------- | ----------------------- |
+| A / D, ← / →        | move                 | liiku                   |
+| S, ↓                | crouch               | kyykisty                |
+| 🖱️ click / klikkaus | shoot                | ammu                    |
+| Space               | jump over pits       | hyppää kuoppien yli     |
+| G                   | grenade (every 30 s) | kranaatti (30 s välein) |
+| K                   | shop                 | kauppa                  |
+| M                   | sound on/off         | äänet päälle/pois       |
 
 _🇬🇧 The game is just starting. Leo decides what comes next!_
 _🇫🇮 Peli on vasta alussa. Leo päättää, mitä siihen tulee!_

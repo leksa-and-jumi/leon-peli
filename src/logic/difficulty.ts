@@ -1,6 +1,6 @@
 import type { EnemyKind } from './spawn';
 
-export type Difficulty = 'easy' | 'normal' | 'hard' | 'superHard';
+export type Difficulty = 'test' | 'easy' | 'normal' | 'hard' | 'superHard';
 
 /** An enemy and how many hits it takes (none = its usual number). */
 export interface EnemyPick {
@@ -19,10 +19,18 @@ export interface DifficultyRules {
   specials: readonly SpecialEnemy[];
   /** Who comes when no special one does. */
   regular: EnemyPick;
+  /** If given, enemies just take turns in this order, over and over. */
+  cycle?: readonly EnemyPick[];
+  /** You can't lose lives (for testing). */
+  invincible?: boolean;
 }
 
 /** Which enemy number `enemyNumber` (counted from 1) is in this difficulty. */
 export function enemyFor(rules: DifficultyRules, enemyNumber: number): EnemyPick {
+  if (rules.cycle && rules.cycle.length > 0) {
+    const turn = rules.cycle[(Math.max(enemyNumber, 1) - 1) % rules.cycle.length];
+    if (turn) return turn;
+  }
   for (const special of rules.specials) {
     if (special.every < 1) throw new RangeError('every must be at least 1');
     if (enemyNumber > 0 && enemyNumber % special.every === 0) {

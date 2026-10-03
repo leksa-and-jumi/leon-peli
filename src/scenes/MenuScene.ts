@@ -8,7 +8,7 @@ import { DemoBattle } from '../objects/DemoBattle';
 import { RuinsBackground } from '../objects/RuinsBackground';
 
 /**
- * The start menu: pick Easy, Normal, Hard or Super hard (or press 1–4).
+ * The start menu: pick Easy, Normal, Hard, Super hard or Test (or press 1–5).
  * Behind it a battle plays by itself, like a video of the game.
  */
 export class MenuScene extends Phaser.Scene {
@@ -49,15 +49,15 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(MENU.depth);
 
-    const levels: Difficulty[] = ['easy', 'normal', 'hard', 'superHard'];
+    const levels: Difficulty[] = ['easy', 'normal', 'hard', 'superHard', 'test'];
     const { height, gap } = MENU.button;
     levels.forEach((level, i) => {
-      this.addLevelButton(level, cx, 210 + i * (height + gap));
+      this.addLevelButton(level, cx, 200 + i * (height + gap));
     });
 
     const keyboard = this.input.keyboard;
     levels.forEach((level, i) => {
-      keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR'][i] ?? ''}`, () => {
+      keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'][i] ?? ''}`, () => {
         this.start(level);
       });
     });
