@@ -1,26 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { canSpawn, followCamera, repeatedSpots, spawnSide, standSpot } from './world';
+import { canSpawn, followCamera, spawnSide, standSpot, tiledSpots, tileVariant } from './world';
 
-describe('repeatedSpots', () => {
+describe('tiledSpots', () => {
   const vines = [
     { x: 250, y: 32 },
     { x: 480, y: 32 },
   ];
+  const same = (): typeof vines => vines;
 
   it('finds the vines on the screen', () => {
-    expect(repeatedSpots(vines, 800, 0, 800).map((s) => s.x)).toEqual([250, 480]);
+    expect(tiledSpots(same, 800, 0, 800, 2).map((s) => s.x)).toEqual([250, 480]);
   });
 
   it('repeats them further right and to the left', () => {
-    expect(repeatedSpots(vines, 800, 800, 1600).map((s) => s.x)).toEqual([1050, 1280]);
-    expect(repeatedSpots(vines, 800, -800, 0).map((s) => s.x)).toEqual([-550, -320]);
+    expect(tiledSpots(same, 800, 800, 1600, 2).map((s) => s.x)).toEqual([1050, 1280]);
+    expect(tiledSpots(same, 800, -800, 0, 2).map((s) => s.x)).toEqual([-550, -320]);
   });
 
-  it('gives each copy its own number, the same every time', () => {
-    const a = repeatedSpots(vines, 800, 0, 2000);
-    const b = repeatedSpots(vines, 800, 1000, 1300);
+  it('gives each one its own number, the same every time', () => {
+    const a = tiledSpots(same, 800, 0, 2000, 2);
+    const b = tiledSpots(same, 800, 1000, 1300, 2);
     expect(new Set(a.map((s) => s.id)).size).toBe(a.length);
     expect(b[0]?.id).toBe(a.find((s) => s.x === 1050)?.id);
+  });
+
+  it('lets every tile have its own spots', () => {
+    const own = (tile: number): typeof vines => [{ x: 100 + tile * 10, y: 40 }];
+    expect(tiledSpots(own, 800, 0, 1700, 2).map((s) => s.x)).toEqual([100, 910]);
+  });
+});
+
+describe('tileVariant', () => {
+  it('is always the same for the same tile, and within the count', () => {
+    for (let tile = -20; tile < 20; tile++) {
+      const v = tileVariant(tile, 5);
+      expect(v).toBe(tileVariant(tile, 5));
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(5);
+    }
+  });
+
+  it('mixes the looks along the way', () => {
+    const looks = new Set(Array.from({ length: 10 }, (_, t) => tileVariant(t, 5)));
+    expect(looks.size).toBeGreaterThan(2);
   });
 });
 

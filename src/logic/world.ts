@@ -7,25 +7,36 @@ export interface RepeatedSpot {
 }
 
 /**
- * All copies of `spots` (given for one tile, from x = 0) whose x is between `fromX` and `toX`,
- * when the tile repeats forever to both sides.
+ * All the spots between `fromX` and `toX` when the world is made of tiles side by side,
+ * each with its own spots (given from the tile's left edge). Each tile has at most
+ * `perTile` spots, so every spot gets its own number.
  */
-export function repeatedSpots(
-  spots: readonly { x: number; y: number }[],
+export function tiledSpots(
+  spotsFor: (tile: number) => readonly { x: number; y: number }[],
   tileWidth: number,
   fromX: number,
   toX: number,
+  perTile: number,
 ): RepeatedSpot[] {
   const result: RepeatedSpot[] = [];
   const first = Math.floor(fromX / tileWidth) - 1;
   const last = Math.floor(toX / tileWidth) + 1;
   for (let tile = first; tile <= last; tile++) {
-    spots.forEach((spot, index) => {
+    spotsFor(tile).forEach((spot, index) => {
       const x = spot.x + tile * tileWidth;
-      if (x >= fromX && x <= toX) result.push({ x, y: spot.y, id: tile * spots.length + index });
+      if (x >= fromX && x <= toX) result.push({ x, y: spot.y, id: tile * perTile + index });
     });
   }
   return result;
+}
+
+/**
+ * Which of `count` looks tile number `tile` gets: always the same for the same tile,
+ * but mixed up so neighbours usually differ.
+ */
+export function tileVariant(tile: number, count: number): number {
+  const mixed = Math.imul(tile, 2654435761) ^ (tile >>> 3);
+  return (((mixed >>> 0) % count) + count) % count;
 }
 
 /** Which side a new enemy comes from: -1 = left, 1 = right. `random` is 0..1. */

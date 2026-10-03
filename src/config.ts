@@ -18,6 +18,27 @@ export const MOTION = {
   strikeSpeed: 45,
 } as const;
 
+/**
+ * The jungle trees the vines hang from: a few different ones, mixed along the
+ * endless ruins. Their branches stay high enough to jump to the vines.
+ */
+export const TREES = {
+  variants: 6,
+  seed: 4242,
+  tileWidth: GAME_WIDTH,
+  trunkHalf: 30,
+  branchY: { min: 24, max: 44 },
+  droop: { min: 0, max: 26 },
+  length: { min: 430, max: 620 },
+  thickness: { min: 46, max: 62 },
+  trunkInset: { min: 12, max: 120 },
+  vineSpots: [
+    { min: 0.33, max: 0.48 },
+    { min: 0.7, max: 0.86 },
+  ],
+  edge: 20,
+} as const;
+
 /** Swinging an axe or club: lift it back behind the head, then strike down hard. */
 export const SWING = {
   /** Lifting the weapon back before the strike. */
@@ -133,11 +154,6 @@ export const GRENADE = {
 
 /** Jungle vines hanging from a big branch: jump into one to swing, Space lets go with a flip. */
 export const LIANAS = {
-  /** Where each vine hangs from (on the branch at the top). */
-  anchors: [
-    { x: 250, y: 32 },
-    { x: 480, y: 32 },
-  ],
   length: 300,
   /** How close your hands must get to the end to grab it. */
   grabReachX: 34,

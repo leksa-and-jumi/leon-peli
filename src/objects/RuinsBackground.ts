@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import type { Atmosphere } from './Atmosphere';
-import { GAME_HEIGHT, GAME_WIDTH, LIANAS, RUINS, SKY_CYCLE } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, LIANAS, RUINS, SKY_CYCLE, TREES } from '../config';
+import { branchHalfThickness, branchMiddleY, branchStartX, type TreeShape } from '../logic/trees';
+import { TREE_SHAPES, treeIndexAt } from './treeShapes';
 import { nextBubbleDelay } from '../logic/bubbles';
 import { skyTintAt } from '../logic/sky';
 import { drawLeaf } from './leaf';
@@ -17,6 +19,7 @@ const { blockWidth, blockHeight, groundY, stone } = RUINS;
 /** Names of the baked pictures of the ruins. */
 const FAR_LAYER = 'ruins-far';
 const NEAR_LAYER = 'ruins-near';
+const TREE_LAYER = 'tree-';
 const V = Phaser.Math.Vector2;
 
 /**
@@ -32,6 +35,8 @@ export class RuinsBackground {
   private readonly scene: Phaser.Scene;
   private readonly far: Phaser.GameObjects.TileSprite;
   private readonly near: Phaser.GameObjects.TileSprite;
+  /** One tree picture for each stretch on the screen (at most three can show at once). */
+  private readonly trees: Phaser.GameObjects.Image[];
   private timeMs = 0;
   private nextShootingStar: number;
 
@@ -61,13 +66,19 @@ export class RuinsBackground {
       this.drawFarRuins();
       this.drawFog();
     });
+    // The trees stand behind the ruins, a different one here and there as you walk
+    TREE_SHAPES.forEach((tree, index) => {
+      this.bakePicture(`${TREE_LAYER}${String(index)}`, () => {
+        this.drawTree(tree);
+      });
+    });
+    this.trees = [0, 1, 2].map(() => scene.add.image(0, 0, `${TREE_LAYER}0`).setOrigin(0, 0));
     this.near = this.bakeLayer(NEAR_LAYER, () => {
       this.drawGround();
       this.drawGroundShadow(20, 264);
       this.drawGroundShadow(395, 150);
       this.drawGroundShadow(339, 46);
       this.drawGroundShadow(727, 50);
-      this.drawTrunk();
       this.drawWall({ x: 20, width: 264, minRows: 3, maxRows: 9 });
       this.drawArch(470, 150);
       this.drawColumn(345, 230, true);
@@ -75,9 +86,17 @@ export class RuinsBackground {
       this.drawRubble();
       this.drawFallenColumn(560, groundY + 62, 150);
       this.drawGrass();
-      this.drawBranch();
     });
     atmosphere.addGroundMist();
+  }
+
+  /** Draws something once into a screen-sized picture (or keeps the one made before). */
+  private bakePicture(key: string, draw: () => void): void {
+    if (this.scene.textures.exists(key)) return;
+    this.g = this.scene.add.graphics();
+    draw();
+    this.g.generateTexture(key, GAME_WIDTH, GAME_HEIGHT);
+    this.g.destroy();
   }
 
   /**
@@ -85,12 +104,7 @@ export class RuinsBackground {
    * and shows it as a strip that repeats sideways forever.
    */
   private bakeLayer(key: string, draw: () => void): Phaser.GameObjects.TileSprite {
-    if (!this.scene.textures.exists(key)) {
-      this.g = this.scene.add.graphics();
-      draw();
-      this.g.generateTexture(key, GAME_WIDTH, GAME_HEIGHT);
-      this.g.destroy();
-    }
+    this.bakePicture(key, draw);
     return this.scene.add
       .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, key)
       .setOrigin(0, 0)
@@ -104,6 +118,14 @@ export class RuinsBackground {
     const scrollX = this.scene.cameras.main.scrollX;
     this.far.tilePositionX = scrollX * RUINS.farParallax;
     this.near.tilePositionX = scrollX;
+    // Put the right tree in each screen-wide stretch that can be seen
+    const first = Math.floor(scrollX / GAME_WIDTH);
+    this.trees.forEach((image, k) => {
+      const tile = first + k;
+      image
+        .setPosition(tile * GAME_WIDTH, 0)
+        .setTexture(`${TREE_LAYER}${String(treeIndexAt(tile))}`);
+    });
     const tint = skyTintAt(this.timeMs, SKY_CYCLE.cycleMs, SKY_CYCLE.stops);
     this.skyTint.setFillStyle(tint.color, tint.alpha);
     if (this.timeMs >= this.nextShootingStar) {
@@ -560,24 +582,32 @@ export class RuinsBackground {
   }
 
   /** A big old tree branch across the top of the screen, where the vines hang from. */
-  /** A big old jungle tree on the left, half hidden behind the wall. */
-  private drawTrunk(): void {
+  /** One jungle tree: its trunk and the mossy branch the vines hang from. */
+  private drawTree(tree: TreeShape): void {
+    this.drawTrunk(tree);
+    this.drawBranch(tree);
+  }
+
+  /** A big old trunk, widening into roots at the ground. Mirrored when the branch grows left. */
+  private drawTrunk(tree: TreeShape): void {
     const { branch, branchLight, bark, moss } = LIANAS.colors;
-    // The trunk widens toward the ground, with roots spreading out
+    // The shape is drawn as if the branch grows to the right, from a trunk around x = 14
+    const at = (x: number, y: number): Phaser.Math.Vector2 =>
+      new V(tree.trunkX + tree.direction * (x - 14), y);
     this.g.fillStyle(branch, 1);
     this.g.fillPoints(
       [
-        new V(-20, -10),
-        new V(48, -10),
-        new V(52, 120),
-        new V(58, 260),
-        new V(66, 400),
-        new V(80, groundY - 10),
-        new V(105, groundY + 8),
-        new V(60, groundY + 4),
-        new V(30, groundY + 12),
-        new V(0, groundY + 6),
-        new V(-20, groundY + 6),
+        at(-20, -10),
+        at(48, -10),
+        at(52, 120),
+        at(58, 260),
+        at(66, 400),
+        at(80, groundY - 10),
+        at(105, groundY + 8),
+        at(60, groundY + 4),
+        at(30, groundY + 12),
+        at(0, groundY + 6),
+        at(-20, groundY + 6),
       ],
       true,
     );
@@ -588,95 +618,107 @@ export class RuinsBackground {
       while (y < groundY) {
         const step = 14 + this.random() * 18;
         const wiggle = (this.random() - 0.5) * 4;
+        const from = at(x + (y / groundY) * 14, y);
+        const to = at(x + ((y + step) / groundY) * 14 + wiggle, y + step);
         this.g.lineStyle(2, bark, 0.9);
-        this.g.lineBetween(
-          x + (y / groundY) * 14,
-          y,
-          x + ((y + step) / groundY) * 14 + wiggle,
-          y + step,
-        );
+        this.g.lineBetween(from.x, from.y, to.x, to.y);
         y += step + this.random() * 10;
       }
     }
     this.g.lineStyle(1.5, branchLight, 0.6);
     for (let i = 0; i < 5; i++) {
       const x = 4 + i * 11 + this.random() * 4;
-      this.g.lineBetween(x, 0, x + 12, groundY - 20);
+      const from = at(x, 0);
+      const to = at(x + 12, groundY - 20);
+      this.g.lineBetween(from.x, from.y, to.x, to.y);
     }
-    // A knot hole and moss growing on the shady side
+    // A knot hole somewhere on the trunk, and moss growing on the shady side
+    const hole = at(24, 150 + this.random() * 140);
     this.g.fillStyle(bark, 1);
-    this.g.fillEllipse(24, 210, 14, 22);
+    this.g.fillEllipse(hole.x, hole.y, 14, 22);
     this.g.fillStyle(0x0d0905, 1);
-    this.g.fillEllipse(25, 212, 8, 14);
+    this.g.fillEllipse(hole.x + tree.direction, hole.y + 2, 8, 14);
     for (let i = 0; i < 40; i++) {
+      const spot = at(-10 + this.random() * 30, 150 + this.random() * 300);
       this.g.fillStyle(moss, 0.5 + this.random() * 0.4);
-      this.g.fillCircle(-10 + this.random() * 30, 150 + this.random() * 300, 2 + this.random() * 4);
+      this.g.fillCircle(spot.x, spot.y, 2 + this.random() * 4);
     }
   }
 
   /** The thick branch the vines hang from, with bark, moss, leaves and the vines tied around it. */
-  private drawBranch(): void {
+  private drawBranch(tree: TreeShape): void {
     const { branch, branchLight, bark, moss, leaf, leafLight, leafVein, wood, woodDark } =
       LIANAS.colors;
-    // Thick where it grows out of the trunk, thinner and drooping a little at the tip
-    const top = (x: number): number => 6 + x * 0.03 + Math.sin(x / 90) * 3;
-    const bottom = (x: number): number => 62 - x * 0.04 + Math.sin(x / 90) * 3;
-    const tipX = 640;
+    const start = branchStartX(tree, TREES.trunkHalf);
+    const dir = tree.direction;
+    // Positions measured along the branch, out from the trunk
+    const xAt = (along: number): number => start + dir * along;
+    const top = (along: number): number =>
+      branchMiddleY(tree, along) - branchHalfThickness(tree, along);
+    const bottom = (along: number): number =>
+      branchMiddleY(tree, along) + branchHalfThickness(tree, along);
+    const tip = tree.length;
     const outline: Phaser.Math.Vector2[] = [];
-    for (let x = 30; x <= tipX; x += 20) outline.push(new V(x, top(x)));
-    outline.push(new V(tipX + 18, (top(tipX) + bottom(tipX)) / 2 + 4));
-    for (let x = tipX; x >= 30; x -= 20) outline.push(new V(x, bottom(x)));
+    for (let a = 0; a <= tip; a += 20) outline.push(new V(xAt(a), top(a)));
+    outline.push(new V(xAt(tip + 18), branchMiddleY(tree, tip) + 4));
+    for (let a = tip; a >= 0; a -= 20) outline.push(new V(xAt(a), bottom(a)));
     this.g.fillStyle(branch, 1);
     this.g.fillPoints(outline, true);
     // Bark lines running along it, light on top where the moon shines
     for (let row = 0; row < 4; row++) {
-      for (let x = 40; x < tipX; x += 30 + this.random() * 30) {
-        const length = 20 + this.random() * 30;
+      for (let a = 10; a < tip; a += 30 + this.random() * 30) {
+        const length = Math.min(20 + this.random() * 30, tip - a);
         const f = 0.25 + row * 0.18;
-        const y1 = top(x) + (bottom(x) - top(x)) * f;
-        const y2 = top(x + length) + (bottom(x + length) - top(x + length)) * f;
+        const y1 = top(a) + (bottom(a) - top(a)) * f;
+        const y2 = top(a + length) + (bottom(a + length) - top(a + length)) * f;
         this.g.lineStyle(1.5, bark, 0.9);
-        this.g.lineBetween(x, y1, x + length, y2 + (this.random() - 0.5) * 2);
+        this.g.lineBetween(xAt(a), y1, xAt(a + length), y2 + (this.random() - 0.5) * 2);
       }
     }
     this.g.lineStyle(2, branchLight, 0.8);
-    for (let x = 30; x < tipX; x += 20) this.g.lineBetween(x, top(x) + 2, x + 20, top(x + 20) + 2);
+    for (let a = 0; a < tip; a += 20) {
+      this.g.lineBetween(xAt(a), top(a) + 2, xAt(a + 20), top(a + 20) + 2);
+    }
     // Moss on top
-    for (let x = 40; x < tipX - 20; x += 6) {
+    for (let a = 10; a < tip - 20; a += 6) {
       if (this.random() < 0.35) continue;
       this.g.fillStyle(moss, 0.6 + this.random() * 0.4);
-      this.g.fillCircle(x, top(x) + 1, 2 + this.random() * 3);
+      this.g.fillCircle(xAt(a), top(a) + 1, 2 + this.random() * 3);
     }
     // Twigs at the tip
     this.g.lineStyle(3, branch, 1);
-    this.g.lineBetween(tipX, top(tipX) + 6, tipX + 40, top(tipX) - 16);
-    this.g.lineBetween(tipX + 10, bottom(tipX) - 6, tipX + 46, bottom(tipX) + 14);
+    this.g.lineBetween(xAt(tip), top(tip) + 6, xAt(tip + 40), top(tip) - 16);
+    this.g.lineBetween(xAt(tip + 10), bottom(tip) - 6, xAt(tip + 46), bottom(tip) + 14);
     // Where each vine starts: wrapped a few times around the branch
-    for (const anchor of LIANAS.anchors) {
+    for (const anchor of tree.anchors) {
+      const along = (anchor.x - start) * dir;
       for (let k = -1; k <= 1; k++) {
-        const x = anchor.x + k * 6;
+        const a = along + k * 6;
+        const x = xAt(a);
         this.g.lineStyle(5, woodDark, 1);
-        this.g.lineBetween(x - 4, top(x) - 1, x + 4, bottom(x) + 1);
+        this.g.lineBetween(x - 4, top(a) - 1, x + 4, bottom(a) + 1);
         this.g.lineStyle(3, wood, 1);
-        this.g.lineBetween(x - 4, top(x) - 1, x + 4, bottom(x) + 1);
+        this.g.lineBetween(x - 4, top(a) - 1, x + 4, bottom(a) + 1);
       }
     }
     // Leaf clusters along the top of the branch and over the trunk
     const colors = { dark: leaf, light: leafLight, vein: leafVein };
     const darkColors = { dark: 0x2c4a1c, light: leaf, vein: leafVein };
-    for (let x = -10; x < tipX + 40; x += 22) {
+    for (let a = -60; a < tip + 40; a += 22) {
       // Thick bunches by the trunk, just a few along the branch so the bark shows
-      const count = x < 80 ? 4 : this.random() < 0.5 ? 1 : 2;
+      const byTrunk = a < 50;
+      const count = byTrunk ? 4 : this.random() < 0.5 ? 1 : 2;
       for (let n = 0; n < count; n++) {
         const angle = -Math.PI / 2 + (this.random() - 0.5) * 1.8;
         const size = 12 + this.random() * 10;
-        const y = (x < 30 ? 10 : top(x)) + 2;
-        drawLeaf(this.g, x + this.random() * 8, y, angle, size, n % 2 ? colors : darkColors);
+        const y = (a < 0 ? 10 : top(a)) + 2;
+        drawLeaf(this.g, xAt(a) + this.random() * 8, y, angle, size, n % 2 ? colors : darkColors);
       }
       // A few leaves hang down under the branch too
       if (this.random() < 0.4) {
         const angle = Math.PI / 2 + (this.random() - 0.5) * 1.2;
-        drawLeaf(this.g, x, bottom(Math.max(x, 30)) - 2, angle, 10 + this.random() * 8, darkColors);
+        const under = bottom(Math.max(a, 0)) - 2;
+        drawLeaf(this.g, xAt(a), under, angle, 10 + this.random() * 8, darkColors);
       }
     }
   }
