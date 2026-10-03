@@ -275,7 +275,8 @@ export function drawOutfit(
 
   let index = 0;
   for (const segment of segments) {
-    const pieceLength = outfit.kind === 'solid' ? OUTFIT_PIECE_LENGTH : RAINBOW_PIECE_LENGTH;
+    const pieceLength =
+      outfit.kind === 'solid' || outfit.kind === 'pig' ? OUTFIT_PIECE_LENGTH : RAINBOW_PIECE_LENGTH;
     for (const { from, to } of splitSegment(segment, pieceLength)) {
       const midX = (from.x + to.x) / 2;
       const midY = (from.y + to.y) / 2;
@@ -308,6 +309,35 @@ export function drawOutfit(
   if (outfit.kind === 'solid') {
     g.fillStyle(outfit.color, 1);
     g.fillCircle(c.x, c.y, r);
+  } else if (outfit.kind === 'pig') {
+    // A pig face looking the way the figure faces: ears, a snout and an eye
+    const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
+    g.fillStyle(outfit.ear, 1);
+    g.fillTriangle(
+      c.x - r * 0.7,
+      c.y - r * 0.5,
+      c.x - r * 0.2,
+      c.y - r * 0.9,
+      c.x - r * 0.95,
+      c.y - r * 1.35,
+    );
+    g.fillTriangle(
+      c.x + r * 0.7,
+      c.y - r * 0.5,
+      c.x + r * 0.2,
+      c.y - r * 0.9,
+      c.x + r * 0.95,
+      c.y - r * 1.35,
+    );
+    g.fillStyle(outfit.color, 1);
+    g.fillCircle(c.x, c.y, r * 1.05);
+    g.fillStyle(outfit.snout, 1);
+    g.fillEllipse(c.x + facing * r * 0.85, c.y + r * 0.15, r * 0.7, r * 0.8);
+    g.fillStyle(0x6d2f45, 1);
+    g.fillCircle(c.x + facing * r * 0.95, c.y + r * 0.02, r * 0.1);
+    g.fillCircle(c.x + facing * r * 0.95, c.y + r * 0.3, r * 0.1);
+    g.fillStyle(0x000000, 1);
+    g.fillCircle(c.x + facing * r * 0.25, c.y - r * 0.3, r * 0.13);
   } else if (outfit.kind === 'rainbow') {
     // The head gets the same stripes, one thin row at a time, plus a little shine
     for (let dy = -r; dy < r; dy += 1) {

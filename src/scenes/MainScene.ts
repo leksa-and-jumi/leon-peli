@@ -14,6 +14,7 @@ import {
   GIANT,
   GRENADE,
   OUTFITS,
+  PIG_AXE,
   PITS,
   PLAYER,
   RELOAD_BAR,
@@ -27,6 +28,7 @@ import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatBest, formatScore } from '../logic/score';
 import { grenadeAfterShots, inBlast } from '../logic/grenade';
+import { inReach } from '../logic/melee';
 import { moveDirection, moveX } from '../logic/move';
 import { jumpStep, overPit, safeSpotBeside, type Pit } from '../logic/pits';
 import {
@@ -71,6 +73,10 @@ export class MainScene extends Phaser.Scene {
   private shopClosedKeyTime: number | null = null;
   private sfx!: Sfx;
   private rifleUpgrade = false;
+  /** The gun you'd hold without the pig suit: the pistol, or the rifle if bought here. */
+  private gun: 'pistol' | 'rifle' = 'pistol';
+  /** Swinging the axe right now (the arm is down). */
+  private chopping = false;
   /** Jumping: how high the feet are and how fast they're going up. */
   private jumpLift = 0;
   private jumpSpeed = 0;
@@ -131,7 +137,9 @@ export class MainScene extends Phaser.Scene {
     });
     // A bought rifle is saved for this level, so it's still yours after dying (up to 5 times)
     const levelWeapons = weaponsFor(loadSave(browserStorage()), this.difficulty);
-    if (levelWeapons.rifle) this.player.setWeapon('rifle');
+    this.gun = levelWeapons.rifle ? 'rifle' : 'pistol';
+    this.chopping = false;
+    this.player.setWeapon(this.gun);
     this.rifleUpgrade = levelWeapons.rifleUpgrade;
     this.spawnEnemy();
     this.gunFx = new GunEffects(this);
@@ -209,11 +217,32 @@ export class MainScene extends Phaser.Scene {
     // The gun has to reload between shots
     if (!canShoot(this.time.now, this.lastShotMs, this.cooldownMs())) return;
     this.lastShotMs = this.time.now;
+    if (this.player.getWeapon() === 'axe') {
+      this.chopAxe();
+      return;
+    }
     const muzzle = this.player.muzzlePosition();
     const facing = this.player.getFacing();
     this.shoot(muzzle, facing, 'player');
     // Shots from a crouch toward the white ones are always jumped over
     if (this.isCrouching() && facing === 1) this.enemy.dodge(muzzle.x, BULLET.speed);
+  }
+
+  /** In the pig suit: swing the axe at whoever is right in front of you. */
+  private chopAxe(): void {
+    this.chopping = true;
+    this.player.setStance('chop');
+    this.sfx.chop();
+    this.time.delayedCall(PIG_AXE.chopMs, () => {
+      this.chopping = false;
+    });
+    const facing = this.player.getFacing();
+    if (
+      this.enemy.isAlive() &&
+      inReach(this.player.getX(), facing, this.enemy.figure.getX(), PIG_AXE.reach)
+    ) {
+      this.hitEnemy(PLAYER.feetY - 70, facing, PIG_AXE.damage);
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -264,7 +293,7 @@ export class MainScene extends Phaser.Scene {
       PLAYER.walkSpeed,
       delta,
       PLAYER.minX,
-      PLAYER.maxX,
+      this.player.getWeapon() === 'axe' ? PIG_AXE.maxX : PLAYER.maxX,
     );
     this.player.setX(x);
 
@@ -287,7 +316,9 @@ export class MainScene extends Phaser.Scene {
     }
 
     // Legs swing while walking, and shuffle while walking crouched
-    this.player.setStance(this.isCrouching() ? 'crouch' : 'stand');
+    const holdsAxe = this.player.getWeapon() === 'axe';
+    const upright = holdsAxe ? (this.chopping ? 'chop' : 'raise') : 'stand';
+    this.player.setStance(this.isCrouching() ? 'crouch' : upright);
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
   }
 
@@ -387,9 +418,10 @@ export class MainScene extends Phaser.Scene {
     writeSave(browserStorage(), { ...loadSave(browserStorage()), muted: this.muted });
   }
 
-  /** How long the gun in the hand reloads. The rifle upgrade makes the rifle much faster. */
+  /** How long the weapon in the hand reloads. The rifle upgrade makes the rifle much faster. */
   private cooldownMs(): number {
     const weapon = this.player.getWeapon();
+    if (weapon === 'axe') return PIG_AXE.cooldownMs;
     if (weapon === 'rifle' && this.rifleUpgrade) return WEAPONS.rifle.upgradedCooldownMs;
     return WEAPONS[weapon].cooldownMs;
   }
@@ -445,7 +477,8 @@ export class MainScene extends Phaser.Scene {
       this.livesText.setText(this.livesLabel());
     }
     if (item.id === 'rifle') {
-      this.player.setWeapon('rifle');
+      this.gun = 'rifle';
+      this.player.setWeapon(this.wornOutfit === 'pig' ? 'axe' : 'rifle');
       const save = loadSave(browserStorage());
       writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifle: true, deaths: 0 }));
     }
@@ -464,7 +497,7 @@ export class MainScene extends Phaser.Scene {
 
   /** Does the player already have this one-time item? */
   private owns(item: ShopItem): boolean {
-    if (item.id === 'rifle') return this.player.getWeapon() === 'rifle';
+    if (item.id === 'rifle') return this.gun === 'rifle';
     if (item.id === 'rifleUpgrade') return this.rifleUpgrade;
     const outfit = outfitOf(item);
     return outfit !== null && this.ownedOutfits.has(outfit);
@@ -482,6 +515,8 @@ export class MainScene extends Phaser.Scene {
     if (!outfit || !this.ownedOutfits.has(outfit)) return;
     this.wornOutfit = outfit;
     this.player.setOutfit(OUTFITS[outfit]);
+    // The pig fights with an axe; other clothes keep your gun
+    this.player.setWeapon(outfit === 'pig' ? 'axe' : this.gun);
   }
 
   /** Every 30th one is the giant, every 15th the axe guy, the others white stick figures. */

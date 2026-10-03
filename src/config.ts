@@ -336,6 +336,19 @@ export const GUN_FX = {
   },
 } as const;
 
+/** In the pig suit you fight with an axe instead of a gun. */
+export const PIG_AXE = {
+  /** Lives one chop takes from an enemy. */
+  damage: 3,
+  /** How close the enemy must be, in front of you. */
+  reach: 95,
+  cooldownMs: 600,
+  /** How long the axe stays down after a chop. */
+  chopMs: 220,
+  /** With the axe you can walk right up to the white ones. */
+  maxX: 670,
+} as const;
+
 /** After this many deaths on a level, the rifle bought there is gone. */
 export const RIFLE_DEATHS = 5;
 
@@ -407,6 +420,7 @@ export const OUTFITS = {
   purple: { kind: 'solid', color: 0x8e24aa },
   /** Woodland camouflage: blotches of dark, green, olive, brown and sand. */
   camo: { kind: 'camo', colors: [0x1f2418, 0x3b4a2a, 0x5c6b3a, 0x5a4632, 0x8f8460] },
+  pig: { kind: 'pig', color: 0xf48fb1, snout: 0xec6f9c, ear: 0xe57399 },
   rainbow: {
     kind: 'rainbow',
     colors: [0xe53935, 0xfb8c00, 0xfdd835, 0x43a047, 0x1e88e5, 0x3949ab, 0x8e24aa],
@@ -447,6 +461,14 @@ export const SHOP_ITEMS = [
     outfit: 'camo',
   },
   {
+    id: 'pig',
+    emoji: '🐷',
+    name: 'Pig suit + axe 🪓\nPossupuku + kirves',
+    price: 100,
+    onlyOnce: true,
+    outfit: 'pig',
+  },
+  {
     id: 'rainbow',
     emoji: '🌈',
     name: 'Rainbow suit\nSateenkaaripuku',
@@ -463,7 +485,7 @@ export const COLOR_ITEMS: readonly ShopItem[] = (
 
 export const SHOP = {
   panel: { width: 560, height: 570, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
-  rowHeight: 68,
+  rowHeight: 60,
   swatch: { size: 40, gap: 12, worn: 0xffd54f },
   buyButton: { width: 120, height: 44, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
   wearButton: { width: 120, height: 44, color: 0x1565c0, hoverColor: 0x1e88e5 },
