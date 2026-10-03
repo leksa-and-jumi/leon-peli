@@ -22,15 +22,17 @@
 
 🇫🇮 Jos suljet pelin kuolematta, se jatkuu seuraavalla kerralla samasta kohdasta ▶️. Paras tuloksesi jokaisella tasolla tallentuu 🏆. Kivääri 🔫 ansaitaan jokaisella tasolla erikseen, ja se katoaa 5 kuoleman jälkeen sillä tasolla.
 
-| Key / Näppäin       | 🇬🇧                   | 🇫🇮                      |
-| ------------------- | -------------------- | ----------------------- |
-| A / D, ← / →        | move                 | liiku                   |
-| S, ↓                | crouch               | kyykisty                |
-| 🖱️ click / klikkaus | shoot                | ammu                    |
-| Space               | jump over pits       | hyppää kuoppien yli     |
-| G                   | grenade (every 30 s) | kranaatti (30 s välein) |
-| K                   | shop                 | kauppa                  |
-| M                   | sound on/off         | äänet päälle/pois       |
+| Key / Näppäin       | 🇬🇧                   | 🇫🇮                        |
+| ------------------- | -------------------- | ------------------------- |
+| A / D, ← / →        | move                 | liiku                     |
+| S, ↓                | crouch               | kyykisty                  |
+| 🖱️ click / klikkaus | shoot                | ammu                      |
+| Space               | jump, grab a vine 🌿 | hyppää, tartu liaaniin 🌿 |
+| A / D on a vine     | swing                | keinu                     |
+| Space on a vine     | let go and flip 🤸   | irrota ja tee voltti 🤸   |
+| G                   | grenade (every 30 s) | kranaatti (30 s välein)   |
+| K                   | shop                 | kauppa                    |
+| M                   | sound on/off         | äänet päälle/pois         |
 
 _🇬🇧 The game is just starting. Leo decides what comes next!_
 _🇫🇮 Peli on vasta alussa. Leo päättää, mitä siihen tulee!_

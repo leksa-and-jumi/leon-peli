@@ -57,6 +57,8 @@ export class StickFigure {
   private weapon: Weapon = 'pistol';
   /** How high above the ground the feet are (when jumping). */
   private lift = 0;
+  /** Spinning in the air (radians), around the middle of the body, for flips. */
+  private spin = 0;
   /** The pose drawn right now. It glides toward the stance's pose every frame. */
   private current: Pose;
   /** Walking: how far through the step cycle, and how long one step takes. */
@@ -130,14 +132,29 @@ export class StickFigure {
 
   setX(x: number): void {
     this.x = x;
-    this.g.x = x;
     this.shadow.x = x;
+    this.place();
+  }
+
+  /** Spin the figure around its middle (for a flip). 0 = upright. */
+  setSpin(spin: number): void {
+    this.spin = spin;
+    this.place();
+  }
+
+  /** Put the drawing where the figure is, turned around the middle of its body. */
+  private place(): void {
+    const half = (this.look.height ?? PLAYER.height) / 2;
+    const middleY = this.feetY - this.lift - half;
+    this.g.rotation = this.spin;
+    this.g.x = this.x - Math.sin(this.spin) * half;
+    this.g.y = middleY + Math.cos(this.spin) * half;
   }
 
   /** Raise the figure off the ground, for jumping. */
   setLift(lift: number): void {
     this.lift = lift;
-    this.g.y = this.feetY - lift;
+    this.place();
     // Higher up: the shadow gets smaller and fainter
     const away = Math.min(Math.max(0, 1 - Math.abs(lift) / SHADOW.fadeHeight), 1);
     this.shadow.setScale(0.5 + 0.5 * away).setAlpha(SHADOW.alpha * away);

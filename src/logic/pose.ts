@@ -71,6 +71,19 @@ const RAISE: typeof STAND = { ...STAND, gunHand: { x: 0.12, y: -0.98 } };
 /** Axe chopped down in front. */
 const CHOP: typeof STAND = { ...STAND, gunHand: { x: 0.36, y: -0.55 } };
 
+/** Hanging from a vine: both hands up, legs dangling a bit bent. */
+const HANG: typeof STAND = {
+  hip: { x: 0, y: -0.42 },
+  neck: { x: 0, y: -0.78 },
+  shoulder: { x: 0, y: -0.74 },
+  backKnee: { x: -0.06, y: -0.22 },
+  backFoot: { x: -0.1, y: 0 },
+  frontKnee: { x: 0.08, y: -0.2 },
+  frontFoot: { x: 0.04, y: 0 },
+  backHand: { x: -0.05, y: -1.05 },
+  gunHand: { x: 0.05, y: -1.05 },
+};
+
 /** Walking with the axe raised. */
 const RAISE_STRIDE: typeof STAND = { ...STRIDE, gunHand: RAISE.gunHand };
 
@@ -83,6 +96,7 @@ const STANCES = {
   raise: RAISE,
   chop: CHOP,
   raiseStride: RAISE_STRIDE,
+  hang: HANG,
 };
 
 export type Stance = keyof typeof STANCES;
