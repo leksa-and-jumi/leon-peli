@@ -34,7 +34,7 @@ export class Enemy implements Foe {
   readonly voice = 'white';
   private arrived = false;
   private alive = true;
-  private lives: number = ENEMY.lives;
+  private lives: number;
   private canShoot = true;
   private shootTimer: Phaser.Time.TimerEvent | null = null;
   /** Times it must be in the air, one for every low bullet coming. */
@@ -44,7 +44,10 @@ export class Enemy implements Foe {
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly onShoot: (muzzle: { x: number; y: number }) => void,
+    /** Hits it takes to break this one (depends on the difficulty). */
+    lives: number = ENEMY.lives,
   ) {
+    this.lives = lives;
     this.figure = new StickFigure(
       scene,
       ENEMY.startX,
