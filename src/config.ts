@@ -96,6 +96,48 @@ export const PLAYER = {
   /** How far right the player can walk, so you can't walk into the white ones. */
   maxX: 600,
   stepMs: 160,
+  /** Jumping with Space: how fast you go up, and how hard you're pulled down. */
+  jumpSpeed: 520,
+  gravity: 1400,
+} as const;
+
+/** Grenades: G throws one, and the white ones throw one after every 10 shots. */
+export const GRENADE = {
+  /** You can throw one this often. */
+  cooldownMs: 30000,
+  /** Your grenade takes this many lives from an enemy. */
+  damage: 3,
+  /** A white one's grenade takes this many of your hearts. */
+  enemyDamage: 2,
+  /** The white ones throw one after this many shots. */
+  enemyEveryShots: 10,
+  throwDistance: 300,
+  flightMs: 900,
+  gravity: 1200,
+  /** How close you must be to get hurt. */
+  radius: 85,
+  /** Jumping this high makes the blast miss you. */
+  safeHeight: 45,
+  shake: 0.012,
+  shakeMs: 350,
+  colors: { body: 0x3f4f2a, lever: 0x9e9e9e },
+} as const;
+
+/** Holes in the ground you have to jump over. */
+export const PITS = {
+  holes: [
+    { left: 210, right: 275 },
+    { left: 410, right: 480 },
+  ],
+  /** How far into the hole your feet must be before you fall. */
+  grip: 8,
+  /** Where the hole starts below the ground line, and how deep the darkness goes. */
+  top: 520,
+  colors: { deep: 0x050404, rim: 0x2a241c, edge: 0x5e5549 },
+  /** Falling in: how deep you sink, how long it takes, and where you come back. */
+  fallDepth: 90,
+  fallMs: 450,
+  respawnGap: 22,
 } as const;
 
 /** Points for breaking one white stick figure. */
@@ -244,7 +286,7 @@ export const BLOOD = {
 
 /** Every text in the game is shown in English and Finnish. */
 export const CROUCH_HINT =
-  'A/D ←→ = move 🏃 / liiku\nS ↓ = crouch 🧎 / kyykisty\n🖱️ Space = shoot / ammu\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
+  'A/D ←→ = move 🏃 / liiku\nS ↓ = crouch 🧎 / kyykisty\nSpace = jump 🦘 / hyppää\n🖱️ = shoot / ammu\nG = grenade 💣 / kranaatti\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {
@@ -317,7 +359,9 @@ export type Weapon = keyof typeof WEAPONS;
 /** Bar under the hints that fills up while the gun reloads. */
 export const RELOAD_BAR = {
   x: 52,
-  y: 142,
+  y: 182,
+  /** The grenade bar sits this far under the reload bar. */
+  gap: 24,
   width: 120,
   height: 10,
   empty: 0x3a332b,
@@ -432,6 +476,19 @@ export const ATMOSPHERE = {
 type Level = DifficultyRules & { label: string; emoji: string };
 
 export const DIFFICULTIES: Record<Difficulty, Level> = {
+  /** For trying things out: white, red, green in turns, one hit each, and you can't die. */
+  test: {
+    label: 'Test\nTesti',
+    emoji: '🧪',
+    specials: [],
+    regular: { kind: 'white', lives: 1 },
+    cycle: [
+      { kind: 'white', lives: 1 },
+      { kind: 'boss', lives: 1 },
+      { kind: 'giant', lives: 1 },
+    ],
+    invincible: true,
+  },
   /** Only white ones, two hits each. */
   easy: {
     label: 'Easy\nHelppo',
@@ -493,8 +550,8 @@ export const MENU = {
   depth: 100,
   button: {
     width: 320,
-    height: 64,
-    gap: 16,
+    height: 56,
+    gap: 12,
     color: 0x2e7d32,
     hoverColor: 0x43a047,
     locked: 0x555555,

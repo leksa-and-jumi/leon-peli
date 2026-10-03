@@ -134,6 +134,29 @@ export class Sfx {
     return filter;
   }
 
+  /** KA-BOOM: a long rumbling blast and a very deep thump, with the ruins echoing. */
+  explosion(): void {
+    const ctx = this.ctx;
+    const out = this.master;
+    if (!ctx || !out || !this.noise) return;
+    const t = ctx.currentTime;
+    const bus = ctx.createDynamicsCompressor();
+    bus.connect(out);
+    if (this.echo) bus.connect(this.echo);
+    this.noiseBurst(bus, t, 0.02, 'highpass', 1500, 1.2);
+    const rumble = this.noiseBurst(bus, t, 1.3, 'lowpass', 2500, 1.3);
+    rumble?.frequency.exponentialRampToValueAtTime(120, t + 1.3);
+    const boom = ctx.createOscillator();
+    boom.frequency.setValueAtTime(90, t);
+    boom.frequency.exponentialRampToValueAtTime(25, t + 0.7);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(1.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+    boom.connect(gain).connect(bus);
+    boom.start(t);
+    boom.stop(t + 0.8);
+  }
+
   /** A soft step on stone. Heavy ones (the axe guy) are deeper and louder. */
   footstep(heavy = false, quiet = false): void {
     const loud = (heavy ? 0.5 : 0.28) * (quiet ? 0.5 : 1);

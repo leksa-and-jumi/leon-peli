@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Atmosphere } from './Atmosphere';
-import { GAME_HEIGHT, GAME_WIDTH, RUINS } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, PITS, RUINS } from '../config';
 import {
   buildBrokenWall,
   createRandom,
@@ -46,6 +46,7 @@ export class RuinsBackground {
     this.drawRubble();
     this.drawFallenColumn(560, groundY + 62, 150);
     this.drawGrass();
+    this.drawPits();
     atmosphere.addGroundMist();
   }
 
@@ -461,6 +462,26 @@ export class RuinsBackground {
       this.g.fillEllipse(s.x, s.y, w, h);
       this.g.fillStyle(mixColor(base, stone.highlight, 0.5), 1);
       this.g.fillEllipse(s.x + w * 0.15, s.y - h * 0.2, w * 0.5, h * 0.35);
+    }
+  }
+
+  /** Dark holes in the floor where slabs have fallen in. */
+  private drawPits(): void {
+    const { top, colors } = PITS;
+    for (const { left, right } of PITS.holes) {
+      const width = right - left;
+      // Broken rim of stones around the hole
+      this.g.fillStyle(colors.rim, 1);
+      this.g.fillRoundedRect(left - 6, top - 6, width + 12, GAME_HEIGHT - top + 12, 10);
+      // The hole: dark at the bottom, a bit lighter near the top edge
+      this.g.fillGradientStyle(colors.rim, colors.rim, colors.deep, colors.deep, 1);
+      this.g.fillRoundedRect(left, top, width, GAME_HEIGHT - top, 8);
+      // Jagged lit edge stones along the top
+      this.g.fillStyle(colors.edge, 1);
+      for (let x = left - 4; x < right + 4; x += 9) {
+        const h = 3 + this.random() * 5;
+        this.g.fillRect(x, top - 6, 7, h);
+      }
     }
   }
 

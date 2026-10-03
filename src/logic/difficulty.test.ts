@@ -60,3 +60,22 @@ describe('super hard', () => {
     expect(enemyFor(superHard, 20)).toEqual({ kind: 'white', lives: 3 });
   });
 });
+
+describe('test level', () => {
+  const test: DifficultyRules = {
+    specials: [],
+    regular: { kind: 'white', lives: 1 },
+    cycle: [
+      { kind: 'white', lives: 1 },
+      { kind: 'boss', lives: 1 },
+      { kind: 'giant', lives: 1 },
+    ],
+    invincible: true,
+  };
+
+  it('goes white, red, green and starts over, one hit each', () => {
+    const kinds = [1, 2, 3, 4, 5, 6].map((n) => enemyFor(test, n).kind);
+    expect(kinds).toEqual(['white', 'boss', 'giant', 'white', 'boss', 'giant']);
+    expect(enemyFor(test, 3).lives).toBe(1);
+  });
+});
