@@ -17,6 +17,8 @@ export interface RunState {
   playerX: number;
   ownedOutfits: string[];
   wornOutfit: string;
+  /** Other things bought for this game, like poison or exploding bullets. */
+  ownedItems: string[];
 }
 
 export interface SaveData {
@@ -170,7 +172,19 @@ function checkRun(run: unknown): RunState | null {
     ? r.ownedOutfits.filter((o): o is string => typeof o === 'string')
     : [];
   const worn = typeof r.wornOutfit === 'string' ? r.wornOutfit : 'black';
-  return { score, earned, lives, enemyCount, playerX, ownedOutfits: owned, wornOutfit: worn };
+  const items = Array.isArray(r.ownedItems)
+    ? r.ownedItems.filter((o): o is string => typeof o === 'string')
+    : [];
+  return {
+    score,
+    earned,
+    lives,
+    enemyCount,
+    playerX,
+    ownedOutfits: owned,
+    wornOutfit: worn,
+    ownedItems: items,
+  };
 }
 
 /** Remember the game going on at a level. */

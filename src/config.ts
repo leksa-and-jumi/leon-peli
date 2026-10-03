@@ -560,6 +560,20 @@ export const SHOP_ITEMS = [
     outfit: 'rainbow',
   },
   {
+    id: 'poison',
+    emoji: '🧪',
+    name: 'Poison bullets (🔫 + rifle)\nMyrkkyluodit',
+    price: 200,
+    onlyOnce: true,
+  },
+  {
+    id: 'explosive',
+    emoji: '💥',
+    name: 'Exploding bullets (rifle + 🧌)\nRäjähtävät luodit',
+    price: 300,
+    onlyOnce: true,
+  },
+  {
     id: 'troll',
     emoji: '🧌',
     name: 'Troll suit + small gun 🔫\nPeikkopuku + pikkupyssy',
@@ -575,11 +589,15 @@ export const COLOR_ITEMS: readonly ShopItem[] = (
 ).map((id) => ({ id, emoji: '👕', name: id, price: 5, onlyOnce: true, outfit: id }));
 
 export const SHOP = {
-  panel: { width: 560, height: 570, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
-  rowHeight: 52,
+  panel: { width: 560, height: 590, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
+  /** Where the first row is, below the top of the panel. */
+  firstRowY: 88,
+  rowHeight: 45,
+  emojiSize: '32px',
+  nameSize: '17px',
   swatch: { size: 40, gap: 12, worn: 0xffd54f },
-  buyButton: { width: 120, height: 44, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
-  wearButton: { width: 120, height: 44, color: 0x1565c0, hoverColor: 0x1e88e5 },
+  buyButton: { width: 120, height: 38, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
+  wearButton: { width: 120, height: 38, color: 0x1565c0, hoverColor: 0x1e88e5 },
   textColor: '#ffffff',
   dimTextColor: '#9e9e9e',
   dimAlpha: 0.5,
@@ -603,6 +621,16 @@ export const WORLD = {
   spawnOffscreen: 40,
   /** Bullets fly a little past the screen edge before they're gone. */
   bulletMargin: 60,
+} as const;
+
+/** Bullets from the shop. */
+export const SPECIAL_BULLETS = {
+  /** A poisoned enemy loses a life this often, until it breaks. */
+  poisonEveryMs: 10000,
+  poisonColor: 0x7cb342,
+  /** An exploding bullet takes this many lives at once. */
+  explosiveDamage: 3,
+  explosiveColor: 0xff7043,
 } as const;
 
 /** Bubbles with 3 points that float up now and then: touch or click one to catch it. */

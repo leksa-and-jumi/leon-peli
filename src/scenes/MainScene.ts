@@ -19,6 +19,7 @@ import {
   KNOCKDOWN,
   OUTFITS,
   PIG_AXE,
+  SPECIAL_BULLETS,
   SWING,
   LIANAS,
   PLAYER,
@@ -50,6 +51,7 @@ import {
   type Swing,
 } from '../logic/liana';
 import { bumps, knockdownAt } from '../logic/knockdown';
+import { bulletPowers, poisonStep, type BulletPowers } from '../logic/ammo';
 import { canSpawn, followCamera, spawnSide, type RepeatedSpot } from '../logic/world';
 import { smoothingStep } from '../logic/pose';
 import {
@@ -126,6 +128,10 @@ export class MainScene extends Phaser.Scene {
   private grenadeBar!: Phaser.GameObjects.Graphics;
   private muted = false;
   private ownedOutfits = new Set<OutfitId>(['black']);
+  /** Bullets bought in the shop for this game ('poison', 'explosive'). */
+  private ownedItems = new Set<string>();
+  /** Poisoned enemies, and when each one loses its next life. */
+  private poisoned = new Map<Foe, number>();
   private wornOutfit: OutfitId = 'black';
   private difficulty: Difficulty = 'normal';
   /** Points earned this game (spending in the shop doesn't lower it). This is what records count. */
@@ -161,6 +167,8 @@ export class MainScene extends Phaser.Scene {
     this.nextSpawnAt = 0;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
+    this.ownedItems = new Set<string>();
+    this.poisoned = new Map<Foe, number>();
     this.wornOutfit = 'black';
     // An unfinished game on this level continues where it was left
     const run = loadSave(browserStorage()).runs[this.difficulty];
@@ -171,6 +179,7 @@ export class MainScene extends Phaser.Scene {
       // The enemy that was coming comes again
       this.enemyCount = Math.max(run.enemyCount - 1, 0);
       for (const o of run.ownedOutfits) if (o in OUTFITS) this.ownedOutfits.add(o as OutfitId);
+      for (const item of run.ownedItems) this.ownedItems.add(item);
     }
 
     this.muted = loadSave(browserStorage()).muted;
@@ -342,6 +351,7 @@ export class MainScene extends Phaser.Scene {
         playerX: this.player.getX(),
         ownedOutfits: [...this.ownedOutfits],
         wornOutfit: this.wornOutfit,
+        ownedItems: [...this.ownedItems],
       }),
     );
   }
@@ -362,7 +372,11 @@ export class MainScene extends Phaser.Scene {
     }
     const muzzle = this.player.muzzlePosition();
     const facing = this.player.getFacing();
-    this.shoot(muzzle, facing, this.player);
+    const powers = bulletPowers(this.player.getWeapon(), {
+      poison: this.ownedItems.has('poison'),
+      explosive: this.ownedItems.has('explosive'),
+    });
+    this.shoot(muzzle, facing, this.player, 0, powers);
     // Shots from a crouch toward the white ones are always jumped over
     if (this.isCrouching()) {
       for (const enemy of this.enemies) enemy.dodge(muzzle.x, BULLET.speed, facing);
@@ -419,8 +433,19 @@ export class MainScene extends Phaser.Scene {
       );
       if (!target) continue;
       this.playerBullets = this.playerBullets.filter((b) => b !== bullet);
-      this.hitEnemy(target, bullet.y, bullet.direction, 1);
+      if (bullet.explosive === true) {
+        // Boom, right inside them
+        this.gunFx.burst({ x: target.figure.getX(), y: bullet.y });
+        this.sfx.explosion();
+      }
+      const damage = bullet.explosive === true ? SPECIAL_BULLETS.explosiveDamage : 1;
+      this.hitEnemy(target, bullet.y, bullet.direction, damage);
+      // Poison keeps working on them, one life every ten seconds
+      if (bullet.poison === true && target.isAlive() && !this.poisoned.has(target)) {
+        this.poisoned.set(target, this.time.now + SPECIAL_BULLETS.poisonEveryMs);
+      }
     }
+    this.updatePoison(delta);
 
     // White figures' bullets that hit the player disappear, and the player blinks red
     if (this.playerAlive) {
@@ -674,6 +699,24 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
+  /** Poisoned enemies bubble green and lose a life every ten seconds. */
+  private updatePoison(delta: number): void {
+    for (const [enemy, nextAt] of [...this.poisoned]) {
+      if (!enemy.isAlive()) {
+        this.poisoned.delete(enemy);
+        continue;
+      }
+      const box = enemy.figure.bounds();
+      if (Math.random() < delta / 250)
+        this.gunFx.poisonPuff({ x: enemy.figure.getX(), y: box.top + 20 });
+      const step = poisonStep(nextAt, this.time.now, SPECIAL_BULLETS.poisonEveryMs);
+      this.poisoned.set(enemy, step.nextAt);
+      if (!step.hurt) continue;
+      enemy.figure.flash(SPECIAL_BULLETS.poisonColor, PLAYER.hitFlashMs);
+      this.hitEnemy(enemy, (box.top + box.bottom) / 2, enemy.figure.getFacing() === 1 ? -1 : 1, 1);
+    }
+  }
+
   /** The closest living enemy that `fits`, or null. */
   private nearestEnemy(fits: (enemy: Foe) => boolean): Foe | null {
     const x = this.player.getX();
@@ -803,6 +846,7 @@ export class MainScene extends Phaser.Scene {
       const save = loadSave(browserStorage());
       writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifle: true, deaths: 0 }));
     }
+    if (item.id === 'poison' || item.id === 'explosive') this.ownedItems.add(item.id);
     if (item.id === 'rifleUpgrade') {
       this.rifleUpgrade = true;
       const save = loadSave(browserStorage());
@@ -819,6 +863,7 @@ export class MainScene extends Phaser.Scene {
   /** Does the player already have this one-time item? */
   private owns(item: ShopItem): boolean {
     if (item.id === 'rifle') return this.gun === 'rifle';
+    if (item.id === 'poison' || item.id === 'explosive') return this.ownedItems.has(item.id);
     if (item.id === 'rifleUpgrade') return this.rifleUpgrade;
     const outfit = outfitOf(item);
     return outfit !== null && this.ownedOutfits.has(outfit);
@@ -889,8 +934,10 @@ export class MainScene extends Phaser.Scene {
       enemy = boss;
     } else {
       // On most levels the white ones aim at the middle of you, wherever you are
+      // ...but not while you crouch: then they just shoot straight ahead
       const aimAt = rules.aimAtPlayer
-        ? (): { x: number; y: number } => {
+        ? (): { x: number; y: number } | null => {
+            if (this.isCrouching()) return null;
             const box = this.player.bounds();
             return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
           }
@@ -1009,8 +1056,10 @@ export class MainScene extends Phaser.Scene {
     gun: StickFigure,
     /** How steeply the bullet goes down (negative = up). Straight if not given. */
     slope = 0,
+    /** Poison or exploding bullets from the shop. */
+    powers: BulletPowers = { poison: false, explosive: false },
   ): void {
-    const bullet: Bullet = { ...muzzle, direction, slope };
+    const bullet: Bullet = { ...muzzle, direction, slope, ...powers };
     if (gun === this.player) {
       this.playerBullets.push(bullet);
       this.sfx.gunshot(this.player.getWeapon());

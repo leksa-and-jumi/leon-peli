@@ -5,6 +5,10 @@ export interface Bullet {
   direction: 1 | -1;
   /** How much it goes down for every step forward (negative = up). Straight if not given. */
   slope?: number;
+  /** A poison bullet from the shop. */
+  poison?: boolean;
+  /** An exploding bullet from the shop. */
+  explosive?: boolean;
 }
 
 /** Which way a bullet moves for one pixel of flying: forward and down parts. */

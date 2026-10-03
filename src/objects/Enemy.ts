@@ -59,8 +59,11 @@ export class Enemy implements Foe {
     ) => void,
     /** Hits it takes to break this one (depends on the difficulty). */
     lives: number = ENEMY.lives,
-    /** Where to aim (the player), or null to always shoot straight ahead. */
-    private readonly aimAt: (() => { x: number; y: number }) | null = null,
+    /**
+     * Where to aim (the player). Without it, or when it gives null (like when
+     * the player crouches), it shoots straight ahead.
+     */
+    private readonly aimAt: (() => { x: number; y: number } | null) | null = null,
     /**
      * In the endless world: where it comes in, how far from the player it stands,
      * and where the player is (it follows when the player walks away).
@@ -140,7 +143,8 @@ export class Enemy implements Foe {
       x: f.getX() + f.pose().shoulder.x,
       y: f.getFeetY() + f.pose().shoulder.y,
     };
-    const target = aimAngle(shoulder, this.aimAt(), f.getFacing(), ENEMY.aim.maxAngle);
+    const at = this.aimAt();
+    const target = at ? aimAngle(shoulder, at, f.getFacing(), ENEMY.aim.maxAngle) : 0;
     this.aim = turnToward(this.aim, target, (ENEMY.aim.turnSpeed * deltaMs) / 1000);
     f.setAim(this.aim);
   }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GUN_FX } from '../config';
+import { GUN_FX, SPECIAL_BULLETS } from '../config';
 import { bounceOnGround, stepDrop, type Drop } from '../logic/blood';
 import { bulletHeading, type Bullet } from '../logic/bullets';
 
@@ -147,7 +147,13 @@ export class GunEffects {
       for (let k = 0; k < steps; k++) {
         const near = (length * k) / steps;
         const far = (length * (k + 1)) / steps;
-        this.trails.lineStyle(width * (1 - k / steps), color, 0.6 * (1 - k / steps));
+        // Poison bullets leave a green trail, exploding ones an orange one
+        const trail = b.explosive
+          ? SPECIAL_BULLETS.explosiveColor
+          : b.poison
+            ? SPECIAL_BULLETS.poisonColor
+            : color;
+        this.trails.lineStyle(width * (1 - k / steps), trail, 0.6 * (1 - k / steps));
         this.trails.lineBetween(
           b.x - heading.x * near,
           b.y - heading.y * near,
@@ -158,5 +164,61 @@ export class GunEffects {
       this.trails.fillStyle(tip, 1);
       this.trails.fillCircle(b.x, b.y, width * 0.9);
     }
+  }
+
+  /** An exploding bullet goes off inside someone: a quick fireball and sparks. */
+  burst(at: { x: number; y: number }): void {
+    const flash = this.scene.add.circle(at.x, at.y, 14, 0xfff3c4, 0.95);
+    const fire = this.scene.add.circle(at.x, at.y, 12, SPECIAL_BULLETS.explosiveColor, 0.85);
+    for (const [shape, scale, ms] of [
+      [flash, 2.5, 200],
+      [fire, 3, 450],
+    ] as const) {
+      this.scene.tweens.add({
+        targets: shape,
+        scale,
+        alpha: 0,
+        duration: ms,
+        ease: 'Quad.easeOut',
+        onComplete: () => {
+          shape.destroy();
+        },
+      });
+    }
+    for (let i = 0; i < 10; i++) {
+      const spark = this.scene.add.circle(at.x, at.y, 2, 0xffd54f, 1);
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 25 + Math.random() * 35;
+      this.scene.tweens.add({
+        targets: spark,
+        x: at.x + Math.cos(angle) * distance,
+        y: at.y + Math.sin(angle) * distance,
+        alpha: 0,
+        duration: 300 + Math.random() * 200,
+        onComplete: () => {
+          spark.destroy();
+        },
+      });
+    }
+  }
+
+  /** A little green bubble rising from someone who's poisoned. */
+  poisonPuff(at: { x: number; y: number }): void {
+    const puff = this.scene.add.circle(
+      at.x + (Math.random() - 0.5) * 20,
+      at.y,
+      2 + Math.random() * 3,
+      SPECIAL_BULLETS.poisonColor,
+      0.8,
+    );
+    this.scene.tweens.add({
+      targets: puff,
+      y: puff.y - 30 - Math.random() * 20,
+      alpha: 0,
+      duration: 700,
+      onComplete: () => {
+        puff.destroy();
+      },
+    });
   }
 }
