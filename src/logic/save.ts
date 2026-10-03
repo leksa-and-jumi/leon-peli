@@ -35,6 +35,8 @@ export interface SaveData {
   muted: boolean;
   /** Best score for each level (easy, normal, ...). */
   best: Record<string, number>;
+  /** The stage (door) reached on each level. Kept even after dying. */
+  stages: Record<string, number>;
 }
 
 /** The bit of browser storage the save needs (localStorage fits). */
@@ -45,22 +47,32 @@ export interface SaveStorage {
 
 const SAVE_KEY = 'leon-peli-save';
 const NO_WEAPONS: LevelWeapons = { rifle: false, rifleUpgrade: false, deaths: 0 };
-const EMPTY: SaveData = { runs: {}, weapons: {}, muted: false, best: {} };
+/** A brand new save with nothing in it. */
+function fresh(): SaveData {
+  return { runs: {}, weapons: {}, muted: false, best: {}, stages: {} };
+}
 
 /** Reads the save. Anything broken or missing means a fresh save. */
 export function loadSave(storage: SaveStorage | null): SaveData {
-  if (!storage) return { ...EMPTY, runs: {}, weapons: {}, best: {} };
+  if (!storage) return fresh();
   try {
     const raw = storage.getItem(SAVE_KEY);
-    if (!raw) return { ...EMPTY, runs: {}, weapons: {}, best: {} };
+    if (!raw) return fresh();
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null)
-      return { ...EMPTY, runs: {}, weapons: {}, best: {} };
+    if (typeof parsed !== 'object' || parsed === null) return fresh();
     const muted = 'muted' in parsed && parsed.muted === true;
     const best: Record<string, number> = {};
     if ('best' in parsed && typeof parsed.best === 'object' && parsed.best !== null) {
       for (const [level, score] of Object.entries(parsed.best)) {
         if (typeof score === 'number' && Number.isFinite(score) && score >= 0) best[level] = score;
+      }
+    }
+    const stages: Record<string, number> = {};
+    if ('stages' in parsed && typeof parsed.stages === 'object' && parsed.stages !== null) {
+      for (const [level, stage] of Object.entries(parsed.stages)) {
+        if (typeof stage === 'number' && Number.isFinite(stage) && stage >= 1) {
+          stages[level] = Math.floor(stage);
+        }
       }
     }
     const weapons: Record<string, LevelWeapons> = {};
@@ -82,9 +94,9 @@ export function loadSave(storage: SaveStorage | null): SaveData {
         if (checked) runs[level] = checked;
       }
     }
-    return { runs, weapons, muted, best };
+    return { runs, weapons, muted, best, stages };
   } catch {
-    return { ...EMPTY, runs: {}, weapons: {}, best: {} };
+    return fresh();
   }
 }
 
@@ -209,4 +221,14 @@ export function withRun(save: SaveData, level: string, run: RunState): SaveData 
 export function withoutRun(save: SaveData, level: string): SaveData {
   const runs = Object.fromEntries(Object.entries(save.runs).filter(([name]) => name !== level));
   return { ...save, runs };
+}
+
+/** The stage reached on `level` (1 if you haven't been through any door there yet). */
+export function stageFor(save: SaveData, level: string): number {
+  return save.stages[level] ?? 1;
+}
+
+/** Remember that `level` has got to `stage`. */
+export function withStage(save: SaveData, level: string, stage: number): SaveData {
+  return { ...save, stages: { ...save.stages, [level]: stage } };
 }

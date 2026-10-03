@@ -11,6 +11,8 @@ import {
   type RunState,
   type SaveData,
   type SaveStorage,
+  stageFor,
+  withStage,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -24,7 +26,7 @@ function memoryStorage(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
-const fresh: SaveData = { runs: {}, weapons: {}, muted: false, best: {} };
+const fresh: SaveData = { runs: {}, weapons: {}, muted: false, best: {}, stages: {} };
 
 describe('save', () => {
   it('starts empty', () => {
@@ -187,5 +189,26 @@ describe('unfinished games', () => {
       JSON.stringify({ runs: { easy: { score: 'lots' }, hard: { ...run, lives: 0 } } }),
     );
     expect(loadSave(storage).runs).toEqual({});
+  });
+});
+
+describe('stages reached', () => {
+  it('start from stage 1 on every level', () => {
+    expect(stageFor(fresh, 'normal')).toBe(1);
+  });
+
+  it('are remembered for each level on its own, even after dying', () => {
+    const storage = memoryStorage();
+    writeSave(storage, withStage(fresh, 'normal', 4));
+    const save = loadSave(storage);
+    expect(stageFor(save, 'normal')).toBe(4);
+    expect(stageFor(save, 'hard')).toBe(1);
+    expect(stageFor(withoutRun(save, 'normal'), 'normal')).toBe(4);
+  });
+
+  it('ignore broken ones', () => {
+    const storage = memoryStorage();
+    storage.data.set('leon-peli-save', JSON.stringify({ stages: { normal: 'far', hard: 0 } }));
+    expect(loadSave(storage).stages).toEqual({});
   });
 });

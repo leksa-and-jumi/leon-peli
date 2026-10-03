@@ -13,6 +13,7 @@ import { RuinsBackground } from '../objects/RuinsBackground';
  */
 export class MenuScene extends Phaser.Scene {
   private best: Record<string, number> = {};
+  private stages: Record<string, number> = {};
   private unfinished = new Set<string>();
 
   constructor() {
@@ -22,6 +23,7 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     const save = loadSave(browserStorage());
     this.best = save.best;
+    this.stages = save.stages;
     this.unfinished = new Set(Object.keys(save.runs));
     const atmosphere = new Atmosphere(this);
     new RuinsBackground(this, atmosphere);
@@ -92,7 +94,10 @@ export class MenuScene extends Phaser.Scene {
         x + width / 2 - 12,
         y,
         // ▶️ means a game here is waiting to be continued
-        `${this.unfinished.has(level) ? '▶️ ' : ''}🏆 ${String(this.best[level] ?? 0)}`,
+        // 🚪 shows the stage reached through the doors on this level
+        `${this.unfinished.has(level) ? '▶️ ' : ''}${
+          (this.stages[level] ?? 1) > 1 ? `🚪${String(this.stages[level])} ` : ''
+        }🏆 ${String(this.best[level] ?? 0)}`,
         {
           fontSize: '16px',
           color: MENU.textColor,
