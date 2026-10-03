@@ -25,6 +25,8 @@ export interface DifficultyRules {
   invincible?: boolean;
   /** The white ones aim their guns at you wherever you go. */
   aimAtPlayer?: boolean;
+  /** Doors and hidden keys take you from stage to stage. */
+  stages?: boolean;
 }
 
 /** Which enemy number `enemyNumber` (counted from 1) is in this difficulty. */
