@@ -6,7 +6,9 @@ export type OutfitLook =
   | { kind: 'camo'; colors: readonly number[] }
   | { kind: 'rainbow'; colors: readonly number[] }
   /** A pink pig suit: pink body, and a pig face with ears and a snout. */
-  | { kind: 'pig'; color: number; snout: number; ear: number };
+  | { kind: 'pig'; color: number; snout: number; ear: number }
+  /** A forest troll suit: mossy body, and a troll face with a big nose and pointy ears. */
+  | { kind: 'troll'; color: number; nose: number; hair: number };
 
 /**
  * Cuts a line into short pieces, so a pattern can color each piece.
@@ -39,6 +41,7 @@ export function outfitColor(outfit: OutfitLook, index: number): number {
   switch (outfit.kind) {
     case 'solid':
     case 'pig':
+    case 'troll':
       return outfit.color;
     case 'rainbow':
       return outfit.colors[index % outfit.colors.length] ?? 0;

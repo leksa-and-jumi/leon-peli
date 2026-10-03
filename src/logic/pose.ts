@@ -68,8 +68,25 @@ const JUMP_POSE: typeof STAND = {
 /** Axe raised high, ready to chop. */
 const RAISE: typeof STAND = { ...STAND, gunHand: { x: 0.12, y: -0.98 } };
 
-/** Axe chopped down in front. */
-const CHOP: typeof STAND = { ...STAND, gunHand: { x: 0.36, y: -0.55 } };
+/** Leaning back with the axe lifted behind the head, both hands on it, ready to strike. */
+const WINDUP: typeof STAND = {
+  ...STRIDE,
+  hip: { x: -0.02, y: -0.42 },
+  neck: { x: -0.06, y: -0.77 },
+  shoulder: { x: -0.05, y: -0.71 },
+  gunHand: { x: -0.16, y: -0.95 },
+  backHand: { x: -0.11, y: -0.9 },
+};
+
+/** Axe struck down hard in front: leaning into it, both hands on the handle. */
+const CHOP: typeof STAND = {
+  ...STRIDE,
+  hip: { x: 0.02, y: -0.41 },
+  neck: { x: 0.11, y: -0.75 },
+  shoulder: { x: 0.1, y: -0.69 },
+  gunHand: { x: 0.4, y: -0.5 },
+  backHand: { x: 0.31, y: -0.53 },
+};
 
 /** Hanging from a vine: both hands up, legs dangling a bit bent. */
 const HANG: typeof STAND = {
@@ -95,6 +112,7 @@ const STANCES = {
   jump: JUMP_POSE,
   raise: RAISE,
   chop: CHOP,
+  windup: WINDUP,
   raiseStride: RAISE_STRIDE,
   hang: HANG,
 };

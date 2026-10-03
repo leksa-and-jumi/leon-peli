@@ -164,3 +164,14 @@ describe('limpPose', () => {
     expect(Math.abs(limp.gunHand.x - limp.shoulder.x)).toBeLessThan(8);
   });
 });
+
+describe('axe swing', () => {
+  it('winds up behind the head, then strikes down in front', () => {
+    const windup = stickFigurePose(100, 'windup');
+    const chop = stickFigurePose(100, 'chop');
+    expect(windup.gunHand.x).toBeLessThan(windup.neck.x);
+    expect(windup.gunHand.y).toBeLessThan(windup.neck.y);
+    expect(chop.gunHand.x).toBeGreaterThan(chop.neck.x);
+    expect(chop.gunHand.y).toBeGreaterThan(chop.shoulder.y);
+  });
+});
