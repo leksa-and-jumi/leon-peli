@@ -31,7 +31,9 @@ export class Atmosphere {
       const x = Math.random() * GAME_WIDTH;
       const y = Math.random() * maxY;
       if (Math.hypot(x - moonX, y - moonY) < radius * 2.5) continue;
-      const star = this.scene.add.circle(x, y, 1 + Math.random() * 0.8, 0xffffff, 0.2);
+      const star = this.scene.add
+        .circle(x, y, 1 + Math.random() * 0.8, 0xffffff, 0.2)
+        .setScrollFactor(0);
       this.scene.tweens.add({
         targets: star,
         alpha: 0.6 + Math.random() * 0.4,
@@ -49,7 +51,7 @@ export class Atmosphere {
   addClouds(): void {
     const { count, color, alpha, minY, maxY } = ATMOSPHERE.clouds;
     for (let i = 0; i < count; i++) {
-      const g = this.scene.add.graphics();
+      const g = this.scene.add.graphics().setScrollFactor(0);
       const width = 120 + Math.random() * 140;
       g.fillStyle(color, alpha);
       for (let k = 0; k < 6; k++) {
@@ -69,7 +71,7 @@ export class Atmosphere {
   addGroundMist(): void {
     const { count, color, alpha } = ATMOSPHERE.mist;
     for (let i = 0; i < count; i++) {
-      const g = this.scene.add.graphics();
+      const g = this.scene.add.graphics().setScrollFactor(0);
       const width = 260 + Math.random() * 200;
       g.fillStyle(color, alpha);
       g.fillEllipse(0, 0, width, 40);
@@ -82,7 +84,7 @@ export class Atmosphere {
   /** Darker edges around the screen, like an old camera. Drawn above the game, under the texts. */
   addVignette(depth: number): void {
     const { size, alpha } = ATMOSPHERE.vignette;
-    const g = this.scene.add.graphics().setDepth(depth);
+    const g = this.scene.add.graphics().setDepth(depth).setScrollFactor(0);
     const black = 0x000000;
     g.fillGradientStyle(black, black, black, black, alpha, 0, alpha, 0);
     g.fillRect(0, 0, size, GAME_HEIGHT);

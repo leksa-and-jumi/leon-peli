@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BLOOD, BREAK, GAME_WIDTH, type Weapon } from '../config';
+import { BLOOD, BREAK, type Weapon } from '../config';
 import { arcPoint } from '../logic/arc';
 import { dropShape, stepDrop, type Drop } from '../logic/blood';
 import { cutTracked, figureSegments, pieceSegment, type Segment } from '../logic/cut';
@@ -43,7 +43,8 @@ export class BrokenFigure {
 
     // The legs tip away from the bullet, unless that would put them off the screen
     const legsLength = Math.abs(Math.min(cutY, 0));
-    const tipsOff = x + push * legsLength < 0 || x + push * legsLength > GAME_WIDTH;
+    const view = scene.cameras.main.worldView;
+    const tipsOff = x + push * legsLength < view.left || x + push * legsLength > view.right;
     const legsTip: 1 | -1 = tipsOff ? (-push as 1 | -1) : push;
 
     // Blood pools grow where the pieces land. Made first, so they lie under the pieces.

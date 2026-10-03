@@ -1,6 +1,16 @@
 import Phaser from 'phaser';
-import { BOSS, BULLET, DEMO, ENEMY, GAME_WIDTH, OUTFITS, PLAYER, RUINS } from '../config';
-import { bulletHits, moveBullets, type Bullet } from '../logic/bullets';
+import {
+  BOSS,
+  BULLET,
+  DEMO,
+  ENEMY,
+  GAME_HEIGHT,
+  GAME_WIDTH,
+  OUTFITS,
+  PLAYER,
+  RUINS,
+} from '../config';
+import { bulletHits, moveBullets, screenArea, type Bullet } from '../logic/bullets';
 import { Boss } from './Boss';
 import { Enemy, type Foe } from './Enemy';
 import { GunEffects } from './GunEffects';
@@ -82,10 +92,18 @@ export class DemoBattle {
       this.fx.shot(muzzle, this.hero.handPosition(), 1, PLAYER.feetY);
     }
 
-    this.heroBullets = moveBullets(this.heroBullets, BULLET.speed, deltaMs, GAME_WIDTH);
-    this.foeBullets = moveBullets(this.foeBullets, ENEMY.bulletSpeed, deltaMs, GAME_WIDTH).filter(
-      (b) => b.x > DEMO.heroX + 20,
+    this.heroBullets = moveBullets(
+      this.heroBullets,
+      BULLET.speed,
+      deltaMs,
+      screenArea(GAME_WIDTH, GAME_HEIGHT),
     );
+    this.foeBullets = moveBullets(
+      this.foeBullets,
+      ENEMY.bulletSpeed,
+      deltaMs,
+      screenArea(GAME_WIDTH, GAME_HEIGHT),
+    ).filter((b) => b.x > DEMO.heroX + 20);
 
     if (foe?.isAlive()) {
       const box = foe.figure.bounds();

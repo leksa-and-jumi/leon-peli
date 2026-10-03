@@ -103,10 +103,6 @@ export const PLAYER = {
   lives: 4,
   /** Walking with A and D, in pixels per second. */
   walkSpeed: 220,
-  /** How close to the left edge the player can walk. */
-  minX: 40,
-  /** How far right the player can walk, so you can't walk into the white ones. */
-  maxX: 600,
   stepMs: 160,
   /** Jumping with Space: how fast you go up, and how hard you're pulled down. */
   jumpSpeed: 520,
@@ -151,8 +147,6 @@ export const LIANAS = {
   regrabMs: 500,
   /** Hanging: your feet are this many player-heights below your hands. */
   hangDrop: 1.05,
-  /** Flying off a vine can take you this far right (even into the enemies). */
-  flightMaxX: 770,
   /** Letting go, you push off a little upward, for a higher flip. */
   releaseBoost: 260,
   /** Part of the flight where you're tucked up tight (between these). */
@@ -182,6 +176,14 @@ export const POINTS_PER_KILL = 1;
 
 /** The white stick figures that walk in from the right and shoot. */
 export const ENEMY = {
+  /** In the endless world: a white one stands this far from you (somewhere in between)... */
+  standOff: { min: 230, max: 360 },
+  /** Never more than this many enemies at once. */
+  maxAtOnce: 3,
+  /** Random wait before the next one comes in (while there's room). */
+  spawnGapMs: { min: 3000, max: 7000 },
+  /** ...and walks after you when you're this much further away. */
+  followSlack: 80,
   /** On every level except Easy, the white ones turn the gun arm toward you. */
   aim: {
     /** The arm turns at most this fast (radians per second), so quick moves can still dodge. */
@@ -417,8 +419,6 @@ export const PIG_AXE = {
   cooldownMs: 600,
   /** How long the axe stays down after a chop. */
   chopMs: 220,
-  /** With the axe you can walk right up to the white ones. */
-  maxX: 670,
 } as const;
 
 /** How often an unfinished game is saved while playing. */
@@ -595,6 +595,16 @@ export const ATMOSPHERE = {
   hudDepth: 100,
 } as const;
 
+/** The endless ruins: the camera follows you and enemies walk in from off the screen. */
+export const WORLD = {
+  /** How quickly the camera catches up with you. */
+  cameraSpeed: 6,
+  /** New enemies start this far outside the screen. */
+  spawnOffscreen: 40,
+  /** Bullets fly a little past the screen edge before they're gone. */
+  bulletMargin: 60,
+} as const;
+
 /** Bubbles with 3 points that float up now and then: touch or click one to catch it. */
 export const BUBBLES = {
   points: 3,
@@ -605,8 +615,8 @@ export const BUBBLES = {
   rise: { riseSpeed: 95, wobble: 14, wobbleSpeed: 2.2 },
   /** They start just below the ground and come up somewhere you can reach. */
   startY: 600,
-  minX: 60,
-  maxX: 580,
+  /** Not too close to the screen edges. */
+  margin: 60,
   depth: 40,
   colors: { fill: 0x29b6f6, edge: 0xe1f5fe, shine: 0xffffff, text: '#fff59d', pop: 0xfff59d },
 } as const;
@@ -720,6 +730,8 @@ export const MENU = {
 export const RUINS = {
   seed: 2026,
   groundY: 470,
+  /** The far-away ruins slide by this much slower than the near ones. */
+  farParallax: 0.4,
   sky: { top: 0x0f0d24, bottom: 0x6b3a55 },
   starCount: 70,
   moon: { x: 640, y: 110, radius: 46, color: 0xf3e6c4, glowColor: 0xf3e6c4, glowAlpha: 0.05 },

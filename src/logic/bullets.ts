@@ -22,6 +22,11 @@ export interface Box {
   bottom: number;
 }
 
+/** The whole screen as an area, when the view doesn't move. */
+export function screenArea(width: number, height: number): Box {
+  return { left: 0, right: width, top: 0, bottom: height };
+}
+
 /**
  * Moves every bullet the way it flies and drops the ones that have left the screen.
  * `deltaMs` is how much time passed since the last frame.
@@ -30,9 +35,8 @@ export function moveBullets(
   bullets: readonly Bullet[],
   speed: number,
   deltaMs: number,
-  screenWidth: number,
-  /** Bullets flying off the top or bottom are gone too. */
-  screenHeight = Infinity,
+  /** The part of the world on the screen: bullets that fly out of it are gone. */
+  area: Box,
 ): Bullet[] {
   if (speed <= 0) {
     throw new RangeError('Bullet speed must be positive');
@@ -43,7 +47,7 @@ export function moveBullets(
       const heading = bulletHeading(b);
       return { ...b, x: b.x + step * heading.x, y: b.y + step * heading.y };
     })
-    .filter((b) => b.x > 0 && b.x < screenWidth && b.y > 0 && b.y < screenHeight);
+    .filter((b) => b.x > area.left && b.x < area.right && b.y > area.top && b.y < area.bottom);
 }
 
 /** Does a bullet of this size touch the box? */

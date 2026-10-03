@@ -14,6 +14,9 @@ import {
 } from '../logic/ruins';
 
 const { blockWidth, blockHeight, groundY, stone } = RUINS;
+/** Names of the baked pictures of the ruins. */
+const FAR_LAYER = 'ruins-far';
+const NEAR_LAYER = 'ruins-near';
 const V = Phaser.Math.Vector2;
 
 /**
@@ -27,56 +30,80 @@ export class RuinsBackground {
   private readonly random: () => number;
   private readonly skyTint: Phaser.GameObjects.Rectangle;
   private readonly scene: Phaser.Scene;
+  private readonly far: Phaser.GameObjects.TileSprite;
+  private readonly near: Phaser.GameObjects.TileSprite;
   private timeMs = 0;
   private nextShootingStar: number;
 
   constructor(scene: Phaser.Scene, atmosphere: Atmosphere) {
-    this.g = scene.add.graphics();
+    // The sky, moon and stars are far away: they stay put on the screen while you walk
+    this.g = scene.add.graphics().setScrollFactor(0);
     this.random = createRandom(RUINS.seed);
     this.drawSky();
     // A see-through layer over the sky that slowly changes colour
-    this.skyTint = scene.add.rectangle(
-      GAME_WIDTH / 2,
-      groundY / 2,
-      GAME_WIDTH,
-      groundY,
-      0x000000,
-      0,
-    );
+    this.skyTint = scene.add
+      .rectangle(GAME_WIDTH / 2, groundY / 2, GAME_WIDTH, groundY, 0x000000, 0)
+      .setScrollFactor(0);
     this.scene = scene;
     this.nextShootingStar = this.shootingStarDelay();
     scene.events.on('update', this.tick, this);
     scene.events.once('shutdown', () => {
       scene.events.off('update', this.tick, this);
     });
-    this.g = scene.add.graphics();
+    this.g = scene.add.graphics().setScrollFactor(0);
     this.drawMoon();
     // Twinkling stars and clouds go between the moon and the ruins
     atmosphere.addTwinklingStars();
     atmosphere.addClouds();
-    this.g = scene.add.graphics();
-    this.drawFarRuins();
-    this.drawFog();
-    this.drawGround();
-    this.drawGroundShadow(20, 264);
-    this.drawGroundShadow(395, 150);
-    this.drawGroundShadow(339, 46);
-    this.drawGroundShadow(727, 50);
-    this.drawTrunk();
-    this.drawWall({ x: 20, width: 264, minRows: 3, maxRows: 9 });
-    this.drawArch(470, 150);
-    this.drawColumn(345, 230, true);
-    this.drawColumn(735, 300, false);
-    this.drawRubble();
-    this.drawFallenColumn(560, groundY + 62, 150);
-    this.drawGrass();
-    this.drawBranch();
+    // The ruins repeat forever to both sides: each layer is drawn once as a picture
+    // that slides by as you walk (the far one slower, so it looks far away)
+    this.far = this.bakeLayer(FAR_LAYER, () => {
+      this.drawFarRuins();
+      this.drawFog();
+    });
+    this.near = this.bakeLayer(NEAR_LAYER, () => {
+      this.drawGround();
+      this.drawGroundShadow(20, 264);
+      this.drawGroundShadow(395, 150);
+      this.drawGroundShadow(339, 46);
+      this.drawGroundShadow(727, 50);
+      this.drawTrunk();
+      this.drawWall({ x: 20, width: 264, minRows: 3, maxRows: 9 });
+      this.drawArch(470, 150);
+      this.drawColumn(345, 230, true);
+      this.drawColumn(735, 300, false);
+      this.drawRubble();
+      this.drawFallenColumn(560, groundY + 62, 150);
+      this.drawGrass();
+      this.drawBranch();
+    });
     atmosphere.addGroundMist();
+  }
+
+  /**
+   * Draws a layer once into a picture (or reuses it, it's always the same),
+   * and shows it as a strip that repeats sideways forever.
+   */
+  private bakeLayer(key: string, draw: () => void): Phaser.GameObjects.TileSprite {
+    if (!this.scene.textures.exists(key)) {
+      this.g = this.scene.add.graphics();
+      draw();
+      this.g.generateTexture(key, GAME_WIDTH, GAME_HEIGHT);
+      this.g.destroy();
+    }
+    return this.scene.add
+      .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, key)
+      .setOrigin(0, 0)
+      .setScrollFactor(0);
   }
 
   /** Every frame: tint the sky a little differently, and now and then a shooting star. */
   private tick(_time: number, deltaMs: number): void {
     this.timeMs += deltaMs;
+    // Walking slides the ruins by
+    const scrollX = this.scene.cameras.main.scrollX;
+    this.far.tilePositionX = scrollX * RUINS.farParallax;
+    this.near.tilePositionX = scrollX;
     const tint = skyTintAt(this.timeMs, SKY_CYCLE.cycleMs, SKY_CYCLE.stops);
     this.skyTint.setFillStyle(tint.color, tint.alpha);
     if (this.timeMs >= this.nextShootingStar) {
@@ -96,7 +123,7 @@ export class RuinsBackground {
     const startX = 100 + Math.random() * (GAME_WIDTH - 200);
     const startY = 20 + Math.random() * 60;
     const dir = Math.random() < 0.5 ? -1 : 1;
-    const streak = this.scene.add.graphics().setDepth(1);
+    const streak = this.scene.add.graphics().setDepth(1).setScrollFactor(0);
     const travel = { t: 0 };
     this.scene.tweens.add({
       targets: travel,

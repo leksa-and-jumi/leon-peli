@@ -4,6 +4,7 @@ import { dodgeWindow, nextLift, wantsToBeUp, type JumpWindow } from '../logic/ju
 import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
 import { aimAngle, turnToward } from '../logic/aim';
+import { standSpot } from '../logic/world';
 import type { Voice } from '../audio/Sfx';
 import { BrokenFigure } from './BrokenFigure';
 import { StickFigure } from './StickFigure';
@@ -19,8 +20,8 @@ export interface Foe {
   isAlive(): boolean;
   /** Returns true if this hit broke it. `push` is the way the bullet flew. */
   takeHit(hit: { x: number; y: number }, push: 1 | -1): boolean;
-  /** The player shot from a crouch. */
-  dodge(bulletX: number, bulletSpeed: number): void;
+  /** The player shot from a crouch, the way `direction` (1 = right, -1 = left). */
+  dodge(bulletX: number, bulletSpeed: number, direction: 1 | -1): void;
   /** The player is out of lives: stop attacking. */
   stopShooting(): void;
 }
@@ -47,23 +48,41 @@ export class Enemy implements Foe {
 
   constructor(
     private readonly scene: Phaser.Scene,
-    /** Shoots from the muzzle; `slope` is how steeply the bullet goes down (negative = up). */
-    private readonly onShoot: (muzzle: { x: number; y: number }, slope: number) => void,
+    /**
+     * Shoots from the muzzle the way it faces (`direction`);
+     * `slope` is how steeply the bullet goes down (negative = up).
+     */
+    private readonly onShoot: (
+      muzzle: { x: number; y: number },
+      slope: number,
+      direction: 1 | -1,
+    ) => void,
     /** Hits it takes to break this one (depends on the difficulty). */
     lives: number = ENEMY.lives,
     /** Where to aim (the player), or null to always shoot straight ahead. */
     private readonly aimAt: (() => { x: number; y: number }) | null = null,
+    /**
+     * In the endless world: where it comes in, how far from the player it stands,
+     * and where the player is (it follows when the player walks away).
+     * Without it, it walks in from the right and stops near the right edge.
+     */
+    private readonly place: {
+      startX: number;
+      standOff: number;
+      playerX: () => number;
+    } | null = null,
   ) {
     this.lives = lives;
+    const startX = place?.startX ?? ENEMY.startX;
     this.figure = new StickFigure(
       scene,
-      ENEMY.startX,
+      startX,
       PLAYER.feetY,
       {
         color: ENEMY.color,
         outlineColor: ENEMY.outlineColor,
         outlineAlpha: ENEMY.outlineAlpha,
-        facing: -1,
+        facing: place && startX < place.playerX() ? 1 : -1,
       },
       'aim',
     );
@@ -84,13 +103,16 @@ export class Enemy implements Foe {
    * The player shot from a crouch: plan to be up in the air when the bullet
    * arrives, and stay up until it has passed under the feet.
    */
-  dodge(bulletX: number, bulletSpeed: number): void {
+  dodge(bulletX: number, bulletSpeed: number, direction: 1 | -1 = 1): void {
     if (!this.alive) return;
     const box = this.figure.bounds();
+    // How far the bullet has to fly to reach it (only bullets coming its way)
+    const distance = direction === 1 ? box.left - bulletX : bulletX - box.right;
+    if (distance < 0) return;
     this.jumpWindows.push(
       dodgeWindow(
         this.scene.time.now,
-        box.left - bulletX,
+        distance,
         bulletSpeed,
         box.right - box.left + BULLET.width,
         JUMP.riseMs,
@@ -161,14 +183,20 @@ export class Enemy implements Foe {
     if (!this.alive) return;
     this.updateJump(deltaMs);
     this.updateAim(deltaMs);
-    if (this.arrived) return;
-    const x = walkTowards(this.figure.getX(), ENEMY.stopX, ENEMY.walkSpeed, deltaMs);
+    const stop = this.stopX();
+    const oldX = this.figure.getX();
+    // Once there, it only walks again when the player has gone far away
+    if (this.arrived && Math.abs(stop - oldX) <= ENEMY.followSlack) {
+      this.figure.setWalking(null);
+      return;
+    }
+    const x = walkTowards(oldX, stop, ENEMY.walkSpeed, deltaMs);
     this.figure.setX(x);
 
-    // Legs swing while walking in
+    // Legs swing while walking
     this.figure.setWalking(ENEMY.stepMs);
 
-    if (x === ENEMY.stopX && this.canShoot) {
+    if (x === stop && !this.arrived && this.canShoot) {
       this.arrived = true;
       this.figure.setWalking(null);
       this.shootTimer = this.scene.time.addEvent({
@@ -176,9 +204,24 @@ export class Enemy implements Foe {
         delay: ENEMY.shootIntervalMs,
         loop: true,
         callback: () => {
-          this.onShoot(this.figure.muzzlePosition(), Math.tan(this.figure.getAim()));
+          this.onShoot(
+            this.figure.muzzlePosition(),
+            Math.tan(this.figure.getAim()),
+            this.figure.getFacing(),
+          );
         },
       });
     }
+  }
+
+  /** Where it wants to stand: near the right edge, or a bit away from the player on its side. */
+  private stopX(): number {
+    if (!this.place) return ENEMY.stopX;
+    const playerX = this.place.playerX();
+    const x = this.figure.getX();
+    const side = x < playerX ? -1 : 1;
+    // Always face the player, even if they jump over to the other side
+    this.figure.setFacing(side === 1 ? -1 : 1);
+    return standSpot(playerX, side, this.place.standOff);
   }
 }

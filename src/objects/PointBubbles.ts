@@ -46,7 +46,9 @@ export class PointBubbles {
   }
 
   private spawn(): void {
-    const x = BUBBLES.minX + Math.random() * (BUBBLES.maxX - BUBBLES.minX);
+    // Somewhere on the screen right now (the world goes on forever)
+    const screen = this.scene.cameras.main.worldView;
+    const x = screen.left + BUBBLES.margin + Math.random() * (screen.width - BUBBLES.margin * 2);
     const state: Bubble = { baseX: x, x, y: BUBBLES.startY, age: 0, phase: Math.random() * 6 };
     const { radius, colors } = BUBBLES;
     // A see-through blue ball with a bright edge, a shine, and "3" in the middle
