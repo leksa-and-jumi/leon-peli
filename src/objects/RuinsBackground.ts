@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import type { Atmosphere } from './Atmosphere';
-import { GAME_HEIGHT, GAME_WIDTH, LIANAS, RUINS } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, LIANAS, RUINS, SKY_CYCLE } from '../config';
+import { nextBubbleDelay } from '../logic/bubbles';
+import { skyTintAt } from '../logic/sky';
 import { drawLeaf } from './leaf';
 import {
   buildBrokenWall,
@@ -23,11 +25,31 @@ const V = Phaser.Math.Vector2;
 export class RuinsBackground {
   private g: Phaser.GameObjects.Graphics;
   private readonly random: () => number;
+  private readonly skyTint: Phaser.GameObjects.Rectangle;
+  private readonly scene: Phaser.Scene;
+  private timeMs = 0;
+  private nextShootingStar: number;
 
   constructor(scene: Phaser.Scene, atmosphere: Atmosphere) {
     this.g = scene.add.graphics();
     this.random = createRandom(RUINS.seed);
     this.drawSky();
+    // A see-through layer over the sky that slowly changes colour
+    this.skyTint = scene.add.rectangle(
+      GAME_WIDTH / 2,
+      groundY / 2,
+      GAME_WIDTH,
+      groundY,
+      0x000000,
+      0,
+    );
+    this.scene = scene;
+    this.nextShootingStar = this.shootingStarDelay();
+    scene.events.on('update', this.tick, this);
+    scene.events.once('shutdown', () => {
+      scene.events.off('update', this.tick, this);
+    });
+    this.g = scene.add.graphics();
     this.drawMoon();
     // Twinkling stars and clouds go between the moon and the ruins
     atmosphere.addTwinklingStars();
@@ -50,6 +72,49 @@ export class RuinsBackground {
     this.drawGrass();
     this.drawBranch();
     atmosphere.addGroundMist();
+  }
+
+  /** Every frame: tint the sky a little differently, and now and then a shooting star. */
+  private tick(_time: number, deltaMs: number): void {
+    this.timeMs += deltaMs;
+    const tint = skyTintAt(this.timeMs, SKY_CYCLE.cycleMs, SKY_CYCLE.stops);
+    this.skyTint.setFillStyle(tint.color, tint.alpha);
+    if (this.timeMs >= this.nextShootingStar) {
+      this.shootingStar();
+      this.nextShootingStar = this.timeMs + this.shootingStarDelay();
+    }
+  }
+
+  private shootingStarDelay(): number {
+    const { minDelayMs, maxDelayMs } = SKY_CYCLE.shootingStar;
+    return nextBubbleDelay(Math.random(), minDelayMs, maxDelayMs);
+  }
+
+  /** A bright streak shooting down across the sky, fading as it goes. */
+  private shootingStar(): void {
+    const { durationMs, length } = SKY_CYCLE.shootingStar;
+    const startX = 100 + Math.random() * (GAME_WIDTH - 200);
+    const startY = 20 + Math.random() * 60;
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const streak = this.scene.add.graphics().setDepth(1);
+    const travel = { t: 0 };
+    this.scene.tweens.add({
+      targets: travel,
+      t: 1,
+      duration: durationMs,
+      onUpdate: () => {
+        const headX = startX + dir * travel.t * length * 2;
+        const headY = startY + travel.t * length;
+        streak.clear();
+        streak.lineStyle(2, 0xffffff, 0.8 * (1 - travel.t));
+        streak.lineBetween(headX - dir * 40, headY - 20, headX, headY);
+        streak.fillStyle(0xffffff, 1 - travel.t);
+        streak.fillCircle(headX, headY, 2);
+      },
+      onComplete: () => {
+        streak.destroy();
+      },
+    });
   }
 
   private drawSky(): void {

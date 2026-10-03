@@ -4,6 +4,7 @@ import {
   ATMOSPHERE,
   BOSS,
   BRUTE,
+  BUBBLES,
   BULLET,
   COLORS,
   DIFFICULTIES,
@@ -66,6 +67,7 @@ import { Boss } from '../objects/Boss';
 import { Enemy, type Foe } from '../objects/Enemy';
 import { Grenades } from '../objects/Grenades';
 import { Lianas } from '../objects/Lianas';
+import { PointBubbles } from '../objects/PointBubbles';
 import { GunEffects } from '../objects/GunEffects';
 import { showGameOverSign } from '../objects/GameOverSign';
 import { RuinsBackground } from '../objects/RuinsBackground';
@@ -112,6 +114,7 @@ export class MainScene extends Phaser.Scene {
   /** After letting go, no grabbing again until this time. */
   private regrabAt = 0;
   private lianas!: Lianas;
+  private bubbles!: PointBubbles;
   private lastGrenadeMs: number | null = null;
   private enemyShots = 0;
   private grenades!: Grenades;
@@ -284,6 +287,12 @@ export class MainScene extends Phaser.Scene {
 
     // Every level has a button back to the menu (the game is saved, so you can go on later)
     this.addMenuButton();
+
+    // Now and then a 3-point bubble floats up: catch it!
+    this.bubbles = new PointBubbles(this, () => {
+      this.sfx.pop();
+      this.gainPoints(BUBBLES.points);
+    });
   }
 
   private addMenuButton(): void {
@@ -390,6 +399,7 @@ export class MainScene extends Phaser.Scene {
 
     this.gunFx.update(delta, [...this.playerBullets, ...this.enemyBullets]);
     this.grenades.update(delta);
+    this.bubbles.update(delta, this.playerAlive ? this.player.bounds() : null);
     this.lianas.draw(
       delta,
       this.hanging
@@ -627,13 +637,18 @@ export class MainScene extends Phaser.Scene {
       return;
     }
     this.sfx.scream(this.enemy.voice);
-    this.score = addPoints(this.score, this.enemy.points);
-    this.scoreText.setText(formatScore(this.score));
-    this.earned = addPoints(this.earned, this.enemy.points);
-    this.bestText.setText(formatBest(Math.max(this.bestBefore, this.earned)));
+    this.gainPoints(this.enemy.points);
     this.time.delayedCall(ENEMY.respawnMs, () => {
       this.spawnEnemy();
     });
+  }
+
+  /** Points for breaking an enemy or catching a bubble: to spend, and toward the record. */
+  private gainPoints(points: number): void {
+    this.score = addPoints(this.score, points);
+    this.scoreText.setText(formatScore(this.score));
+    this.earned = addPoints(this.earned, points);
+    this.bestText.setText(formatBest(Math.max(this.bestBefore, this.earned)));
   }
 
   /** G: throw a grenade the way you're facing, at the enemy if it's there (once every 30 seconds). */
