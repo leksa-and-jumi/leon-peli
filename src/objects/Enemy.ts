@@ -3,6 +3,7 @@ import { BULLET, ENEMY, JUMP, PLAYER, POINTS_PER_KILL } from '../config';
 import { dodgeWindow, nextLift, wantsToBeUp, type JumpWindow } from '../logic/jump';
 import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
+import { aimAngle, turnToward } from '../logic/aim';
 import type { Voice } from '../audio/Sfx';
 import { BrokenFigure } from './BrokenFigure';
 import { StickFigure } from './StickFigure';
@@ -41,11 +42,17 @@ export class Enemy implements Foe {
   private jumpWindows: JumpWindow[] = [];
   private lift = 0;
 
+  /** How far the gun arm is turned to aim, in radians (negative = up). */
+  private aim = 0;
+
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly onShoot: (muzzle: { x: number; y: number }) => void,
+    /** Shoots from the muzzle; `slope` is how steeply the bullet goes down (negative = up). */
+    private readonly onShoot: (muzzle: { x: number; y: number }, slope: number) => void,
     /** Hits it takes to break this one (depends on the difficulty). */
     lives: number = ENEMY.lives,
+    /** Where to aim (the player), or null to always shoot straight ahead. */
+    private readonly aimAt: (() => { x: number; y: number }) | null = null,
   ) {
     this.lives = lives;
     this.figure = new StickFigure(
@@ -103,6 +110,19 @@ export class Enemy implements Foe {
     else this.figure.setStance('aim');
   }
 
+  /** Turn the gun arm, little by little, toward wherever the player is. */
+  private updateAim(deltaMs: number): void {
+    if (!this.aimAt) return;
+    const f = this.figure;
+    const shoulder = {
+      x: f.getX() + f.pose().shoulder.x,
+      y: f.getFeetY() + f.pose().shoulder.y,
+    };
+    const target = aimAngle(shoulder, this.aimAt(), f.getFacing(), ENEMY.aim.maxAngle);
+    this.aim = turnToward(this.aim, target, (ENEMY.aim.turnSpeed * deltaMs) / 1000);
+    f.setAim(this.aim);
+  }
+
   /**
    * Hit by a bullet: blink red, or break in two when it was the last life.
    * Returns true if it broke.
@@ -140,6 +160,7 @@ export class Enemy implements Foe {
   update(deltaMs: number): void {
     if (!this.alive) return;
     this.updateJump(deltaMs);
+    this.updateAim(deltaMs);
     if (this.arrived) return;
     const x = walkTowards(this.figure.getX(), ENEMY.stopX, ENEMY.walkSpeed, deltaMs);
     this.figure.setX(x);
@@ -155,7 +176,7 @@ export class Enemy implements Foe {
         delay: ENEMY.shootIntervalMs,
         loop: true,
         callback: () => {
-          this.onShoot(this.figure.muzzlePosition());
+          this.onShoot(this.figure.muzzlePosition(), Math.tan(this.figure.getAim()));
         },
       });
     }
