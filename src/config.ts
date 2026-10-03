@@ -278,7 +278,7 @@ export const BRUTE = {
   outlineAlpha: 0.75,
   walkSpeed: 55,
   stepMs: 280,
-  lives: 15,
+  lives: 25,
   points: 8,
   reach: 95,
   minX: 40,
