@@ -139,7 +139,7 @@ export class StickFigure {
     this.lift = lift;
     this.g.y = this.feetY - lift;
     // Higher up: the shadow gets smaller and fainter
-    const away = Math.max(0, 1 - lift / SHADOW.fadeHeight);
+    const away = Math.min(Math.max(0, 1 - Math.abs(lift) / SHADOW.fadeHeight), 1);
     this.shadow.setScale(0.5 + 0.5 * away).setAlpha(SHADOW.alpha * away);
   }
 

@@ -13,6 +13,7 @@ import {
   GAME_WIDTH,
   GIANT,
   OUTFITS,
+  PITS,
   PLAYER,
   RELOAD_BAR,
   START_POINTS,
@@ -24,6 +25,7 @@ import { formatLives, loseLife } from '../logic/lives';
 import { canShoot, reloadProgress } from '../logic/reload';
 import { addPoints, formatBest, formatScore } from '../logic/score';
 import { moveDirection, moveX } from '../logic/move';
+import { jumpStep, overPit, safeSpotBeside, type Pit } from '../logic/pits';
 import { loadSave, recordScore, writeSave } from '../logic/save';
 import { buy, type ShopItem } from '../logic/shop';
 import { enemyFor, type Difficulty } from '../logic/difficulty';
@@ -58,6 +60,10 @@ export class MainScene extends Phaser.Scene {
   private shopClosedKeyTime: number | null = null;
   private sfx!: Sfx;
   private rifleUpgrade = false;
+  /** Jumping: how high the feet are and how fast they're going up. */
+  private jumpLift = 0;
+  private jumpSpeed = 0;
+  private falling = false;
   private muted = false;
   private ownedOutfits = new Set<OutfitId>(['black']);
   private wornOutfit: OutfitId = 'black';
@@ -83,6 +89,9 @@ export class MainScene extends Phaser.Scene {
     this.lastShotMs = null;
     this.score = START_POINTS;
     this.earned = 0;
+    this.jumpLift = 0;
+    this.jumpSpeed = 0;
+    this.falling = false;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
     this.wornOutfit = 'black';
@@ -147,8 +156,9 @@ export class MainScene extends Phaser.Scene {
     this.leftKeys = [keyboard.addKey(KeyCodes.A), keyboard.addKey(KeyCodes.LEFT)];
     this.rightKeys = [keyboard.addKey(KeyCodes.D), keyboard.addKey(KeyCodes.RIGHT)];
     // Space shoots too, handy on a laptop
+    // Space jumps
     keyboard.addKey(KeyCodes.SPACE).on('down', () => {
-      this.tryShoot();
+      this.startJump();
     });
     keyboard.on('keydown-K', (event: KeyboardEvent) => {
       // The same K press that closed the shop must not open it again
@@ -226,6 +236,8 @@ export class MainScene extends Phaser.Scene {
 
   /** A/D or the arrows walk left and right. S or the down arrow crouches while held down. */
   private movePlayer(delta: number): void {
+    // Falling into a pit: no moving until back on solid ground
+    if (this.falling) return;
     const direction = moveDirection(
       this.leftKeys.some((k) => k.isDown),
       this.rightKeys.some((k) => k.isDown),
@@ -242,9 +254,59 @@ export class MainScene extends Phaser.Scene {
     );
     this.player.setX(x);
 
+    // In the air: fly up and come back down
+    if (this.jumpLift > 0 || this.jumpSpeed > 0) {
+      const step = jumpStep(this.jumpLift, this.jumpSpeed, delta, PLAYER.gravity);
+      this.jumpLift = step.lift;
+      this.jumpSpeed = step.speed;
+      this.player.setLift(this.jumpLift);
+      this.player.setStance('jump');
+      this.player.setWalking(null);
+      if (!step.landed) return;
+    }
+
+    // On the ground over a hole: fall in!
+    const pit = overPit(x, PITS.holes, PITS.grip);
+    if (pit) {
+      this.fallInto(pit);
+      return;
+    }
+
     // Legs swing while walking, and shuffle while walking crouched
     this.player.setStance(this.isCrouching() ? 'crouch' : 'stand');
     this.player.setWalking(direction !== 0 ? PLAYER.stepMs : null);
+  }
+
+  /** Space: jump, if standing on the ground. */
+  private startJump(): void {
+    if (!this.playerAlive || this.falling || this.jumpLift > 0) return;
+    this.jumpSpeed = PLAYER.jumpSpeed;
+    this.sfx.footstep();
+  }
+
+  /** Down the hole: sink, lose a heart, and come back next to the edge. */
+  private fallInto(pit: Pit): void {
+    this.falling = true;
+    this.player.setWalking(null);
+    this.player.setStance('jump');
+    const fall = { depth: 0 };
+    this.tweens.add({
+      targets: fall,
+      depth: PITS.fallDepth,
+      duration: PITS.fallMs,
+      ease: 'Quad.easeIn',
+      onUpdate: () => {
+        this.player.setLift(-fall.depth);
+      },
+      onComplete: () => {
+        this.hurtPlayer(PLAYER.feetY - PITS.fallDepth, this.player.getFacing());
+        if (!this.playerAlive) return;
+        this.player.setX(safeSpotBeside(pit, this.player.getFacing(), PITS.respawnGap));
+        this.player.setLift(0);
+        this.player.setStance('stand');
+        this.falling = false;
+      },
+    });
   }
 
   /** M turns all sounds off and on. The choice is saved. */

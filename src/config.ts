@@ -96,6 +96,26 @@ export const PLAYER = {
   /** How far right the player can walk, so you can't walk into the white ones. */
   maxX: 600,
   stepMs: 160,
+  /** Jumping with Space: how fast you go up, and how hard you're pulled down. */
+  jumpSpeed: 520,
+  gravity: 1400,
+} as const;
+
+/** Holes in the ground you have to jump over. */
+export const PITS = {
+  holes: [
+    { left: 210, right: 275 },
+    { left: 410, right: 480 },
+  ],
+  /** How far into the hole your feet must be before you fall. */
+  grip: 8,
+  /** Where the hole starts below the ground line, and how deep the darkness goes. */
+  top: 520,
+  colors: { deep: 0x050404, rim: 0x2a241c, edge: 0x5e5549 },
+  /** Falling in: how deep you sink, how long it takes, and where you come back. */
+  fallDepth: 90,
+  fallMs: 450,
+  respawnGap: 22,
 } as const;
 
 /** Points for breaking one white stick figure. */
@@ -244,7 +264,7 @@ export const BLOOD = {
 
 /** Every text in the game is shown in English and Finnish. */
 export const CROUCH_HINT =
-  'A/D ←→ = move 🏃 / liiku\nS ↓ = crouch 🧎 / kyykisty\n🖱️ Space = shoot / ammu\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
+  'A/D ←→ = move 🏃 / liiku\nS ↓ = crouch 🧎 / kyykisty\nSpace = jump 🦘 / hyppää\n🖱️ = shoot / ammu\nK = shop 🛒 / kauppa\nM = sound 🔊 / ääni';
 
 /** Bullets shot from the gun with a mouse click. */
 export const BULLET = {
@@ -317,7 +337,7 @@ export type Weapon = keyof typeof WEAPONS;
 /** Bar under the hints that fills up while the gun reloads. */
 export const RELOAD_BAR = {
   x: 52,
-  y: 142,
+  y: 162,
   width: 120,
   height: 10,
   empty: 0x3a332b,
