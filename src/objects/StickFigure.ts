@@ -401,29 +401,64 @@ function box(x: number, y: number, w: number, h: number, color: number): GunPart
 /** The parts of each weapon, drawn in order. Facing right, hand at (0, 0). */
 function weaponParts(weapon: Weapon): GunPart[] {
   if (weapon === 'club') {
-    const { wood, dark, knot } = WEAPONS.club.colors;
+    const { wood, dark, knot, iron, grip } = WEAPONS.club.colors;
+    // A spike: a small triangle sticking out from (x, y) in direction (dx, dy)
+    const spike = (x: number, y: number, dx: number, dy: number): GunPart => ({
+      points: [
+        [x - dy * 2.5, y + dx * 2.5],
+        [x + dx * 7, y + dy * 7],
+        [x + dy * 2.5, y - dx * 2.5],
+      ],
+      color: iron,
+    });
     return [
-      // Handle with a leather-wrapped grip
-      box(-3, -30, 6, 42, wood),
-      box(-3.5, -4, 7, 12, dark),
-      // Big heavy end, wider at the top
+      // Handle, thinner at the bottom, with a leather grip wrapped around it
       {
         points: [
-          [-5, -30],
-          [5, -30],
-          [11, -52],
-          [9, -70],
-          [0, -76],
-          [-9, -70],
-          [-11, -52],
+          [-2.5, 12],
+          [2.5, 12],
+          [4, -30],
+          [-4, -30],
         ],
         color: wood,
       },
-      // Knots and bumps in the wood
-      box(-6, -60, 4, 4, knot),
-      box(3, -48, 4, 4, knot),
-      box(-2, -70, 4, 3, knot),
-      box(5, -64, 3, 5, dark),
+      box(-3.2, -6, 6.4, 14, grip),
+      box(-3.2, -3, 6.4, 1.2, dark),
+      box(-3.2, 1, 6.4, 1.2, dark),
+      box(-3.2, 5, 6.4, 1.2, dark),
+      // Iron band where the heavy head starts
+      box(-5.5, -33, 11, 5, iron),
+      // The heavy, knobbly head
+      {
+        points: [
+          [-5, -32],
+          [5, -32],
+          [10, -44],
+          [13, -56],
+          [11, -68],
+          [5, -77],
+          [-3, -79],
+          [-10, -72],
+          [-13, -60],
+          [-11, -46],
+        ],
+        color: wood,
+      },
+      // Darker wood grain and knots
+      box(-7, -66, 2, 14, dark),
+      box(2, -72, 2, 18, dark),
+      box(6, -60, 2, 10, dark),
+      box(-4, -50, 5, 4, knot),
+      box(5, -68, 4, 4, knot),
+      // Iron spikes all around the head
+      spike(12, -52, 1, 0),
+      spike(12, -64, 1, -0.3),
+      spike(-12, -54, -1, 0),
+      spike(-11, -66, -1, -0.3),
+      spike(3, -78, 0.2, -1),
+      spike(-7, -75, -0.6, -0.8),
+      spike(9, -72, 0.7, -0.7),
+      spike(0, -58, 1, 0),
     ];
   }
 

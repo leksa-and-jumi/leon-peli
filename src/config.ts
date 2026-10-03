@@ -126,14 +126,21 @@ export const GRENADE = {
 /** Holes in the ground you have to jump over. */
 export const PITS = {
   holes: [
-    { left: 210, right: 275 },
-    { left: 410, right: 480 },
+    { left: 205, right: 280 },
+    { left: 405, right: 485 },
   ],
   /** How far into the hole your feet must be before you fall. */
   grip: 8,
-  /** Where the hole starts below the ground line, and how deep the darkness goes. */
-  top: 520,
-  colors: { deep: 0x050404, rim: 0x2a241c, edge: 0x5e5549 },
+  /** Where the hole starts below the ground line. */
+  top: 500,
+  colors: {
+    deep: 0x020202,
+    wall: 0x4a3c2c,
+    rim: 0x6e6455,
+    edge: 0x9a8e7c,
+    sign: 0xffc107,
+    post: 0x6d4c41,
+  },
   /** Falling in: how deep you sink, how long it takes, and where you come back. */
   fallDepth: 90,
   fallMs: 450,
@@ -344,7 +351,7 @@ export const WEAPONS = {
   club: {
     muzzleX: 0,
     cooldownMs: 0,
-    colors: { wood: 0x6d4c41, dark: 0x4e342e, knot: 0x3e2723 },
+    colors: { wood: 0x7a5233, dark: 0x4e342e, knot: 0x3e2723, iron: 0x8a8f94, grip: 0x3b2a1f },
   },
   /** The boss's axe. It doesn't shoot. */
   axe: {
