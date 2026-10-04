@@ -391,7 +391,10 @@ export function drawOutfit(
   let index = 0;
   for (const segment of segments) {
     const pieceLength =
-      outfit.kind === 'solid' || outfit.kind === 'pig' || outfit.kind === 'troll'
+      outfit.kind === 'solid' ||
+      outfit.kind === 'pig' ||
+      outfit.kind === 'troll' ||
+      outfit.kind === 'gold'
         ? OUTFIT_PIECE_LENGTH
         : RAINBOW_PIECE_LENGTH;
     for (const { from, to } of splitSegment(segment, pieceLength)) {
@@ -491,6 +494,29 @@ export function drawOutfit(
     g.fillCircle(c.x + facing * r * 0.3, c.y - r * 0.3, r * 0.14);
     g.fillStyle(0xffffff, 1);
     g.fillCircle(c.x + facing * r * 0.34, c.y - r * 0.34, r * 0.05);
+  } else if (outfit.kind === 'gold') {
+    // A shiny gold head with a bright glint and a little crown
+    g.fillStyle(outfit.dark, 1);
+    g.fillCircle(c.x, c.y, r);
+    g.fillStyle(outfit.color, 1);
+    g.fillCircle(c.x - r * 0.12, c.y - r * 0.12, r * 0.82);
+    g.fillStyle(outfit.shine, 0.9);
+    g.fillEllipse(c.x + r * 0.3, c.y - r * 0.45, r * 0.55, r * 0.3);
+    g.fillStyle(outfit.color, 1);
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(c.x - r * 0.7, c.y - r * 0.85),
+        new Phaser.Math.Vector2(c.x - r * 0.7, c.y - r * 1.45),
+        new Phaser.Math.Vector2(c.x - r * 0.35, c.y - r * 1.1),
+        new Phaser.Math.Vector2(c.x, c.y - r * 1.55),
+        new Phaser.Math.Vector2(c.x + r * 0.35, c.y - r * 1.1),
+        new Phaser.Math.Vector2(c.x + r * 0.7, c.y - r * 1.45),
+        new Phaser.Math.Vector2(c.x + r * 0.7, c.y - r * 0.85),
+      ],
+      true,
+    );
+    g.fillStyle(0xe53935, 1);
+    g.fillCircle(c.x, c.y - r * 1.05, r * 0.14);
   } else if (outfit.kind === 'rainbow') {
     // The head gets the same stripes, one thin row at a time, plus a little shine
     for (let dy = -r; dy < r; dy += 1) {
@@ -685,6 +711,41 @@ function weaponParts(weapon: Weapon): GunPart[] {
     ];
   }
 
+  if (weapon === 'goldGun') {
+    const { body, dark, shine, gem } = WEAPONS.goldGun.colors;
+    return [
+      // A long, fancy golden barrel with engraved lines
+      box(-4, -10, 40, 8, body),
+      box(2, -8, 1.5, 5, dark),
+      box(8, -8, 1.5, 5, dark),
+      box(14, -8, 1.5, 5, dark),
+      box(34, -11, 6, 10, dark),
+      box(-4, -2, 26, 3, dark),
+      // A red jewel on the side
+      {
+        points: [
+          [24, -8],
+          [27, -6],
+          [24, -4],
+          [21, -6],
+        ],
+        color: gem,
+      },
+      // Curved golden grip
+      {
+        points: [
+          [-4, -2],
+          [5, -2],
+          [4, 13],
+          [-7, 12],
+        ],
+        color: dark,
+      },
+      // Glint along the top
+      box(-4, -10, 40, 1.5, shine),
+    ];
+  }
+
   if (weapon === 'smallGun') {
     const { body, dark, shine } = WEAPONS.smallGun.colors;
     return [
@@ -835,7 +896,7 @@ export function drawGun(
   }
 
   // Trigger guard: a little ring in front of the grip
-  if (weapon === 'pistol' || weapon === 'rifle' || weapon === 'smallGun') {
+  if (weapon === 'pistol' || weapon === 'rifle' || weapon === 'smallGun' || weapon === 'goldGun') {
     const ring = toScreen([7, 3]);
     g.lineStyle(1.5, 0x1a1a1a, 1);
     g.strokeCircle(ring.x, ring.y, 3.5);

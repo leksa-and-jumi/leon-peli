@@ -465,6 +465,12 @@ export const WEAPONS = {
     cooldownMs: 0,
     colors: { body: 0x3949ab, dark: 0x1a237e, shine: 0x9fa8da },
   },
+  /** The golden gun from the treasure: shoots any time, always exploding bullets. */
+  goldGun: {
+    muzzleX: 38,
+    cooldownMs: 0,
+    colors: { body: 0xffc107, dark: 0xb8860b, shine: 0xfff8e1, gem: 0xe53935 },
+  },
   /** The boss's axe. It doesn't shoot. */
   axe: {
     muzzleX: 0,
@@ -522,6 +528,8 @@ export const OUTFITS = {
   pig: { kind: 'pig', color: 0xf48fb1, snout: 0xec6f9c, ear: 0xe57399 },
   /** A mossy forest troll with a big nose, pointy ears and a hair tuft. */
   troll: { kind: 'troll', color: 0x8d9a7a, nose: 0x6f7d5e, hair: 0x3e4a2f },
+  /** From the treasure behind door 10. */
+  gold: { kind: 'gold', color: 0xffca28, dark: 0xffa000, shine: 0xfff59d },
   rainbow: {
     kind: 'rainbow',
     colors: [0xe53935, 0xfb8c00, 0xfdd835, 0x43a047, 0x1e88e5, 0x3949ab, 0x8e24aa],
@@ -552,6 +560,7 @@ export const SHOP_ITEMS = [
     price: 30,
     onlyOnce: true,
     needs: 'rifle',
+    needsEmoji: '🔫',
   },
   {
     id: 'camo',
@@ -592,6 +601,16 @@ export const SHOP_ITEMS = [
     onlyOnce: true,
   },
   {
+    id: 'gold',
+    emoji: '👑',
+    name: 'Golden suit + gun (treasure)\nKultapuku + kulta-ase',
+    price: 0,
+    onlyOnce: true,
+    outfit: 'gold',
+    needs: 'crown',
+    needsEmoji: '👑',
+  },
+  {
     id: 'troll',
     emoji: '🧌',
     name: 'Troll suit + small gun 🔫\nPeikkopuku + pikkupyssy',
@@ -609,13 +628,13 @@ export const COLOR_ITEMS: readonly ShopItem[] = (
 export const SHOP = {
   panel: { width: 560, height: 590, color: 0x1b1533, alpha: 0.96, border: 0xffd54f },
   /** Where the first row is, below the top of the panel. */
-  firstRowY: 88,
-  rowHeight: 45,
+  firstRowY: 84,
+  rowHeight: 42,
   emojiSize: '32px',
   nameSize: '17px',
   swatch: { size: 40, gap: 12, worn: 0xffd54f },
-  buyButton: { width: 120, height: 38, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
-  wearButton: { width: 120, height: 38, color: 0x1565c0, hoverColor: 0x1e88e5 },
+  buyButton: { width: 120, height: 34, color: 0x2e7d32, hoverColor: 0x43a047, disabled: 0x555555 },
+  wearButton: { width: 120, height: 34, color: 0x1565c0, hoverColor: 0x1e88e5 },
   textColor: '#ffffff',
   dimTextColor: '#9e9e9e',
   dimAlpha: 0.5,

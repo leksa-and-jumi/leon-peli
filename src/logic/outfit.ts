@@ -8,7 +8,9 @@ export type OutfitLook =
   /** A pink pig suit: pink body, and a pig face with ears and a snout. */
   | { kind: 'pig'; color: number; snout: number; ear: number }
   /** A forest troll suit: mossy body, and a troll face with a big nose and pointy ears. */
-  | { kind: 'troll'; color: number; nose: number; hair: number };
+  | { kind: 'troll'; color: number; nose: number; hair: number }
+  /** The golden suit from the treasure: shiny gold that glints. */
+  | { kind: 'gold'; color: number; dark: number; shine: number };
 
 /**
  * Cuts a line into short pieces, so a pattern can color each piece.
@@ -43,6 +45,9 @@ export function outfitColor(outfit: OutfitLook, index: number): number {
     case 'pig':
     case 'troll':
       return outfit.color;
+    case 'gold':
+      // Light and darker gold pieces in turn, so it looks like shiny metal
+      return index % 3 === 0 ? outfit.dark : index % 3 === 1 ? outfit.color : outfit.shine;
     case 'rainbow':
       return outfit.colors[index % outfit.colors.length] ?? 0;
     case 'camo': {

@@ -16,6 +16,13 @@ describe('bulletPowers', () => {
     expect(bulletPowers('pistol', both).explosive).toBe(false);
   });
 
+  it('the golden gun always shoots exploding bullets, even without buying any', () => {
+    expect(bulletPowers('goldGun', { poison: false, explosive: false })).toEqual({
+      poison: false,
+      explosive: true,
+    });
+  });
+
   it('does nothing without buying them', () => {
     expect(bulletPowers('rifle', { poison: false, explosive: false })).toEqual({
       poison: false,

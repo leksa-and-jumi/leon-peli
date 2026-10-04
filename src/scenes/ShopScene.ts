@@ -140,7 +140,10 @@ export class ShopScene extends Phaser.Scene {
       if (!this.data_.hasNeeded(item)) {
         this.content.add(
           this.add
-            .text(buttonX, y, '🔫 first / ensin', { fontSize: '16px', color: SHOP.dimTextColor })
+            .text(buttonX, y, `${item.needsEmoji ?? '🔫'} first / ensin`, {
+              fontSize: '16px',
+              color: SHOP.dimTextColor,
+            })
             .setOrigin(0.5),
         );
         return;

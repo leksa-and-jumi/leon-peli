@@ -241,6 +241,9 @@ export class MainScene extends Phaser.Scene {
       this.keysFound = [...run.keysFound];
     }
 
+    // The treasure's golden suit is yours on this level for good
+    if (this.hasCrown()) this.ownedOutfits.add('gold');
+
     this.muted = loadSave(browserStorage()).muted;
     this.sfx = new Sfx(this, this.muted);
 
@@ -550,8 +553,13 @@ export class MainScene extends Phaser.Scene {
       this.showReward(reward);
     }
     for (const enemy of this.enemies) enemy.stopShooting();
+    const now = this.runState();
     const next: RunState = {
-      ...this.runState(),
+      ...now,
+      // The treasure's golden suit and gun: put them on right away
+      ...(treasure
+        ? { ownedOutfits: [...new Set([...now.ownedOutfits, 'gold'])], wornOutfit: 'gold' }
+        : {}),
       stage: nextStage(this.stage, STAGES.last),
       stageSeed: Math.floor(Math.random() * 1e9),
       keysFound: [],
@@ -1106,7 +1114,14 @@ export class MainScene extends Phaser.Scene {
   /** Does the player have what this item needs first (like the rifle for its upgrade)? */
   private hasNeeded(item: ShopItem): boolean {
     if (item.needs === undefined) return true;
+    // The golden suit comes from the treasure behind door 10
+    if (item.needs === 'crown') return this.hasCrown();
     return this.owns({ ...item, id: item.needs });
+  }
+
+  /** Has the treasure behind door 10 been found on this level? */
+  private hasCrown(): boolean {
+    return (loadSave(browserStorage()).crowns[this.difficulty] ?? 0) > 0;
   }
 
   /** Put on clothes the player owns. */
@@ -1118,10 +1133,14 @@ export class MainScene extends Phaser.Scene {
     this.player.setWeapon(this.weaponFor(outfit));
   }
 
-  /** The pig fights with an axe, the troll with its small gun; other clothes keep your gun. */
+  /**
+   * The pig fights with an axe, the troll with its small gun, the golden suit with the
+   * golden gun; other clothes keep your gun.
+   */
   private weaponFor(outfit: OutfitId): Weapon {
     if (outfit === 'pig') return 'axe';
     if (outfit === 'troll') return 'smallGun';
+    if (outfit === 'gold') return 'goldGun';
     return this.gun;
   }
 
