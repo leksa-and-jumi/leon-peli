@@ -316,8 +316,9 @@ export const BRUTE = {
 } as const;
 
 /**
- * The machine-gun boss: big, in a red beret. He keeps his distance, aims at you
- * and fires bursts of three bullets.
+ * The machine-gun boss: big, in a red beret. He runs after you, aims at you even
+ * when you crouch, fires bursts of three bullets and throws grenades. Break him and
+ * ten brown brutes come chasing you!
  */
 export const GUNNER = {
   color: 0x263238,
@@ -328,7 +329,7 @@ export const GUNNER = {
   outfit: { kind: 'beret', color: 0x263238, beret: 0xc62828, badge: 0xffd54f },
   weapon: 'minigun',
   voice: 'boss',
-  lives: 18,
+  lives: 20,
   points: 12,
   shootIntervalMs: 2400,
   firstShotMs: 900,
@@ -337,6 +338,18 @@ export const GUNNER = {
   burstGapMs: 130,
   /** Too big to jump over your shots. */
   dodges: false,
+  /** Crouching doesn't fool him: he aims at you anyway. */
+  aimsAtCrouch: true,
+  /** He runs after you and stays close. */
+  walkSpeed: 150,
+  stepMs: 150,
+  standOff: { min: 140, max: 190 },
+  followSlack: 30,
+  /** A grenade after every this many shots (two bursts). */
+  grenadeEveryShots: 6,
+  /** When he breaks, this many brown brutes come for you, one after another. */
+  swarm: 10,
+  swarmGapMs: 350,
   healthBar: { width: 80, height: 9, gap: 14, back: 0x3a332b, fill: 0xff7043 },
 } as const;
 

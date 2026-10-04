@@ -6,6 +6,7 @@ import {
   followCamera,
   spawnSide,
   spawnX,
+  swarmSides,
   standSpot,
   tiledSpots,
   tileVariant,
@@ -108,5 +109,12 @@ describe('world walls', () => {
     expect(spawnX(1, 0, 800, 40, bounds, 30)).toBe(840);
     expect(spawnX(1, 900, 800, 40, bounds, 30)).toBe(1670);
     expect(spawnX(-1, -1500, 800, 40, bounds, 30)).toBe(-1470);
+  });
+});
+
+describe('swarmSides', () => {
+  it('sends a crowd in from both sides in turns', () => {
+    expect(swarmSides(4)).toEqual([-1, 1, -1, 1]);
+    expect(swarmSides(10).filter((s) => s === 1)).toHaveLength(5);
   });
 });

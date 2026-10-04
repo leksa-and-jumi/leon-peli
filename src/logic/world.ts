@@ -100,3 +100,8 @@ export function spawnX(
   const x = side === 1 ? scrollX + screenWidth + offscreen : scrollX - offscreen;
   return clampToWorld(x, bounds, margin);
 }
+
+/** Sides for a crowd of enemies coming at once: left, right, left, right... */
+export function swarmSides(count: number): (1 | -1)[] {
+  return Array.from({ length: count }, (_, i) => (i % 2 === 0 ? -1 : 1));
+}

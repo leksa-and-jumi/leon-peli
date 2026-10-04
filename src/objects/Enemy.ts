@@ -50,6 +50,10 @@ export interface ShooterStyle {
   burstGapMs: number;
   /** Does it jump over shots fired from a crouch? */
   dodges: boolean;
+  /** Walks (or runs) this fast, with steps this quick, and walks after you sooner. */
+  walkSpeed: number;
+  stepMs: number;
+  followSlack: number;
   healthBar: { width: number; height: number; gap: number; back: number; fill: number };
 }
 
@@ -247,15 +251,15 @@ export class Enemy implements Foe {
     const stop = this.stopX();
     const oldX = this.figure.getX();
     // Once there, it only walks again when the player has gone far away
-    if (this.arrived && Math.abs(stop - oldX) <= ENEMY.followSlack) {
+    if (this.arrived && Math.abs(stop - oldX) <= (this.style?.followSlack ?? ENEMY.followSlack)) {
       this.figure.setWalking(null);
       return;
     }
-    const x = walkTowards(oldX, stop, ENEMY.walkSpeed, deltaMs);
+    const x = walkTowards(oldX, stop, this.style?.walkSpeed ?? ENEMY.walkSpeed, deltaMs);
     this.figure.setX(x);
 
     // Legs swing while walking
-    this.figure.setWalking(ENEMY.stepMs);
+    this.figure.setWalking(this.style?.stepMs ?? ENEMY.stepMs);
 
     if (x === stop && !this.arrived && this.canShoot) {
       this.arrived = true;

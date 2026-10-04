@@ -31,6 +31,7 @@ import {
   START_POINTS,
   WEAPONS,
   WORLD,
+  type BigFoeKind,
   type OutfitId,
   type Weapon,
 } from '../config';
@@ -76,6 +77,7 @@ import {
   followCamera,
   spawnSide,
   spawnX,
+  swarmSides,
   type RepeatedSpot,
   type WorldBounds,
 } from '../logic/world';
@@ -121,6 +123,8 @@ export class MainScene extends Phaser.Scene {
   private enemies: Foe[] = [];
   /** When the next enemy may come in. */
   private nextSpawnAt = 0;
+  /** Machine-gun bosses on the field (breaking one lets loose the brutes). */
+  private gunners = new Set<Foe>();
   private enemyCount = 0;
   /** Each move has two keys: letters on the left hand, arrows on the right. */
   private crouchKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -211,6 +215,7 @@ export class MainScene extends Phaser.Scene {
     this.regrabAt = 0;
     this.lastGrenadeMs = null;
     this.enemies = [];
+    this.gunners = new Set<Foe>();
     this.nextSpawnAt = 0;
     this.enemyCount = 0;
     this.ownedOutfits = new Set<OutfitId>(['black']);
@@ -936,6 +941,7 @@ export class MainScene extends Phaser.Scene {
     }
     this.sfx.scream(enemy.voice);
     this.gainPoints(enemy.points);
+    if (this.gunners.delete(enemy)) this.releaseSwarm();
     // Nobody left: the next one comes soon
     if (!this.enemies.some((e) => e.isAlive())) {
       this.nextSpawnAt = Math.min(this.nextSpawnAt, this.time.now + ENEMY.respawnMs);
@@ -1178,42 +1184,30 @@ export class MainScene extends Phaser.Scene {
     let enemy: Foe;
     if (next.kind !== 'white' && next.kind !== 'gunner') {
       const base = next.kind === 'giant' ? GIANT : next.kind === 'brute' ? BRUTE : BOSS;
-      const boss = new Boss(
-        this,
-        base,
-        (hitY, push, damage) => {
-          this.sfx.chop();
-          if (this.playerAlive) this.hurtPlayer(hitY, push, damage);
-        },
-        () => this.player.getX(),
-        next.lives,
-        startX,
-        this.bounds,
-      );
-      boss.figure.setOnStep(() => {
-        this.sfx.footstep(true);
-        this.dustAt(boss.figure.getX(), 2);
-      });
-      enemy = boss;
+      enemy = this.addBigFoe(base, startX, next.lives);
     } else {
+      const gunner = next.kind === 'gunner';
       // On most levels the white ones aim at the middle of you, wherever you are
-      // ...but not while you crouch: then they just shoot straight ahead
-      const aimAt = rules.aimAtPlayer
-        ? (): { x: number; y: number } | null => {
-            if (this.isCrouching()) return null;
-            const box = this.player.bounds();
-            return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
-          }
-        : null;
-      const { min, max } = ENEMY.standOff;
+      // ...but not while you crouch: then they just shoot straight ahead.
+      // The machine-gun boss isn't fooled by crouching.
+      const aimAt =
+        rules.aimAtPlayer || gunner
+          ? (): { x: number; y: number } | null => {
+              if (this.isCrouching() && !gunner) return null;
+              const box = this.player.bounds();
+              return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
+            }
+          : null;
+      const { min, max } = gunner ? GUNNER.standOff : ENEMY.standOff;
+      const grenadeEvery = gunner ? GUNNER.grenadeEveryShots : GRENADE.enemyEveryShots;
       let shots = 0;
       const white: Enemy = new Enemy(
         this,
         (muzzle, slope, direction) => {
           this.shoot(muzzle, direction, white.figure, slope);
           shots += 1;
-          // Every 10th shot it throws a grenade too
-          if (grenadeAfterShots(shots, GRENADE.enemyEveryShots)) this.enemyThrowsGrenade(white);
+          // Every 10th shot it throws a grenade too (the boss much more often)
+          if (grenadeAfterShots(shots, grenadeEvery)) this.enemyThrowsGrenade(white);
         },
         next.lives ?? (next.kind === 'gunner' ? GUNNER.lives : ENEMY.lives),
         aimAt,
@@ -1231,8 +1225,48 @@ export class MainScene extends Phaser.Scene {
         this.dustAt(white.figure.getX());
       });
       enemy = white;
+      if (gunner) this.gunners.add(white);
     }
     this.enemies.push(enemy);
+  }
+
+  /** A big one with an axe or a club that follows you: red axe guy, giant or brute. */
+  private addBigFoe(base: BigFoeKind, startX: number, lives?: number): Boss {
+    const boss = new Boss(
+      this,
+      base,
+      (hitY, push, damage) => {
+        this.sfx.chop();
+        if (this.playerAlive) this.hurtPlayer(hitY, push, damage);
+      },
+      () => this.player.getX(),
+      lives ?? base.lives,
+      startX,
+      this.bounds,
+    );
+    boss.figure.setOnStep(() => {
+      this.sfx.footstep(true);
+      this.dustAt(boss.figure.getX(), 2);
+    });
+    return boss;
+  }
+
+  /** The machine-gun boss broke: ten brown brutes come for you, from both sides in turns. */
+  private releaseSwarm(): void {
+    swarmSides(GUNNER.swarm).forEach((side, i) => {
+      this.time.delayedCall(i * GUNNER.swarmGapMs, () => {
+        if (!this.playerAlive || this.leaving) return;
+        const startX = spawnX(
+          side,
+          this.cameras.main.scrollX,
+          GAME_WIDTH,
+          WORLD.spawnOffscreen,
+          this.bounds,
+          WORLD.wallMargin,
+        );
+        this.enemies.push(this.addBigFoe(BRUTE, startX));
+      });
+    });
   }
 
   /** Hearts, or "∞" on the test level where you can't die. */
