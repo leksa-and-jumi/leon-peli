@@ -13,8 +13,16 @@ export interface StageRules {
   doorDistance: { min: number; max: number };
   /** How far from the start keys are hidden. */
   keyDistance: { min: number; max: number };
-  /** How high keys float (screen y): some you can just walk into, some need a jump. */
-  keyY: { min: number; max: number };
+  /** Keys out in the open float this high (screen y): you have to jump for them. */
+  jumpKeyY: { min: number; max: number };
+  /** How many keys (0..1) hang high up near a vine, so you must swing or flip to reach them. */
+  vineKeyShare: number;
+  /** A vine key is this far to the side of its vine... */
+  vineReach: { min: number; max: number };
+  /** ...just inside the arc the vine's end swings along (it's this long). */
+  vineLength: number;
+  /** Vine keys are never lower than this, so a plain jump can't reach them. */
+  vineKeyMaxY: number;
   /** Keys and the door are at least this far apart. */
   minGap: number;
 }
@@ -47,27 +55,54 @@ export function canOpen(found: number, stage: number): boolean {
   return found >= keysNeeded(stage);
 }
 
-/** Puts the door and the keys somewhere left or right of `startX`, never too close together. */
+/**
+ * Puts the door somewhere left or right of `startX`, and hides the keys: some up in the
+ * air where you must jump, some high beside a vine where you must swing or flip.
+ * `vines` are where the vines hang (in the walkable world); keys never sit too close together.
+ */
 export function stageLayout(
   random: () => number,
   stage: number,
   startX: number,
   rules: StageRules,
+  vines: readonly { x: number; y: number }[] = [],
 ): StageLayout {
   const pick = (min: number, max: number): number => min + random() * (max - min);
   const side = (): 1 | -1 => (random() < 0.5 ? -1 : 1);
   const doorX = startX + side() * pick(rules.doorDistance.min, rules.doorDistance.max);
   const taken = [doorX];
+  const free = (x: number): boolean => taken.every((t) => Math.abs(t - x) >= rules.minGap);
+  const inRange = (x: number): boolean => {
+    const d = Math.abs(x - startX);
+    return d >= rules.keyDistance.min && d <= rules.keyDistance.max;
+  };
   const keys: { x: number; y: number }[] = [];
-  const far = rules.keyDistance.max;
   for (let i = 0; i < keysNeeded(stage); i++) {
-    let x = startX + side() * pick(rules.keyDistance.min, far);
-    // Try a few spots so keys don't sit on the door or on each other
-    for (let tries = 0; tries < 30 && taken.some((t) => Math.abs(t - x) < rules.minGap); tries++) {
-      x = startX + side() * pick(rules.keyDistance.min, far);
+    let key: { x: number; y: number } | null = null;
+    // High up by a vine: on its swing arc, so only swinging or flipping gets there
+    if (vines.length > 0 && random() < rules.vineKeyShare) {
+      for (let tries = 0; tries < 30 && !key; tries++) {
+        const vine = vines[Math.floor(random() * vines.length)];
+        if (!vine) continue;
+        // Far enough out that the spot on the arc is above jumping height
+        const drop = rules.vineKeyMaxY + 15 - vine.y;
+        const nearest = drop >= rules.vineLength ? 0 : Math.sqrt(rules.vineLength ** 2 - drop ** 2);
+        const dxMin = Math.max(rules.vineReach.min, nearest);
+        if (dxMin > rules.vineReach.max) continue;
+        const dx = pick(dxMin, rules.vineReach.max);
+        const x = vine.x + side() * dx;
+        const arcY = vine.y + Math.sqrt(rules.vineLength ** 2 - dx * dx);
+        if (inRange(x) && free(x)) key = { x, y: arcY - 15 };
+      }
     }
-    taken.push(x);
-    keys.push({ x, y: pick(rules.keyY.min, rules.keyY.max) });
+    // Otherwise out in the open, high enough that you have to jump
+    for (let tries = 0; tries < 30 && !key; tries++) {
+      const x = startX + side() * pick(rules.keyDistance.min, rules.keyDistance.max);
+      if (free(x) || tries === 29) key = { x, y: pick(rules.jumpKeyY.min, rules.jumpKeyY.max) };
+    }
+    if (!key) continue;
+    taken.push(key.x);
+    keys.push(key);
   }
   return { doorX, keys };
 }

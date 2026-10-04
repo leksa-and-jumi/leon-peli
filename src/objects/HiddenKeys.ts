@@ -38,14 +38,6 @@ export class HiddenKeys {
     });
   }
 
-  /** The keys not found yet: where they are and their colour (for the map). */
-  remaining(): { x: number; color: number }[] {
-    return this.keys.map((k) => ({
-      x: k.x,
-      color: STAGES.keyColors[k.number % STAGES.keyColors.length] ?? 0xffd54f,
-    }));
-  }
-
   /** Every frame: pick up any key the player touches. */
   update(player: Box | null): void {
     if (!player) return;

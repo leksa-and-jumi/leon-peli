@@ -10,7 +10,6 @@ export interface MapView {
   screenLeft: number;
   enemies: readonly { x: number; color: number }[];
   doorX: number | null;
-  keys: readonly { x: number; color: number }[];
 }
 
 /** A small map at the bottom of the screen, from wall to wall. */
@@ -49,11 +48,7 @@ export class MiniMap {
       g.fillStyle(colors.doorFrame, 1);
       g.fillRect(dx - 5, y - 8, 10, 2);
     }
-    // Keys still hidden, each in its own colour
-    for (const key of view.keys) {
-      g.fillStyle(key.color, 1);
-      g.fillCircle(at(key.x), y - 2, 3.5);
-    }
+    // (The keys aren't on the map: you have to find them yourself!)
     // Enemies
     for (const enemy of view.enemies) {
       g.fillStyle(enemy.color, 1);

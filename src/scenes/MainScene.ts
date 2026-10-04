@@ -435,7 +435,12 @@ export class MainScene extends Phaser.Scene {
 
   /** The door out of this stage and its hidden keys, always in the same places for this stage. */
   private buildStage(): void {
-    const layout = stageLayout(createRandom(this.stageSeed), this.stage, PLAYER.x, STAGES);
+    // Some keys hang high beside the vines, so they need the vines in this world
+    const vines = this.lianas.near(
+      this.bounds.left + WORLD.wallMargin,
+      this.bounds.right - WORLD.wallMargin,
+    );
+    const layout = stageLayout(createRandom(this.stageSeed), this.stage, PLAYER.x, STAGES, vines);
     this.door = new StageDoor(this, layout.doorX);
     this.hiddenKeys = new HiddenKeys(this, layout.keys, this.keysFound, (number) => {
       this.keysFound.push(number);
@@ -679,7 +684,6 @@ export class MainScene extends Phaser.Scene {
       screenLeft: this.cameras.main.scrollX,
       enemies: this.enemies.map((e) => ({ x: e.figure.getX(), color: e.figure.getLook().color })),
       doorX: this.door?.x ?? null,
-      keys: this.hiddenKeys?.remaining() ?? [],
     });
   }
 
