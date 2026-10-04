@@ -17,6 +17,7 @@ import {
   GIANT,
   GRENADE,
   GUNNER,
+  GUNNER_FIERCE,
   KNOCKDOWN,
   OUTFITS,
   PIG_AXE,
@@ -1187,19 +1188,21 @@ export class MainScene extends Phaser.Scene {
       enemy = this.addBigFoe(base, startX, next.lives);
     } else {
       const gunner = next.kind === 'gunner';
+      // The fierce boss on Hard and Super hard, the calmer one on Normal
+      const gunnerStyle = rules.fierceGunner === true ? GUNNER_FIERCE : GUNNER;
       // On most levels the white ones aim at the middle of you, wherever you are
       // ...but not while you crouch: then they just shoot straight ahead.
       // The machine-gun boss isn't fooled by crouching.
       const aimAt =
         rules.aimAtPlayer || gunner
           ? (): { x: number; y: number } | null => {
-              if (this.isCrouching() && !gunner) return null;
+              if (this.isCrouching() && !(gunner && gunnerStyle.aimsAtCrouch)) return null;
               const box = this.player.bounds();
               return { x: this.player.getX(), y: (box.top + box.bottom) / 2 };
             }
           : null;
-      const { min, max } = gunner ? GUNNER.standOff : ENEMY.standOff;
-      const grenadeEvery = gunner ? GUNNER.grenadeEveryShots : GRENADE.enemyEveryShots;
+      const { min, max } = gunner ? gunnerStyle.standOff : ENEMY.standOff;
+      const grenadeEvery = gunner ? gunnerStyle.grenadeEveryShots : GRENADE.enemyEveryShots;
       let shots = 0;
       const white: Enemy = new Enemy(
         this,
@@ -1209,7 +1212,7 @@ export class MainScene extends Phaser.Scene {
           // Every 10th shot it throws a grenade too (the boss much more often)
           if (grenadeAfterShots(shots, grenadeEvery)) this.enemyThrowsGrenade(white);
         },
-        next.lives ?? (next.kind === 'gunner' ? GUNNER.lives : ENEMY.lives),
+        next.lives ?? (gunner ? gunnerStyle.lives : ENEMY.lives),
         aimAt,
         {
           startX,
@@ -1218,14 +1221,15 @@ export class MainScene extends Phaser.Scene {
           bounds: this.bounds,
         },
         // The machine-gun boss is a shooter too, just bigger and meaner
-        next.kind === 'gunner' ? GUNNER : null,
+        gunner ? gunnerStyle : null,
       );
       white.figure.setOnStep(() => {
         this.sfx.footstep(false, true);
         this.dustAt(white.figure.getX());
       });
       enemy = white;
-      if (gunner) this.gunners.add(white);
+      // Only the fierce one lets loose the brutes when he breaks
+      if (gunner && gunnerStyle.swarm > 0) this.gunners.add(white);
     }
     this.enemies.push(enemy);
   }
@@ -1253,8 +1257,8 @@ export class MainScene extends Phaser.Scene {
 
   /** The machine-gun boss broke: ten brown brutes come for you, from both sides in turns. */
   private releaseSwarm(): void {
-    swarmSides(GUNNER.swarm).forEach((side, i) => {
-      this.time.delayedCall(i * GUNNER.swarmGapMs, () => {
+    swarmSides(GUNNER_FIERCE.swarm).forEach((side, i) => {
+      this.time.delayedCall(i * GUNNER_FIERCE.swarmGapMs, () => {
         if (!this.playerAlive || this.leaving) return;
         const startX = spawnX(
           side,

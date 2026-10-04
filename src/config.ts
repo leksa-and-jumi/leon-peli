@@ -316,9 +316,8 @@ export const BRUTE = {
 } as const;
 
 /**
- * The machine-gun boss: big, in a red beret. He runs after you, aims at you even
- * when you crouch, fires bursts of three bullets and throws grenades. Break him and
- * ten brown brutes come chasing you!
+ * The machine-gun boss: big, in a red beret. On Normal he keeps his distance like the
+ * white ones (and crouching dodges him), fires bursts of three bullets, 18 hits.
  */
 export const GUNNER = {
   color: 0x263238,
@@ -329,7 +328,7 @@ export const GUNNER = {
   outfit: { kind: 'beret', color: 0x263238, beret: 0xc62828, badge: 0xffd54f },
   weapon: 'minigun',
   voice: 'boss',
-  lives: 20,
+  lives: 18,
   points: 12,
   shootIntervalMs: 2400,
   firstShotMs: 900,
@@ -338,19 +337,36 @@ export const GUNNER = {
   burstGapMs: 130,
   /** Too big to jump over your shots. */
   dodges: false,
-  /** Crouching doesn't fool him: he aims at you anyway. */
+  /** Does crouching fool him? (Yes, on Normal.) */
+  aimsAtCrouch: false,
+  walkSpeed: ENEMY.walkSpeed,
+  stepMs: ENEMY.stepMs,
+  standOff: ENEMY.standOff,
+  followSlack: ENEMY.followSlack,
+  /** A grenade after every this many shots. */
+  grenadeEveryShots: GRENADE.enemyEveryShots,
+  /** Brown brutes let loose when he breaks (none on Normal). */
+  swarm: 0,
+  swarmGapMs: 350,
+  healthBar: { width: 80, height: 9, gap: 14, back: 0x3a332b, fill: 0xff7043 },
+} as const;
+
+/**
+ * The fierce machine-gun boss on Hard and Super hard: 20 lives, he runs after you,
+ * aims at you even when you crouch, throws grenades often, and when he breaks,
+ * ten brown brutes come chasing you!
+ */
+export const GUNNER_FIERCE = {
+  ...GUNNER,
+  lives: 20,
   aimsAtCrouch: true,
-  /** He runs after you and stays close. */
   walkSpeed: 150,
   stepMs: 150,
   standOff: { min: 140, max: 190 },
   followSlack: 30,
-  /** A grenade after every this many shots (two bursts). */
+  /** Two bursts, then a grenade. */
   grenadeEveryShots: 6,
-  /** When he breaks, this many brown brutes come for you, one after another. */
   swarm: 10,
-  swarmGapMs: 350,
-  healthBar: { width: 80, height: 9, gap: 14, back: 0x3a332b, fill: 0xff7043 },
 } as const;
 
 /** Crashing into someone after letting go of a vine: fall on your back, then get up. */
@@ -879,6 +895,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     regular: { kind: 'white', lives: 3 },
     aimAtPlayer: true,
     stages: true,
+    fierceGunner: true,
   },
   /** Red 5-hit guys all the time, a white one every 10th, the brute every 15th, the giant every 30th. */
   superHard: {
@@ -893,6 +910,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     regular: { kind: 'boss', lives: 5 },
     aimAtPlayer: true,
     stages: true,
+    fierceGunner: true,
   },
 };
 

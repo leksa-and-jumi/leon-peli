@@ -27,6 +27,8 @@ export interface DifficultyRules {
   aimAtPlayer?: boolean;
   /** Doors and hidden keys take you from stage to stage. */
   stages?: boolean;
+  /** The machine-gun boss is the fierce one (chases, sees crouchers, lets loose the brutes). */
+  fierceGunner?: boolean;
 }
 
 /** Which enemy number `enemyNumber` (counted from 1) is in this difficulty. */
