@@ -242,3 +242,26 @@ export function revivedRun(
 export function withCrown(save: SaveData, level: string): SaveData {
   return { ...save, crowns: { ...save.crowns, [level]: (save.crowns[level] ?? 0) + 1 } };
 }
+
+/** A brand new game on a level (for shopping before playing), starting on `stage`. */
+export function newRun(
+  points: number,
+  lives: number,
+  startX: number,
+  stage: number,
+  stageSeed: number,
+): RunState {
+  return {
+    score: points,
+    earned: 0,
+    lives,
+    enemyCount: 0,
+    playerX: startX,
+    ownedOutfits: ['black'],
+    wornOutfit: 'black',
+    ownedItems: [],
+    stage,
+    stageSeed,
+    keysFound: [],
+  };
+}

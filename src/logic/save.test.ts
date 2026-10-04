@@ -15,6 +15,7 @@ import {
   resetSave,
   revivedRun,
   withCrown,
+  newRun,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -256,5 +257,19 @@ describe('treasures', () => {
     const save = loadSave(storage);
     expect(save.crowns).toEqual({ hard: 2 });
     expect(resetSave(save).crowns).toEqual({});
+  });
+});
+
+describe('a new game for the shop', () => {
+  it('starts with the start points, full lives, black clothes and nothing bought', () => {
+    expect(newRun(3, 4, 70, 2, 99)).toMatchObject({
+      score: 3,
+      lives: 4,
+      ownedOutfits: ['black'],
+      wornOutfit: 'black',
+      ownedItems: [],
+      stage: 2,
+      keysFound: [],
+    });
   });
 });

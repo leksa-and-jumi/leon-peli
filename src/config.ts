@@ -941,6 +941,8 @@ export const MENU = {
     hoverColor: 0x43a047,
     locked: 0x555555,
   },
+  /** The shop button in the bottom-left corner. */
+  shop: { x: 128, y: 572, width: 200, height: 36, color: 0x1565c0, hoverColor: 0x1e88e5 },
   /** The "start over" button in the bottom corner. */
   reset: { x: 672, y: 572, width: 220, height: 36, color: 0x8e2a2a, hoverColor: 0xc62828 },
   textColor: '#ffffff',
