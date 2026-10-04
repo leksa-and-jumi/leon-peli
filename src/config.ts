@@ -498,8 +498,8 @@ export const GAME_OVER = {
   /** Drawn above the game and its texts. */
   depth: 200,
   text: 'You died!\nSinä kuolit!',
-  /** Dying doesn't lose anything: you go on from here next time. */
-  savedNote: '💾 Everything is saved / Kaikki on tallessa',
+  /** Dying keeps your things, but the points start over. */
+  savedNote: '💾 Things saved, points start over\nTavarat tallessa, pisteet alusta',
   textColor: '#ffffff',
   recordColor: '#ffd54f',
   dimAlpha: 0.35,

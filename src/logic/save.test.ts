@@ -229,7 +229,7 @@ describe('starting over', () => {
 });
 
 describe('after dying', () => {
-  it('keeps everything, with full lives at the start', () => {
+  it('keeps your things, with full lives at the start, but the points start over', () => {
     const run: RunState = {
       score: 50,
       earned: 70,
@@ -243,6 +243,12 @@ describe('after dying', () => {
       stageSeed: 9,
       keysFound: [1, 3],
     };
-    expect(revivedRun(run, 4, 70)).toEqual({ ...run, lives: 4, playerX: 70 });
+    expect(revivedRun(run, 4, 70, 3)).toEqual({
+      ...run,
+      lives: 4,
+      playerX: 70,
+      score: 3,
+      earned: 0,
+    });
   });
 });
