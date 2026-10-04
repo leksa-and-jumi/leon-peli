@@ -931,25 +931,43 @@ export const STORY: { chapters: readonly StoryChapter[]; endText: string; reward
   reward: 100,
 };
 
+/** The test level's buttons for calling in enemies, one for each kind. */
+export const SPAWN_PANEL = {
+  x: 34,
+  y: 260,
+  size: 50,
+  gap: 8,
+  back: 0x1b1533,
+  border: 0xffd54f,
+  kinds: [
+    { kind: 'white', color: 0xffffff, weapon: 'gun' },
+    { kind: 'boss', color: 0x7f1d1d, weapon: 'axe' },
+    { kind: 'giant', color: 0x33402c, weapon: 'club' },
+    { kind: 'brute', color: 0x6d4c41, weapon: 'club' },
+    { kind: 'gunner', color: 0x263238, weapon: 'beret' },
+  ],
+} as const;
+
 /** The difficulty levels in the start menu. */
 type Level = DifficultyRules & { label: string; emoji: string };
 
 export const DIFFICULTIES: Record<Difficulty, Level> = {
   /** For trying things out: white, red, green in turns, one hit each, and you can't die. */
+  /**
+   * For trying things out: no enemies come by themselves, you call them in with the
+   * buttons; you can't die, and there's no treasure behind door 10.
+   */
   test: {
     label: 'Test\nTesti',
     emoji: '🧪',
     specials: [],
-    regular: { kind: 'white', lives: 1 },
-    cycle: [
-      { kind: 'white', lives: 1 },
-      { kind: 'boss', lives: 1 },
-      { kind: 'giant', lives: 1 },
-      { kind: 'gunner', lives: 1 },
-    ],
+    regular: { kind: 'white' },
     invincible: true,
     aimAtPlayer: true,
     stages: true,
+    fierceGunner: true,
+    manualSpawns: true,
+    noTreasure: true,
   },
   /** Only white ones, two hits each. */
   easy: {

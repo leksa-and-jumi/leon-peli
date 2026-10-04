@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enemyFor, type DifficultyRules } from './difficulty';
+import { autoSpawns, enemyFor, hasTreasure, type DifficultyRules } from './difficulty';
 
 const easy: DifficultyRules = { specials: [], regular: { kind: 'white', lives: 2 } };
 const normal: DifficultyRules = {
@@ -88,5 +88,25 @@ describe('test level', () => {
     const kinds = [1, 2, 3, 4, 5, 6].map((n) => enemyFor(test, n).kind);
     expect(kinds).toEqual(['white', 'boss', 'giant', 'white', 'boss', 'giant']);
     expect(enemyFor(test, 3).lives).toBe(1);
+  });
+});
+
+describe('the test level', () => {
+  const testLevel: DifficultyRules = {
+    specials: [],
+    regular: { kind: 'white' },
+    invincible: true,
+    manualSpawns: true,
+    noTreasure: true,
+  };
+
+  it('has no enemies coming by themselves and no treasure', () => {
+    expect(autoSpawns(testLevel)).toBe(false);
+    expect(hasTreasure(testLevel)).toBe(false);
+  });
+
+  it('other levels do', () => {
+    expect(autoSpawns(normal)).toBe(true);
+    expect(hasTreasure(normal)).toBe(true);
   });
 });

@@ -29,6 +29,10 @@ export interface DifficultyRules {
   stages?: boolean;
   /** The machine-gun boss is the fierce one (chases, sees crouchers, lets loose the brutes). */
   fierceGunner?: boolean;
+  /** No enemies come by themselves: you call them in with buttons (the test level). */
+  manualSpawns?: boolean;
+  /** No treasure behind the last door. */
+  noTreasure?: boolean;
 }
 
 /** Which enemy number `enemyNumber` (counted from 1) is in this difficulty. */
@@ -46,4 +50,14 @@ export function enemyFor(rules: DifficultyRules, enemyNumber: number): EnemyPick
     }
   }
   return rules.regular;
+}
+
+/** Do enemies come by themselves on this level (not on the test level)? */
+export function autoSpawns(rules: DifficultyRules): boolean {
+  return rules.manualSpawns !== true;
+}
+
+/** Is there a treasure behind the last door on this level? */
+export function hasTreasure(rules: DifficultyRules): boolean {
+  return rules.noTreasure !== true;
 }
