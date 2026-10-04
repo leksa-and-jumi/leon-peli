@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { browserStorage } from '../browserStorage';
 import {
   ATMOSPHERE,
+  BABY_DRAGON,
   BOSS,
   BRUTE,
   BUBBLES,
@@ -75,6 +76,8 @@ import {
 } from '../logic/stage';
 import { drawWorldWall } from '../objects/WorldWall';
 import { MiniMap } from '../objects/MiniMap';
+import { BabyDragon } from '../objects/BabyDragon';
+import { fireSlope, hasDragonFriend, helperTarget } from '../logic/helper';
 import { showTreasure } from '../objects/TreasureChest';
 import { createRandom } from '../logic/ruins';
 import { HiddenKeys } from '../objects/HiddenKeys';
@@ -147,6 +150,9 @@ export class MainScene extends Phaser.Scene {
   private chapterDone = false;
   /** What kind each enemy is (the story counts some kinds). */
   private foeKinds = new Map<Foe, EnemyKind>();
+  /** Your baby dragon friend in the later story chapters, and when it breathes fire next. */
+  private babyDragon: BabyDragon | null = null;
+  private nextHelperFire = 0;
   /** Machine-gun bosses on the field (breaking one lets loose the brutes). */
   private gunners = new Set<Foe>();
   private enemyCount = 0;
@@ -314,6 +320,12 @@ export class MainScene extends Phaser.Scene {
       outlineAlpha: PLAYER.outlineAlpha,
       facing: 1,
     });
+    // After the egg hatches, your baby dragon flies with you in the story
+    this.babyDragon =
+      this.story() && hasDragonFriend(this.chapter, BABY_DRAGON.joinsAfter)
+        ? new BabyDragon(this, PLAYER.x - BABY_DRAGON.behind)
+        : null;
+    this.nextHelperFire = 0;
     this.player.setOnStep(() => {
       this.sfx.footstep();
       this.dustAt(this.player.getX());
@@ -577,6 +589,39 @@ export class MainScene extends Phaser.Scene {
       for (const p of parts) p.destroy();
       onOk();
     });
+  }
+
+  /** The baby dragon flies after you and breathes a fireball at the closest enemy now and then. */
+  private updateBabyDragon(delta: number): void {
+    const baby = this.babyDragon;
+    if (!baby) return;
+    baby.update(
+      delta,
+      this.player.getX(),
+      this.player.getFacing(),
+      this.playerLift(),
+      this.time.now,
+    );
+    if (!this.playerAlive || this.leaving || this.time.now < this.nextHelperFire) return;
+    const targets = this.enemies
+      .filter((e) => e.isAlive())
+      .map((e) => {
+        const box = e.figure.bounds();
+        return { x: e.figure.getX(), y: (box.top + box.bottom) / 2 };
+      });
+    const target = helperTarget(baby.getX(), targets, BABY_DRAGON.range);
+    if (!target) return;
+    const direction: 1 | -1 = target.x >= baby.getX() ? 1 : -1;
+    baby.figure.setFacing(direction);
+    const muzzle = baby.figure.muzzlePosition();
+    this.playerBullets.push({
+      ...muzzle,
+      direction,
+      slope: fireSlope(target.x - muzzle.x, target.y - muzzle.y, 1.2),
+      fire: true,
+    });
+    this.sfx.gunshot('smallGun', true);
+    this.nextHelperFire = this.time.now + BABY_DRAGON.fireEveryMs;
   }
 
   /** A broken enemy might count for the story chapter's goal. */
@@ -880,6 +925,7 @@ export class MainScene extends Phaser.Scene {
     );
     this.spawnWhenThereIsRoom();
     this.updateStage();
+    this.updateBabyDragon(delta);
     for (const enemy of this.enemies) enemy.update(delta);
     // Broken ones are gone (their pieces stay on the ground by themselves)
     this.enemies = this.enemies.filter((e) => e.isAlive());

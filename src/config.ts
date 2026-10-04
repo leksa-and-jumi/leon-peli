@@ -416,6 +416,33 @@ export const DRAGON = {
   healthBar: { width: 90, height: 10, gap: 14, back: 0x3a332b, fill: 0xff6f00 },
 } as const;
 
+/**
+ * Your baby dragon friend (in the story, after the egg hatches): it flies behind you
+ * and breathes little fireballs at the closest enemy.
+ */
+export const BABY_DRAGON = {
+  /** It flies with you from this story chapter on (0 = the first chapter). */
+  joinsAfter: 15,
+  height: 62,
+  /** How far behind you, and how high up, it flies. */
+  behind: 70,
+  flyHeight: 125,
+  bob: 12,
+  /** How quickly it catches up with you. */
+  glideSpeed: 5,
+  /** It only breathes fire at enemies this close. */
+  range: 520,
+  fireEveryMs: 1500,
+  outfit: {
+    kind: 'dragon',
+    color: 0xff8f00,
+    belly: 0xfff59d,
+    wing: 0xef6c00,
+    horn: 0xfff8e1,
+    eye: 0x4fc3f7,
+  },
+} as const;
+
 /** The brown brute king: big, with a crown and a cape, and a golden axe. A duel! */
 export const KING = {
   weapon: 'axe',
@@ -1107,11 +1134,78 @@ export const STORY: {
       rules: { specials: [], regular: { kind: 'king' }, aimAtPlayer: true, maxAtOnce: 1 },
       scene: 'castle',
     },
+    {
+      emoji: '🥚',
+      title: 'The dragon egg / Lohikäärmeen muna',
+      text:
+        "In the king's castle you find a huge, warm egg! The white army wants to steal it.\nProtect the egg: break 6 white guys!\n\n" +
+        'Kuninkaan linnasta löytyy valtava, lämmin muna! Valkoinen armeija haluaa varastaa sen.\nSuojele munaa: hajota 6 valkoista!',
+      goal: { type: 'break', kind: 'white', count: 6 },
+      rules: { specials: [], regular: { kind: 'white', lives: 2 }, aimAtPlayer: true },
+    },
+    {
+      emoji: '🌋',
+      title: 'The fire mountain / Tulivuori',
+      text:
+        'The egg needs fire to hatch. Carry it to the fire mountain!\nFind 3 keys and go through the door!\n\n' +
+        'Muna tarvitsee tulta kuoriutuakseen. Vie se tulivuorelle!\nEtsi 3 avainta ja mene ovesta!',
+      goal: { type: 'door' },
+      rules: {
+        specials: [{ every: 4, kind: 'boss', lives: 5 }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+        stages: true,
+      },
+      keys: 3,
+    },
+    {
+      emoji: '🐲',
+      title: 'Little dragon / Pieni lohikäärme',
+      text:
+        'The egg hatched! 🐲 A baby dragon is your friend now: it flies with you and breathes fire at your enemies!\nBreak 3 red guys together!\n\n' +
+        'Muna kuoriutui! 🐲 Lohikäärmepoikanen on nyt ystäväsi: se lentää mukanasi ja syöksee tulta vihollisiin!\nHajottakaa yhdessä 3 punaista!',
+      goal: { type: 'break', kind: 'boss', count: 3 },
+      rules: {
+        specials: [{ every: 2, kind: 'boss', lives: 6 }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '⚔️',
+      title: 'The last army / Viimeinen armeija',
+      text:
+        'The last of the old army comes back with giants and a machine-gun boss!\nBreak the machine-gun boss!\n\n' +
+        'Vanhan armeijan viimeiset palaavat jättiläisten ja konekivääripomon kanssa!\nHajota konekivääripomo!',
+      goal: { type: 'break', kind: 'gunner', count: 1 },
+      rules: {
+        specials: [
+          { every: 4, kind: 'gunner', lives: 12 },
+          { every: 3, kind: 'giant', lives: 8 },
+        ],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '🖤',
+      title: 'The dark dragon / Musta lohikäärme',
+      text:
+        'An evil dark dragon wants to take your little dragon away!\nBreak the dark dragon together with your friend!\n\n' +
+        'Paha musta lohikäärme haluaa viedä pikku lohikäärmeesi!\nHajota musta lohikäärme yhdessä ystäväsi kanssa!',
+      goal: { type: 'break', kind: 'dragon', count: 1 },
+      rules: {
+        specials: [],
+        regular: { kind: 'dragon', lives: 20 },
+        aimAtPlayer: true,
+        maxAtOnce: 1,
+      },
+    },
   ],
   endText:
     '🏅 You got a medal! / Sait mitalin! 🏅\n\n' +
-    '🎉 THE END! 🎉\nThe king lost the duel and promised never to come back. The golden crown is safe and the village is saved!\n\n' +
-    '🎉 LOPPU! 🎉\nKuningas hävisi kaksintaistelun ja lupasi, ettei koskaan palaa. Kultainen kruunu on turvassa ja kylä on pelastettu!',
+    '🎉 THE END! 🎉\nThe dark dragon flew away for good. You, your little dragon and the golden crown are safe, and the village is saved!\n\n' +
+    '🎉 LOPPU! 🎉\nMusta lohikäärme lensi pois lopullisesti. Sinä, pikku lohikäärmeesi ja kultainen kruunu olette turvassa, ja kylä on pelastettu!',
   /** Points for finishing the whole story. */
   reward: 100,
 };

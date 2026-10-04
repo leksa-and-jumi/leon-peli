@@ -9,6 +9,8 @@ export interface Bullet {
   poison?: boolean;
   /** An exploding bullet from the shop. */
   explosive?: boolean;
+  /** A fireball from your baby dragon (just looks fiery). */
+  fire?: boolean;
 }
 
 /** Which way a bullet moves for one pixel of flying: forward and down parts. */
