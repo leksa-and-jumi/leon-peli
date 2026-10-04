@@ -43,6 +43,8 @@ export interface SaveData {
   story: number;
   /** Points you have in the story; they go with you from chapter to chapter. */
   storyScore: number | null;
+  /** Medals: how many times the whole story has been finished. */
+  medals: number;
 }
 
 /** The bit of browser storage the save needs (localStorage fits). */
@@ -64,6 +66,7 @@ function fresh(): SaveData {
     crowns: {},
     story: 0,
     storyScore: null,
+    medals: 0,
   };
 }
 
@@ -128,7 +131,11 @@ export function loadSave(storage: SaveStorage | null): SaveData {
       parsed.storyScore >= 0
         ? Math.floor(parsed.storyScore)
         : null;
-    return { runs, weapons, muted, best, stages, crowns, story, storyScore };
+    const medals =
+      'medals' in parsed && typeof parsed.medals === 'number' && parsed.medals >= 0
+        ? Math.floor(parsed.medals)
+        : 0;
+    return { runs, weapons, muted, best, stages, crowns, story, storyScore, medals };
   } catch {
     return fresh();
   }
@@ -303,4 +310,9 @@ export function withStoryScore(save: SaveData, score: number): SaveData {
 /** Points at the start of a story chapter: what you had, or `startPoints` the first time. */
 export function storyStartScore(save: SaveData, startPoints: number): number {
   return save.storyScore ?? startPoints;
+}
+
+/** The whole story is finished: one more medal. */
+export function withMedal(save: SaveData): SaveData {
+  return { ...save, medals: save.medals + 1 };
 }

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SOUND, type Weapon } from '../config';
+import { midiToHz, stepSeconds, tensionStep, type MusicStep } from '../logic/music';
 
 /** Whose voice: each kind of figure screams at a different pitch. */
 export type Voice = 'player' | 'white' | 'boss' | 'giant';
@@ -17,6 +18,9 @@ export class Sfx {
   private readonly echo: GainNode | null;
   /** The buzz of vocal cords: softer and more human than a plain sawtooth. */
   private readonly throat: PeriodicWave | null;
+  /** The background music: its own volume, and the timer that keeps it playing. */
+  private musicGain: GainNode | null = null;
+  private musicTimer: number | null = null;
 
   constructor(scene: Phaser.Scene, muted: boolean) {
     const manager = scene.sound;
@@ -58,6 +62,95 @@ export class Sfx {
     const imag = new Float32Array(harmonics);
     for (let n = 1; n < harmonics; n++) imag[n] = 1 / n ** 1.3;
     this.throat = this.ctx.createPeriodicWave(real, imag);
+  }
+
+  /**
+   * Start the tension music: a dark bass line, drums and spooky chords, looping.
+   * Notes are planned a little ahead so it never stutters. Faster `bpm` = more exciting.
+   */
+  startMusic(bpm: number): void {
+    const ctx = this.ctx;
+    const out = this.master;
+    if (!ctx || !out || this.musicTimer !== null) return;
+    this.musicGain = ctx.createGain();
+    this.musicGain.gain.value = SOUND.musicVolume;
+    this.musicGain.connect(out);
+    const step = stepSeconds(bpm);
+    let next = ctx.currentTime + 0.1;
+    let n = 0;
+    this.musicTimer = window.setInterval(() => {
+      while (next < ctx.currentTime + 0.3) {
+        this.playMusicStep(tensionStep(n), next, step);
+        next += step;
+        n += 1;
+      }
+    }, 60);
+  }
+
+  stopMusic(): void {
+    if (this.musicTimer !== null) window.clearInterval(this.musicTimer);
+    this.musicTimer = null;
+    this.musicGain?.disconnect();
+    this.musicGain = null;
+  }
+
+  private playMusicStep(notes: MusicStep, t: number, step: number): void {
+    const ctx = this.ctx;
+    const out = this.musicGain;
+    if (!ctx || !out) return;
+    const env = (gain: GainNode, peak: number, length: number): void => {
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(peak, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    };
+    if (notes.bass !== null) {
+      // A growly bass: sawtooth through a dark filter
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = midiToHz(notes.bass);
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 500;
+      const gain = ctx.createGain();
+      env(gain, 0.5, step * 0.9);
+      osc.connect(filter).connect(gain).connect(out);
+      osc.start(t);
+      osc.stop(t + step);
+    }
+    for (const note of notes.stab) {
+      // Spooky chord: soft and fading
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = midiToHz(note);
+      const gain = ctx.createGain();
+      env(gain, 0.12, step * 6);
+      osc.connect(gain).connect(out);
+      osc.start(t);
+      osc.stop(t + step * 6);
+    }
+    if (notes.kick) {
+      // Boom of a drum
+      const osc = ctx.createOscillator();
+      osc.frequency.setValueAtTime(130, t);
+      osc.frequency.exponentialRampToValueAtTime(45, t + 0.15);
+      const gain = ctx.createGain();
+      env(gain, 0.8, 0.18);
+      osc.connect(gain).connect(out);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    }
+    if (notes.hat && this.noise) {
+      // Tiny tss of a cymbal
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 7000;
+      const gain = ctx.createGain();
+      env(gain, 0.15, 0.04);
+      src.connect(filter).connect(gain).connect(out);
+      src.start(t, Math.random() * 0.5, 0.05);
+    }
   }
 
   setMuted(muted: boolean): void {

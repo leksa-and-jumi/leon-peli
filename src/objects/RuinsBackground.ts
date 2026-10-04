@@ -35,6 +35,7 @@ function ruinIndexAt(tile: number): number {
   return tileVariant(tile + 1000, RUIN_LAYOUTS.length);
 }
 const TREE_LAYER = 'tree-';
+const CASTLE_LAYER = 'castle-near';
 const V = Phaser.Math.Vector2;
 
 /**
@@ -56,7 +57,12 @@ export class RuinsBackground {
   private timeMs = 0;
   private nextShootingStar: number;
 
-  constructor(scene: Phaser.Scene, atmosphere: Atmosphere) {
+  constructor(
+    scene: Phaser.Scene,
+    atmosphere: Atmosphere,
+    /** The ruins with trees, or the king's castle (no trees, no vines). */
+    private readonly theme: 'ruins' | 'castle' = 'ruins',
+  ) {
     // The sky, moon and stars are far away: they stay put on the screen while you walk
     this.g = scene.add.graphics().setScrollFactor(0);
     this.random = createRandom(RUINS.seed);
@@ -88,12 +94,19 @@ export class RuinsBackground {
         this.drawTree(tree);
       });
     });
-    this.trees = [0, 1, 2].map(() => scene.add.image(0, 0, `${TREE_LAYER}0`).setOrigin(0, 0));
+    // (The castle has no trees)
+    this.trees =
+      theme === 'castle'
+        ? []
+        : [0, 1, 2].map(() => scene.add.image(0, 0, `${TREE_LAYER}0`).setOrigin(0, 0));
     // The ground and the broken buildings: a few different ones, mixed along the way
     RUIN_LAYOUTS.forEach((layout, index) => {
       this.bakePicture(`${NEAR_LAYER}${String(index)}`, () => {
         this.drawRuins(layout);
       });
+    });
+    this.bakePicture(CASTLE_LAYER, () => {
+      this.drawCastle();
     });
     this.ruins = [0, 1, 2].map(() => scene.add.image(0, 0, `${NEAR_LAYER}0`).setOrigin(0, 0));
     atmosphere.addGroundMist();
@@ -133,7 +146,9 @@ export class RuinsBackground {
       const tile = first + k;
       image
         .setPosition(tile * GAME_WIDTH, 0)
-        .setTexture(`${NEAR_LAYER}${String(ruinIndexAt(tile))}`);
+        .setTexture(
+          this.theme === 'castle' ? CASTLE_LAYER : `${NEAR_LAYER}${String(ruinIndexAt(tile))}`,
+        );
     });
     this.trees.forEach((image, k) => {
       const tile = first + k;
@@ -747,6 +762,97 @@ export class RuinsBackground {
     for (const column of layout.columns) this.drawColumn(column.x, column.height, column.broken);
     this.drawRubble();
     if (layout.fallen) this.drawFallenColumn(layout.fallen.x, groundY + 62, layout.fallen.length);
+    this.drawGrass();
+  }
+
+  /**
+   * Inside the king's castle walls: a big stone wall with battlements, a gate with
+   * a portcullis, two towers with purple roofs and glowing windows, royal banners
+   * and burning torches.
+   */
+  private drawCastle(): void {
+    this.drawGround();
+    const top = 200;
+    // The wall, stone by stone
+    this.g.fillStyle(stone.shadow, 1);
+    this.g.fillRect(0, top, GAME_WIDTH, groundY - top);
+    for (let row = 0, y = top; y < groundY; row++, y += 24) {
+      for (let x = row % 2 === 0 ? 0 : -24; x < GAME_WIDTH; x += 48) {
+        this.g.fillStyle(mixColor(stone.dark, stone.light, 0.25 + this.random() * 0.4), 1);
+        this.g.fillRect(x + 1, y + 1, 46, 22);
+      }
+    }
+    // Battlements along the top
+    for (let x = 0; x < GAME_WIDTH; x += 40) {
+      this.g.fillStyle(mixColor(stone.dark, stone.light, 0.45), 1);
+      this.g.fillRect(x + 4, top - 26, 24, 26);
+      this.g.fillStyle(stone.highlight, 0.4);
+      this.g.fillRect(x + 4, top - 26, 24, 3);
+    }
+    // Two towers with pointy purple roofs and glowing windows
+    for (const cx of [110, 690]) {
+      this.g.fillStyle(mixColor(stone.dark, stone.light, 0.35), 1);
+      this.g.fillRect(cx - 55, 120, 110, groundY - 120);
+      for (let y = 130; y < groundY; y += 24) {
+        this.g.lineStyle(1.5, stone.shadow, 0.8);
+        this.g.lineBetween(cx - 55, y, cx + 55, y);
+      }
+      this.g.fillStyle(0x4a148c, 1);
+      this.g.fillTriangle(cx - 66, 122, cx + 66, 122, cx, 20);
+      this.g.fillStyle(0x6a1b9a, 1);
+      this.g.fillTriangle(cx - 66, 122, cx, 122, cx, 20);
+      this.g.fillStyle(0xffd54f, 1);
+      this.g.fillTriangle(cx, 22, cx + 22, 30, cx, 38);
+      this.g.lineStyle(2, 0x3e2723, 1);
+      this.g.lineBetween(cx, 20, cx, 40);
+      for (const wy of [180, 280]) {
+        this.g.fillStyle(0xffb74d, 1);
+        this.g.fillRect(cx - 10, wy, 20, 30);
+        this.g.fillCircle(cx, wy, 10);
+        this.g.fillStyle(0xfff3e0, 0.6);
+        this.g.fillRect(cx - 4, wy + 4, 8, 20);
+      }
+    }
+    // The great gate with its iron portcullis
+    const gx = GAME_WIDTH / 2;
+    this.g.fillStyle(0x140d08, 1);
+    this.g.fillRect(gx - 70, groundY - 165, 140, 165);
+    this.g.fillCircle(gx, groundY - 165, 70);
+    this.g.lineStyle(4, 0x4a4a4a, 1);
+    for (let x = gx - 60; x <= gx + 60; x += 20) {
+      this.g.lineBetween(x, groundY - 200, x, groundY);
+    }
+    for (let y = groundY - 200; y < groundY; y += 26) {
+      this.g.lineBetween(gx - 66, y, gx + 66, y);
+    }
+    // Royal banners: purple with a golden crown
+    for (const bx of [260, 540]) {
+      this.g.fillStyle(0x6a1b9a, 1);
+      this.g.fillRect(bx - 20, top + 6, 40, 110);
+      this.g.fillTriangle(bx - 20, top + 116, bx + 20, top + 116, bx - 20, top + 140);
+      this.g.fillTriangle(bx - 20, top + 116, bx + 20, top + 116, bx + 20, top + 140);
+      this.g.fillStyle(0x140d08, 1);
+      this.g.fillTriangle(bx - 8, top + 140, bx + 8, top + 140, bx, top + 122);
+      this.g.fillStyle(0xffd54f, 1);
+      this.g.fillRect(bx - 22, top + 4, 44, 5);
+      this.g.fillTriangle(bx - 12, top + 52, bx - 12, top + 36, bx - 4, top + 46);
+      this.g.fillTriangle(bx - 4, top + 46, bx, top + 32, bx + 4, top + 46);
+      this.g.fillTriangle(bx + 4, top + 46, bx + 12, top + 36, bx + 12, top + 52);
+      this.g.fillRect(bx - 12, top + 46, 24, 7);
+    }
+    // Burning torches with a warm glow
+    for (const tx of [190, 330, 470, 610]) {
+      const ty = 340;
+      this.g.fillStyle(0xff9800, 0.18);
+      this.g.fillCircle(tx, ty - 10, 34);
+      this.g.fillStyle(0x3e2723, 1);
+      this.g.fillRect(tx - 3, ty, 6, 22);
+      this.g.fillStyle(0xff6f00, 1);
+      this.g.fillEllipse(tx, ty - 8, 14, 22);
+      this.g.fillStyle(0xffeb3b, 1);
+      this.g.fillEllipse(tx, ty - 4, 7, 12);
+    }
+    this.drawRubble();
     this.drawGrass();
   }
 

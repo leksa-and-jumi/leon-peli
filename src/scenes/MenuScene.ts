@@ -47,6 +47,7 @@ export class MenuScene extends Phaser.Scene {
   private stages: Record<string, number> = {};
   private crowns: Record<string, number> = {};
   private storyChapter = 0;
+  private medals = 0;
   private unfinished = new Set<string>();
 
   constructor() {
@@ -59,6 +60,7 @@ export class MenuScene extends Phaser.Scene {
     this.stages = save.stages;
     this.crowns = save.crowns;
     this.storyChapter = save.story;
+    this.medals = save.medals;
     this.unfinished = new Set(Object.keys(save.runs));
     const atmosphere = new Atmosphere(this);
     new RuinsBackground(this, atmosphere);
@@ -343,6 +345,8 @@ export class MenuScene extends Phaser.Scene {
       this.unfinished.has(level) ? '▶️' : '',
       (this.stages[level] ?? 1) > 1 ? `🚪${String(this.stages[level])}` : '',
       (this.crowns[level] ?? 0) > 0 ? `👑${String(this.crowns[level])}` : '',
+      // Medals for finishing the whole story
+      level === 'story' && this.medals > 0 ? `🏅${String(this.medals)}` : '',
     ]
       .filter((t) => t !== '')
       .join(' ');

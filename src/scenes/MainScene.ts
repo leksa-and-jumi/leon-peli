@@ -23,6 +23,7 @@ import {
   KNOCKDOWN,
   OUTFITS,
   PIG_AXE,
+  SOUND,
   SPECIAL_BULLETS,
   STAGES,
   STORY,
@@ -97,6 +98,7 @@ import {
   withCrown,
   withStory,
   withStoryScore,
+  withMedal,
   storyStartScore,
   withStage,
   recordScore,
@@ -284,11 +286,18 @@ export class MainScene extends Phaser.Scene {
 
     this.muted = loadSave(browserStorage()).muted;
     this.sfx = new Sfx(this, this.muted);
+    // Exciting music while you play (faster for the big duel)
+    this.sfx.startMusic(this.story()?.scene === 'castle' ? SOUND.duelMusicBpm : SOUND.musicBpm);
+    this.events.once('shutdown', () => {
+      this.sfx.stopMusic();
+    });
 
     const atmosphere = new Atmosphere(this);
-    new RuinsBackground(this, atmosphere);
+    // The duel with the king happens inside his castle (no trees, no vines)
+    const castle = this.story()?.scene === 'castle';
+    new RuinsBackground(this, atmosphere, castle ? 'castle' : 'ruins');
     atmosphere.addVignette(ATMOSPHERE.vignette.depth);
-    this.lianas = new Lianas(this);
+    this.lianas = new Lianas(this, !castle);
     // The world ends at a huge ruin wall on each side
     drawWorldWall(this, this.bounds.left, -1);
     drawWorldWall(this, this.bounds.right, 1);
@@ -590,10 +599,13 @@ export class MainScene extends Phaser.Scene {
     const next = nextChapter(this.chapter, STORY.chapters.length);
     // When the story is over it starts again from the first chapter next time.
     // Your points go on to the next chapter.
-    writeSave(
-      browserStorage(),
-      withStoryScore(withStory(loadSave(browserStorage()), next ?? 0), this.score),
-    );
+    let save = withStory(loadSave(browserStorage()), next ?? 0);
+    // The whole story done: the medal and the bonus points are saved right away
+    save =
+      next === null
+        ? withMedal(withStoryScore(save, this.score + STORY.reward))
+        : withStoryScore(save, this.score);
+    writeSave(browserStorage(), save);
     const banner = this.add
       .text(GAME_WIDTH / 2, 230, '✅ Chapter done! / Luku läpi!', {
         fontSize: '40px',
@@ -609,10 +621,9 @@ export class MainScene extends Phaser.Scene {
       banner.destroy();
       if (next === null) {
         this.gainPoints(STORY.reward);
-        writeSave(browserStorage(), withStoryScore(loadSave(browserStorage()), this.score));
         showTreasure(this, STORY.reward);
         this.time.delayedCall(TREASURE.showMs, () => {
-          this.showStoryCard('🏆 👑 🏆', STORY.endText, '🏠 Menu / Valikko', () => {
+          this.showStoryCard('🏅 👑 🏅', STORY.endText, '🏠 Menu / Valikko', () => {
             this.scene.start('MenuScene');
           });
         });

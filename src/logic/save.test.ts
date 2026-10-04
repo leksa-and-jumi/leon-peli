@@ -19,6 +19,7 @@ import {
   withStory,
   withStoryScore,
   storyStartScore,
+  withMedal,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -41,6 +42,7 @@ const fresh: SaveData = {
   crowns: {},
   story: 0,
   storyScore: null,
+  medals: 0,
 };
 
 describe('save', () => {
@@ -216,6 +218,7 @@ describe('starting over', () => {
       crowns: { normal: 1 },
       story: 3,
       storyScore: 40,
+      medals: 2,
     };
     expect(resetSave(played)).toEqual({ ...fresh, muted: true });
   });
@@ -301,5 +304,14 @@ describe('story points', () => {
   it('never go below zero and are forgotten when starting over', () => {
     expect(withStoryScore(fresh, -5).storyScore).toBe(0);
     expect(resetSave(withStoryScore(fresh, 20)).storyScore).toBeNull();
+  });
+});
+
+describe('story medals', () => {
+  it('count every time the story is finished, and are kept', () => {
+    const storage = memoryStorage();
+    writeSave(storage, withMedal(withMedal(fresh)));
+    expect(loadSave(storage).medals).toBe(2);
+    expect(resetSave(loadSave(storage)).medals).toBe(0);
   });
 });
