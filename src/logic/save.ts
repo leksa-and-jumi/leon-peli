@@ -238,7 +238,15 @@ export function resetSave(save: SaveData): SaveData {
   return { ...fresh(), muted: save.muted };
 }
 
-/** After dying the game goes on: everything is kept, with full lives, back at the start. */
-export function revivedRun(run: RunState, lives: number, startX: number): RunState {
-  return { ...run, lives, playerX: startX };
+/**
+ * After dying the game goes on: your things, stage and keys are kept, with full lives,
+ * back at the start. The points start over from `startPoints`.
+ */
+export function revivedRun(
+  run: RunState,
+  lives: number,
+  startX: number,
+  startPoints: number,
+): RunState {
+  return { ...run, lives, playerX: startX, score: startPoints, earned: 0 };
 }

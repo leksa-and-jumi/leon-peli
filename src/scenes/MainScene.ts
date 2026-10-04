@@ -1243,11 +1243,9 @@ export class MainScene extends Phaser.Scene {
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
     // With the rifle, every death counts: after 5 it's gone from this level
     const death = afterDeath(record.save, this.difficulty, RIFLE_DEATHS);
-    // Everything is kept: next time you go on from here with full lives
-    writeSave(
-      browserStorage(),
-      withRun(death.save, this.difficulty, revivedRun(this.runState(), PLAYER.lives, PLAYER.x)),
-    );
+    // Your things are kept and you go on with full lives, but the points start over
+    const revived = revivedRun(this.runState(), PLAYER.lives, PLAYER.x, START_POINTS);
+    writeSave(browserStorage(), withRun(death.save, this.difficulty, revived));
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
       showGameOverSign(

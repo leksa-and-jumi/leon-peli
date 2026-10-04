@@ -74,9 +74,10 @@ export function showGameOverSign(
   if (note !== null) {
     extras.push(
       scene.add
-        .text(cx, cy - panel.height / 2 + 26, note, {
-          fontSize: '16px',
+        .text(cx, cy - panel.height / 2 + 30, note, {
+          fontSize: '15px',
           color: GAME_OVER.recordColor,
+          align: 'center',
         })
         .setOrigin(0.5),
     );
