@@ -58,10 +58,11 @@ import {
   doorReward,
   keysNeeded,
   nextStage,
-  onlyGiants,
+  stageOnlyKind,
   stageLayout,
 } from '../logic/stage';
 import { drawWorldWall } from '../objects/WorldWall';
+import { MiniMap } from '../objects/MiniMap';
 import { createRandom } from '../logic/ruins';
 import { HiddenKeys } from '../objects/HiddenKeys';
 import { StageDoor } from '../objects/StageDoor';
@@ -84,7 +85,7 @@ import {
   withStage,
   recordScore,
   weaponsFor,
-  withoutRun,
+  revivedRun,
   withRun,
   withWeapons,
   writeSave,
@@ -172,6 +173,7 @@ export class MainScene extends Phaser.Scene {
   private atDoor = false;
   /** Going through the door to the next stage. */
   private leaving = false;
+  private miniMap!: MiniMap;
   /** Poisoned enemies, and when each one loses its next life. */
   private poisoned = new Map<Foe, number>();
   private wornOutfit: OutfitId = 'black';
@@ -377,6 +379,7 @@ export class MainScene extends Phaser.Scene {
     // Every level has a button back to the menu (the game is saved, so you can go on later)
     this.addMenuButton();
     if (this.door) this.addStageHud();
+    this.miniMap = new MiniMap(this, this.bounds);
     this.cameras.main.fadeIn(300);
 
     // Now and then a 3-point bubble floats up: catch it!
@@ -671,6 +674,13 @@ export class MainScene extends Phaser.Scene {
         : null,
     );
     this.drawReloadBar();
+    this.miniMap.draw({
+      playerX: this.player.getX(),
+      screenLeft: this.cameras.main.scrollX,
+      enemies: this.enemies.map((e) => ({ x: e.figure.getX(), color: e.figure.getLook().color })),
+      doorX: this.door?.x ?? null,
+      keys: this.hiddenKeys?.remaining() ?? [],
+    });
   }
 
   /** A/D or the arrows walk left and right. S or the down arrow crouches while held down. */
@@ -1117,11 +1127,9 @@ export class MainScene extends Phaser.Scene {
   private spawnEnemy(): void {
     this.enemyCount += 1;
     const rules = DIFFICULTIES[this.difficulty];
-    // The last stage behind the doors has only green giants
-    const next =
-      rules.stages === true && onlyGiants(this.stage, STAGES.last)
-        ? { kind: 'giant' as const }
-        : enemyFor(rules, this.enemyCount);
+    // The last stages behind the doors have only one kind: red, then green, then brown
+    const only = rules.stages === true ? stageOnlyKind(this.stage) : null;
+    const next = only ? { kind: only } : enemyFor(rules, this.enemyCount);
     const side = spawnSide(Math.random());
     // Just off the screen, but never behind one of the big walls
     const startX = spawnX(
@@ -1235,8 +1243,11 @@ export class MainScene extends Phaser.Scene {
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
     // With the rifle, every death counts: after 5 it's gone from this level
     const death = afterDeath(record.save, this.difficulty, RIFLE_DEATHS);
-    // Dying ends this game: next time the level starts fresh
-    writeSave(browserStorage(), withoutRun(death.save, this.difficulty));
+    // Everything is kept: next time you go on from here with full lives
+    writeSave(
+      browserStorage(),
+      withRun(death.save, this.difficulty, revivedRun(this.runState(), PLAYER.lives, PLAYER.x)),
+    );
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
       showGameOverSign(
@@ -1247,6 +1258,7 @@ export class MainScene extends Phaser.Scene {
         },
         record.newRecord ? this.earned : null,
         death.lostRifle ? 0 : death.deathsLeft,
+        GAME_OVER.savedNote,
       );
     });
   }

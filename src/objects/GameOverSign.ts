@@ -9,6 +9,8 @@ export function showGameOverSign(
   newRecord: number | null = null,
   /** With the rifle: deaths left before it's gone (0 = it's gone now), or null without one. */
   rifleDeathsLeft: number | null = null,
+  /** A short line at the top, like "everything is saved". */
+  note: string | null = null,
 ): void {
   const { panel, button } = GAME_OVER;
   const cx = GAME_WIDTH / 2;
@@ -64,6 +66,17 @@ export function showGameOverSign(
         .text(cx, cy + (newRecord !== null ? 82 : 60), rifleText, {
           fontSize: '16px',
           color: GAME_OVER.textColor,
+        })
+        .setOrigin(0.5),
+    );
+  }
+
+  if (note !== null) {
+    extras.push(
+      scene.add
+        .text(cx, cy - panel.height / 2 + 26, note, {
+          fontSize: '16px',
+          color: GAME_OVER.recordColor,
         })
         .setOrigin(0.5),
     );

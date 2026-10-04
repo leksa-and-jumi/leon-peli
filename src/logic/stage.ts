@@ -1,3 +1,5 @@
+import type { EnemyKind } from './spawn';
+
 /** Where the door and the hidden keys are on one stage. */
 export interface StageLayout {
   doorX: number;
@@ -27,9 +29,12 @@ export function nextStage(stage: number, last: number): number {
   return stage >= last ? 1 : stage + 1;
 }
 
-/** On the last stage only the green giants come. */
-export function onlyGiants(stage: number, last: number): boolean {
-  return stage === last;
+/** The last stages have only one kind of enemy: red on 8, green giants on 9, brown brutes on 10. */
+const ONLY_KIND: Readonly<Record<number, EnemyKind>> = { 8: 'boss', 9: 'giant', 10: 'brute' };
+
+/** Which kind of enemy is the only one on this stage, or null when they're mixed. */
+export function stageOnlyKind(stage: number): EnemyKind | null {
+  return ONLY_KIND[stage] ?? null;
 }
 
 /** Points for getting through the door: 10 on stage 1, 20 on stage 2... 100 on stage 10. */

@@ -13,6 +13,8 @@ import {
   type SaveStorage,
   stageFor,
   withStage,
+  resetSave,
+  revivedRun,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -210,5 +212,37 @@ describe('stages reached', () => {
     const storage = memoryStorage();
     storage.data.set('leon-peli-save', JSON.stringify({ stages: { normal: 'far', hard: 0 } }));
     expect(loadSave(storage).stages).toEqual({});
+  });
+});
+
+describe('starting over', () => {
+  it('forgets everything but the sound setting', () => {
+    const played: SaveData = {
+      runs: {},
+      weapons: { normal: { rifle: true, rifleUpgrade: false, deaths: 1 } },
+      muted: true,
+      best: { normal: 40 },
+      stages: { normal: 6 },
+    };
+    expect(resetSave(played)).toEqual({ ...fresh, muted: true });
+  });
+});
+
+describe('after dying', () => {
+  it('keeps everything, with full lives at the start', () => {
+    const run: RunState = {
+      score: 50,
+      earned: 70,
+      lives: 0,
+      enemyCount: 30,
+      playerX: 900,
+      ownedOutfits: ['black', 'pig'],
+      wornOutfit: 'pig',
+      ownedItems: ['poison'],
+      stage: 5,
+      stageSeed: 9,
+      keysFound: [1, 3],
+    };
+    expect(revivedRun(run, 4, 70)).toEqual({ ...run, lives: 4, playerX: 70 });
   });
 });
