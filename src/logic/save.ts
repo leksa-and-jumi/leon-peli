@@ -39,6 +39,8 @@ export interface SaveData {
   stages: Record<string, number>;
   /** Treasures found (all 10 doors done) on each level. */
   crowns: Record<string, number>;
+  /** The story chapter you've got to (0 = the first). */
+  story: number;
 }
 
 /** The bit of browser storage the save needs (localStorage fits). */
@@ -51,7 +53,7 @@ const SAVE_KEY = 'leon-peli-save';
 const NO_WEAPONS: LevelWeapons = { rifle: false, rifleUpgrade: false, deaths: 0 };
 /** A brand new save with nothing in it. */
 function fresh(): SaveData {
-  return { runs: {}, weapons: {}, muted: false, best: {}, stages: {}, crowns: {} };
+  return { runs: {}, weapons: {}, muted: false, best: {}, stages: {}, crowns: {}, story: 0 };
 }
 
 /** Reads the save. Anything broken or missing means a fresh save. */
@@ -104,7 +106,11 @@ export function loadSave(storage: SaveStorage | null): SaveData {
         if (checked) runs[level] = checked;
       }
     }
-    return { runs, weapons, muted, best, stages, crowns };
+    const story =
+      'story' in parsed && typeof parsed.story === 'number' && parsed.story >= 0
+        ? Math.floor(parsed.story)
+        : 0;
+    return { runs, weapons, muted, best, stages, crowns, story };
   } catch {
     return fresh();
   }
@@ -264,4 +270,9 @@ export function newRun(
     stageSeed,
     keysFound: [],
   };
+}
+
+/** Remember how far the story has got. */
+export function withStory(save: SaveData, chapter: number): SaveData {
+  return { ...save, story: chapter };
 }

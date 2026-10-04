@@ -16,6 +16,7 @@ import {
   revivedRun,
   withCrown,
   newRun,
+  withStory,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -36,6 +37,7 @@ const fresh: SaveData = {
   best: {},
   stages: {},
   crowns: {},
+  story: 0,
 };
 
 describe('save', () => {
@@ -209,6 +211,7 @@ describe('starting over', () => {
       best: { normal: 40 },
       stages: { normal: 6 },
       crowns: { normal: 1 },
+      story: 3,
     };
     expect(resetSave(played)).toEqual({ ...fresh, muted: true });
   });
@@ -271,5 +274,14 @@ describe('a new game for the shop', () => {
       stage: 2,
       keysFound: [],
     });
+  });
+});
+
+describe('the story', () => {
+  it('remembers the chapter you got to, and forgets it when starting over', () => {
+    const storage = memoryStorage();
+    writeSave(storage, withStory(fresh, 3));
+    expect(loadSave(storage).story).toBe(3);
+    expect(resetSave(loadSave(storage)).story).toBe(0);
   });
 });

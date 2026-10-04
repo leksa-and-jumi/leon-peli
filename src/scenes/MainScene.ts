@@ -23,6 +23,8 @@ import {
   PIG_AXE,
   SPECIAL_BULLETS,
   STAGES,
+  STORY,
+  type StoryChapter,
   SWING,
   TREASURE,
   LIANAS,
@@ -56,6 +58,9 @@ import {
 } from '../logic/liana';
 import { bumps, knockdownAt } from '../logic/knockdown';
 import { bulletPowers, poisonStep, type BulletPowers } from '../logic/ammo';
+import { countsFor, goalDone, goalProgress, nextChapter } from '../logic/story';
+import type { EnemyKind } from '../logic/spawn';
+import type { DifficultyRules } from '../logic/difficulty';
 import {
   canOpen,
   doorReward,
@@ -88,6 +93,7 @@ import {
   type RunState,
   stageFor,
   withCrown,
+  withStory,
   withStage,
   recordScore,
   weaponsFor,
@@ -125,6 +131,15 @@ export class MainScene extends Phaser.Scene {
   private enemies: Foe[] = [];
   /** When the next enemy may come in. */
   private nextSpawnAt = 0;
+  /** In the story: which chapter, how many of the goal's enemies are broken, and waiting to start. */
+  private chapter = 0;
+  private storyBroken = 0;
+  private storyPaused = false;
+  private storyText: Phaser.GameObjects.Text | null = null;
+  /** Through the door in a story door chapter. */
+  private chapterDone = false;
+  /** What kind each enemy is (the story counts some kinds). */
+  private foeKinds = new Map<Foe, EnemyKind>();
   /** Machine-gun bosses on the field (breaking one lets loose the brutes). */
   private gunners = new Set<Foe>();
   private enemyCount = 0;
@@ -198,8 +213,15 @@ export class MainScene extends Phaser.Scene {
     super('MainScene');
   }
 
-  create(data: { difficulty?: Difficulty } = {}): void {
+  create(data: { difficulty?: Difficulty; chapter?: number } = {}): void {
     this.difficulty = data.difficulty ?? 'normal';
+    const lastChapter = STORY.chapters.length - 1;
+    this.chapter = Math.min(data.chapter ?? loadSave(browserStorage()).story, lastChapter);
+    this.storyBroken = 0;
+    this.storyPaused = this.difficulty === 'story';
+    this.storyText = null;
+    this.chapterDone = false;
+    this.foeKinds = new Map<Foe, EnemyKind>();
     // Start fresh (also when playing again after the OK button)
     this.playerBullets = [];
     this.enemyBullets = [];
@@ -235,7 +257,8 @@ export class MainScene extends Phaser.Scene {
     this.atDoor = false;
     this.leaving = false;
     // An unfinished game on this level continues where it was left
-    const run = loadSave(browserStorage()).runs[this.difficulty];
+    // The story has no saved game: each chapter starts fresh
+    const run = this.story() ? undefined : loadSave(browserStorage()).runs[this.difficulty];
     if (run) {
       this.score = run.score;
       this.earned = run.earned;
@@ -262,7 +285,13 @@ export class MainScene extends Phaser.Scene {
     // The world ends at a huge ruin wall on each side
     drawWorldWall(this, this.bounds.left, -1);
     drawWorldWall(this, this.bounds.right, 1);
-    if (DIFFICULTIES[this.difficulty].stages === true) this.buildStage();
+    // A story door chapter plays like the stage with that many keys
+    const storyKeys = this.story()?.keys;
+    if (storyKeys !== undefined) {
+      this.stage = storyKeys;
+      this.keysFound = [];
+    }
+    if (this.rules().stages === true) this.buildStage();
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
       outlineColor: PLAYER.outlineColor,
@@ -395,6 +424,10 @@ export class MainScene extends Phaser.Scene {
     // Every level has a button back to the menu (the game is saved, so you can go on later)
     this.addMenuButton();
     if (this.door) this.addStageHud();
+    if (this.story()) {
+      this.addStoryHud();
+      this.showStoryIntro();
+    }
     this.miniMap = new MiniMap(this, this.bounds);
     this.cameras.main.fadeIn(300);
 
@@ -423,9 +456,160 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  /** The story chapter being played, or null when not in the story. */
+  private story(): StoryChapter | null {
+    return this.difficulty === 'story' ? (STORY.chapters[this.chapter] ?? null) : null;
+  }
+
+  /** Who comes and how: the level's rules, or the story chapter's. */
+  private rules(): DifficultyRules {
+    return this.story()?.rules ?? DIFFICULTIES[this.difficulty];
+  }
+
+  /** "📖 2/5  🎯 1/2 🪓" in the corner: the chapter and how far along its goal you are. */
+  private addStoryHud(): void {
+    this.storyText = this.add
+      .text(GAME_WIDTH - 16, 104, '', { fontSize: '18px', color: COLORS.text })
+      .setOrigin(1, 0)
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.updateStoryText();
+  }
+
+  private updateStoryText(): void {
+    const story = this.story();
+    if (!story) return;
+    const { done, needed } = goalProgress(story.goal, this.storyBroken, this.chapterDone);
+    this.storyText?.setText(
+      `📖 ${String(this.chapter + 1)}/${String(STORY.chapters.length)}   🎯 ${String(done)}/${String(needed)} ${story.emoji}`,
+    );
+  }
+
+  /** The chapter's story card: read it, then press Go to start. */
+  private showStoryIntro(): void {
+    const story = this.story();
+    if (!story) return;
+    const n = String(this.chapter + 1);
+    this.showStoryCard(
+      `${story.emoji} Chapter ${n} / Luku ${n}`,
+      `${story.title}\n\n${story.text}`,
+      '▶️ Go! / Mennään!',
+      () => {
+        this.storyPaused = false;
+      },
+    );
+  }
+
+  /** A big card over the game with a title, some text and one button. */
+  private showStoryCard(title: string, text: string, button: string, onOk: () => void): void {
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const depth = ATMOSPHERE.hudDepth + 30;
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    const fix = <
+      T extends Phaser.GameObjects.Components.ScrollFactor & Phaser.GameObjects.Components.Depth,
+    >(
+      o: T,
+    ): T => {
+      o.setScrollFactor(0).setDepth(depth);
+      return o;
+    };
+    parts.push(fix(this.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6)));
+    parts.push(
+      fix(this.add.rectangle(cx, cy, 620, 420, 0x1b1533, 0.97).setStrokeStyle(4, 0xffd54f)),
+    );
+    parts.push(
+      fix(
+        this.add
+          .text(cx, cy - 170, title, { fontSize: '30px', color: '#ffd54f', fontStyle: 'bold' })
+          .setOrigin(0.5),
+      ),
+    );
+    parts.push(
+      fix(
+        this.add
+          .text(cx, cy - 10, text, {
+            fontSize: '17px',
+            color: COLORS.text,
+            align: 'center',
+            wordWrap: { width: 570 },
+          })
+          .setOrigin(0.5),
+      ),
+    );
+    const ok = fix(
+      this.add
+        .rectangle(cx, cy + 165, 240, 48, 0x2e7d32)
+        .setStrokeStyle(3, 0xffd54f)
+        .setInteractive({ useHandCursor: true }),
+    );
+    parts.push(ok);
+    parts.push(
+      fix(
+        this.add
+          .text(cx, cy + 165, button, { fontSize: '20px', color: COLORS.text, fontStyle: 'bold' })
+          .setOrigin(0.5),
+      ),
+    );
+    ok.on('pointerdown', () => {
+      for (const p of parts) p.destroy();
+      onOk();
+    });
+  }
+
+  /** A broken enemy might count for the story chapter's goal. */
+  private countForStory(enemy: Foe): void {
+    const story = this.story();
+    const kind = this.foeKinds.get(enemy);
+    if (!story || kind === undefined || !countsFor(story.goal, kind)) return;
+    this.storyBroken += 1;
+    this.updateStoryText();
+    if (goalDone(story.goal, this.storyBroken, this.chapterDone)) this.completeChapter();
+  }
+
+  /** Chapter done! Remember it, then on to the next one (or the end of the story). */
+  private completeChapter(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.updateStoryText();
+    for (const enemy of this.enemies) enemy.stopShooting();
+    this.sfx.buy();
+    const next = nextChapter(this.chapter, STORY.chapters.length);
+    // When the story is over it starts again from the first chapter next time
+    writeSave(browserStorage(), withStory(loadSave(browserStorage()), next ?? 0));
+    const banner = this.add
+      .text(GAME_WIDTH / 2, 230, '✅ Chapter done! / Luku läpi!', {
+        fontSize: '40px',
+        color: '#fff59d',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.time.delayedCall(2200, () => {
+      banner.destroy();
+      if (next === null) {
+        this.gainPoints(STORY.reward);
+        showTreasure(this, STORY.reward);
+        this.time.delayedCall(TREASURE.showMs, () => {
+          this.showStoryCard('🏆 👑 🏆', STORY.endText, '🏠 Menu / Valikko', () => {
+            this.scene.start('MenuScene');
+          });
+        });
+        return;
+      }
+      this.cameras.main.fadeOut(400);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.restart({ difficulty: 'story', chapter: next });
+      });
+    });
+  }
+
   /** Remember this game, so it continues if the page is closed (not after dying). */
   private saveRun(): void {
-    if (!this.playerAlive || this.leaving) return;
+    if (!this.playerAlive || this.leaving || this.story()) return;
     writeSave(
       browserStorage(),
       withRun(loadSave(browserStorage()), this.difficulty, this.runState()),
@@ -478,6 +662,8 @@ export class MainScene extends Phaser.Scene {
       .text(0, 300, '', { fontSize: '30px' })
       .setDepth(ATMOSPHERE.hudDepth)
       .setScrollFactor(0);
+    // (The story shows its own chapter card instead of the stage banner)
+    if (this.story()) return;
     const banner = this.add
       .text(GAME_WIDTH / 2, 230, `🚪 Stage ${String(this.stage)} / Taso ${String(this.stage)}`, {
         fontSize: '44px',
@@ -502,6 +688,10 @@ export class MainScene extends Phaser.Scene {
 
   private updateStageText(): void {
     const needed = keysNeeded(this.stage);
+    if (this.story()) {
+      this.stageText?.setText(`🔑 ${String(this.keysFound.length)}/${String(needed)}`);
+      return;
+    }
     this.stageText?.setText(
       `🚪 ${String(this.stage)}/${String(STAGES.last)}   🔑 ${String(this.keysFound.length)}/${String(needed)}`,
     );
@@ -549,6 +739,14 @@ export class MainScene extends Phaser.Scene {
 
   /** All the keys: the door swings open, and the next stage starts. */
   private goToNextStage(): void {
+    // In the story, the door ends the chapter
+    if (this.story()) {
+      this.door?.swingOpen();
+      this.sfx.buy();
+      this.chapterDone = true;
+      this.completeChapter();
+      return;
+    }
     this.leaving = true;
     this.door?.swingOpen();
     this.sfx.buy();
@@ -593,6 +791,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private tryShoot(): void {
+    if (this.storyPaused) return;
     // Both hands are busy holding a vine
     if (!this.playerAlive || this.hanging || this.knocked) return;
     // The gun has to reload between shots
@@ -634,6 +833,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    // The story waits while you read the chapter's start
+    if (this.storyPaused) return;
     if (this.playerAlive) this.movePlayer(delta);
     // The camera glides along to keep you in the middle
     const camera = this.cameras.main;
@@ -779,7 +980,7 @@ export class MainScene extends Phaser.Scene {
 
   /** Space: jump from the ground, or let go of a vine and flip through the air. */
   private startJump(): void {
-    if (!this.playerAlive) return;
+    if (!this.playerAlive || this.storyPaused) return;
     if (this.hanging) {
       this.letGo();
       return;
@@ -947,6 +1148,7 @@ export class MainScene extends Phaser.Scene {
     this.sfx.scream(enemy.voice);
     this.gainPoints(enemy.points);
     if (this.gunners.delete(enemy)) this.releaseSwarm();
+    this.countForStory(enemy);
     // Nobody left: the next one comes soon
     if (!this.enemies.some((e) => e.isAlive())) {
       this.nextSpawnAt = Math.min(this.nextSpawnAt, this.time.now + ENEMY.respawnMs);
@@ -1178,7 +1380,7 @@ export class MainScene extends Phaser.Scene {
    */
   private spawnEnemy(): void {
     this.enemyCount += 1;
-    const rules = DIFFICULTIES[this.difficulty];
+    const rules = this.rules();
     // The last stages behind the doors have only one kind: red, then green, then brown
     const only = rules.stages === true ? stageOnlyKind(this.stage) : null;
     const next = only ? { kind: only } : enemyFor(rules, this.enemyCount);
@@ -1242,6 +1444,7 @@ export class MainScene extends Phaser.Scene {
       if (gunner && gunnerStyle.swarm > 0) this.gunners.add(white);
     }
     this.enemies.push(enemy);
+    this.foeKinds.set(enemy, next.kind);
   }
 
   /** A big one with an axe or a club that follows you: red axe guy, giant or brute. */
@@ -1278,7 +1481,9 @@ export class MainScene extends Phaser.Scene {
           this.bounds,
           WORLD.wallMargin,
         );
-        this.enemies.push(this.addBigFoe(BRUTE, startX));
+        const brute = this.addBigFoe(BRUTE, startX);
+        this.enemies.push(brute);
+        this.foeKinds.set(brute, 'brute');
       });
     });
   }
@@ -1323,6 +1528,21 @@ export class MainScene extends Phaser.Scene {
       p.getWeapon(),
     );
     p.destroy();
+
+    // In the story: try the same chapter again
+    if (this.story()) {
+      this.time.delayedCall(GAME_OVER.delayMs, () => {
+        showGameOverSign(
+          this,
+          () => {
+            this.scene.restart({ difficulty: 'story', chapter: this.chapter });
+          },
+          null,
+          GAME_OVER.storyNote,
+        );
+      });
+      return;
+    }
 
     // Save the best score of this level
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);

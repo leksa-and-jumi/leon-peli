@@ -1,6 +1,6 @@
 import type { EnemyKind } from './spawn';
 
-export type Difficulty = 'test' | 'easy' | 'normal' | 'hard' | 'superHard';
+export type Difficulty = 'test' | 'easy' | 'normal' | 'hard' | 'superHard' | 'story';
 
 /** An enemy and how many hits it takes (none = its usual number). */
 export interface EnemyPick {

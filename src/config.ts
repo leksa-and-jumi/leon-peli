@@ -1,6 +1,7 @@
 import type { Difficulty, DifficultyRules } from './logic/difficulty';
 import type { OutfitLook } from './logic/outfit';
 import type { ShopItem } from './logic/shop';
+import type { StoryGoal } from './logic/story';
 
 /** Shared game constants. Tweak values here instead of inside scenes. */
 export const GAME_WIDTH = 800;
@@ -564,6 +565,8 @@ export const GAME_OVER = {
   /** Dying keeps everything except a few points. */
   deathPenalty: 10,
   savedNote: '💾 Everything saved, only −10 ⭐\nKaikki tallessa, vain −10 ⭐',
+  /** In the story you just try the chapter again. */
+  storyNote: '📖 OK = try the chapter again\nOK = yritä lukua uudestaan',
   textColor: '#ffffff',
   recordColor: '#ffd54f',
   dimAlpha: 0.35,
@@ -842,6 +845,92 @@ export const SKY_CYCLE = {
   shootingStar: { minDelayMs: 4000, maxDelayMs: 12000, durationMs: 700, length: 90 },
 } as const;
 
+/** One chapter of the story: what happens, what to do, and who comes. */
+export interface StoryChapter {
+  emoji: string;
+  title: string;
+  /** The story, in English and Finnish. */
+  text: string;
+  goal: StoryGoal;
+  rules: DifficultyRules;
+  /** For a door chapter: how many keys (it plays like that stage). */
+  keys?: number;
+}
+
+/** Leo's story mode: five chapters to win back the village's golden crown. */
+export const STORY: { chapters: readonly StoryChapter[]; endText: string; reward: number } = {
+  chapters: [
+    {
+      emoji: '👑',
+      title: 'The stolen crown / Varastettu kruunu',
+      text:
+        'The white stick army stole the golden crown from your village!\nCatch up with them in the ruins: break 5 white guys.\n\n' +
+        'Valkoinen tikku-armeija varasti kylän kultaisen kruunun!\nOta ne kiinni raunioissa: hajota 5 valkoista.',
+      goal: { type: 'break', kind: 'white', count: 5 },
+      rules: { specials: [], regular: { kind: 'white', lives: 2 } },
+    },
+    {
+      emoji: '🪓',
+      title: 'The red axe guys / Punaiset kirvesmiehet',
+      text:
+        'The thieves called the red axe guys to stop you.\nBreak 2 red guys!\n\n' +
+        'Varkaat kutsuivat punaiset kirvesmiehet pysäyttämään sinut.\nHajota 2 punaista!',
+      goal: { type: 'break', kind: 'boss', count: 2 },
+      rules: {
+        specials: [{ every: 3, kind: 'boss', lives: 6 }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '🔑',
+      title: 'The locked door / Lukittu ovi',
+      text:
+        'The crown was carried through a locked door.\nFind the 2 hidden keys and go through the door!\n\n' +
+        'Kruunu vietiin lukitun oven taakse.\nEtsi 2 piilotettua avainta ja mene ovesta!',
+      goal: { type: 'door' },
+      rules: {
+        specials: [],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+        stages: true,
+      },
+      keys: 2,
+    },
+    {
+      emoji: '🟢',
+      title: 'The green giant / Vihreä jättiläinen',
+      text:
+        'A huge green giant guards the way with his club.\nBreak the giant!\n\n' +
+        'Valtava vihreä jättiläinen vartioi tietä nuijallaan.\nHajota jättiläinen!',
+      goal: { type: 'break', kind: 'giant', count: 1 },
+      rules: {
+        specials: [{ every: 3, kind: 'giant', lives: 15 }],
+        regular: { kind: 'white', lives: 3 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '🪖',
+      title: 'The machine-gun boss / Konekivääripomo',
+      text:
+        'The boss in the red beret has the crown!\nBreak the machine-gun boss and win it back!\n\n' +
+        'Punabaskerinen pomo pitää kruunua!\nHajota konekivääripomo ja voita kruunu takaisin!',
+      goal: { type: 'break', kind: 'gunner', count: 1 },
+      rules: {
+        specials: [{ every: 3, kind: 'gunner' }],
+        regular: { kind: 'white', lives: 3 },
+        aimAtPlayer: true,
+      },
+    },
+  ],
+  endText:
+    '🎉 THE END! 🎉\nYou won the golden crown back. The village is saved!\n\n' +
+    '🎉 LOPPU! 🎉\nVoitit kultaisen kruunun takaisin. Kylä on pelastettu!',
+  /** Points for finishing the whole story. */
+  reward: 100,
+};
+
 /** The difficulty levels in the start menu. */
 type Level = DifficultyRules & { label: string; emoji: string };
 
@@ -911,6 +1000,14 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     aimAtPlayer: true,
     stages: true,
     fierceGunner: true,
+  },
+  /** The story: each chapter brings its own enemies (see STORY). */
+  story: {
+    label: 'Story\nTarina',
+    emoji: '📖',
+    specials: [],
+    regular: { kind: 'white', lives: 2 },
+    aimAtPlayer: true,
   },
 };
 
