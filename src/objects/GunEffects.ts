@@ -148,11 +148,12 @@ export class GunEffects {
         const near = (length * k) / steps;
         const far = (length * (k + 1)) / steps;
         // Poison bullets leave a green trail, exploding ones an orange one
-        const trail = b.explosive
-          ? SPECIAL_BULLETS.explosiveColor
-          : b.poison
-            ? SPECIAL_BULLETS.poisonColor
-            : color;
+        const trail =
+          b.explosive === true || b.fire === true
+            ? SPECIAL_BULLETS.explosiveColor
+            : b.poison
+              ? SPECIAL_BULLETS.poisonColor
+              : color;
         this.trails.lineStyle(width * (1 - k / steps), trail, 0.6 * (1 - k / steps));
         this.trails.lineBetween(
           b.x - heading.x * near,
