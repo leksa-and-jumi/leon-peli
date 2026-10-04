@@ -1,11 +1,34 @@
 import Phaser from 'phaser';
 import { browserStorage } from '../browserStorage';
-import { DIFFICULTIES, GAME_HEIGHT, GAME_WIDTH, MENU } from '../config';
+import { DIFFICULTIES, GAME_HEIGHT, GAME_WIDTH, MENU, PLAYER, START_POINTS } from '../config';
+
 import type { Difficulty } from '../logic/difficulty';
-import { loadSave, resetSave, writeSave } from '../logic/save';
+import {
+  loadSave,
+  newRun,
+  resetSave,
+  stageFor,
+  weaponsFor,
+  withRun,
+  withWeapons,
+  writeSave,
+} from '../logic/save';
+import {
+  hasNeededItem,
+  loadoutOf,
+  ownsItem,
+  purchaseItem,
+  runWithLoadout,
+  wearItem,
+  type Loadout,
+} from '../logic/loadout';
+import type { ShopData } from './ShopScene';
 import { Atmosphere } from '../objects/Atmosphere';
 import { DemoBattle } from '../objects/DemoBattle';
 import { RuinsBackground } from '../objects/RuinsBackground';
+
+/** Levels you can shop for from the menu. */
+const SHOP_LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard', 'superHard', 'test'];
 
 /**
  * The start menu: pick Easy, Normal, Hard, Super hard or Test (or press 1–5).
@@ -63,6 +86,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.addResetButton();
+    this.addShopButton();
 
     const keyboard = this.input.keyboard;
     levels.forEach((level, i) => {
@@ -70,6 +94,133 @@ export class MenuScene extends Phaser.Scene {
         this.start(level);
       });
     });
+  }
+
+  /** The same shop as in the game, opened from the menu: first pick whose stars to spend. */
+  private addShopButton(): void {
+    const { x, y, width, height, color, hoverColor } = MENU.shop;
+    const button = this.add
+      .rectangle(x, y, width, height, color, 0.92)
+      .setStrokeStyle(2, 0xffd54f)
+      .setDepth(MENU.depth)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(x, y, '🛒 Shop / Kauppa', { fontSize: '18px', color: MENU.textColor })
+      .setOrigin(0.5)
+      .setDepth(MENU.depth);
+    button.on('pointerover', () => button.setFillStyle(hoverColor));
+    button.on('pointerout', () => button.setFillStyle(color));
+    button.on('pointerdown', () => {
+      this.askShopLevel();
+    });
+  }
+
+  /** Every level has its own stars and things: pick which level to shop for. */
+  private askShopLevel(): void {
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const depth = MENU.depth + 10;
+    const save = loadSave(browserStorage());
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    parts.push(
+      this.add
+        .rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6)
+        .setDepth(depth)
+        .setInteractive(),
+    );
+    parts.push(
+      this.add
+        .rectangle(cx, cy, 440, 400, 0x1b1533, 0.97)
+        .setStrokeStyle(4, 0xffd54f)
+        .setDepth(depth),
+    );
+    parts.push(
+      this.add
+        .text(cx, cy - 160, '🛒 Which level? / Mikä taso?', {
+          fontSize: '22px',
+          color: MENU.textColor,
+        })
+        .setOrigin(0.5)
+        .setDepth(depth),
+    );
+    const close = (): void => {
+      for (const p of parts) p.destroy();
+    };
+    SHOP_LEVELS.forEach((level, i) => {
+      const y = cy - 105 + i * 52;
+      const stars = save.runs[level]?.score ?? START_POINTS;
+      const { emoji, label } = DIFFICULTIES[level];
+      const b = this.add
+        .rectangle(cx, y, 370, 44, MENU.button.color)
+        .setStrokeStyle(2, 0xffd54f)
+        .setDepth(depth)
+        .setInteractive({ useHandCursor: true });
+      const t = this.add
+        .text(cx, y, `${emoji}  ${label.replace('\n', ' / ')}   ⭐ ${String(stars)}`, {
+          fontSize: '16px',
+          color: MENU.textColor,
+        })
+        .setOrigin(0.5)
+        .setDepth(depth);
+      b.on('pointerdown', () => {
+        close();
+        this.openShop(level);
+      });
+      parts.push(b, t);
+    });
+    const back = this.add
+      .text(cx, cy + 172, '❌ Back / Takaisin', { fontSize: '18px', color: MENU.textColor })
+      .setOrigin(0.5)
+      .setDepth(depth)
+      .setInteractive({ useHandCursor: true });
+    back.on('pointerdown', close);
+    parts.push(back);
+  }
+
+  /** Shop with a level's saved stars and things (a new game there if none is going on). */
+  private openShop(level: Difficulty): void {
+    const storage = browserStorage();
+    const start = loadSave(storage);
+    const run =
+      start.runs[level] ??
+      newRun(
+        START_POINTS,
+        PLAYER.lives,
+        PLAYER.x,
+        stageFor(start, level),
+        Math.floor(Math.random() * 1e9),
+      );
+    let state = loadoutOf(run, weaponsFor(start, level), (start.crowns[level] ?? 0) > 0);
+    // Every change is saved at once, so the game finds it when you play that level
+    const keep = (next: Loadout): void => {
+      state = next;
+      let save = loadSave(storage);
+      save = withRun(save, level, runWithLoadout(save.runs[level] ?? run, next));
+      save = withWeapons(save, level, { rifle: next.rifle, rifleUpgrade: next.rifleUpgrade });
+      writeSave(storage, save);
+    };
+    const data: ShopData = {
+      getScore: () => state.score,
+      owns: (item) => ownsItem(state, item),
+      hasNeeded: (item) => hasNeededItem(state, item),
+      purchase: (item) => {
+        const next = purchaseItem(state, item);
+        if (!next) return false;
+        keep(next);
+        return true;
+      },
+      wears: (item) => item.outfit === state.worn,
+      wear: (item) => {
+        keep(wearItem(state, item));
+      },
+      onClose: () => {
+        // Start the menu again so ▶️ and the stars show what changed
+        this.scene.resume();
+        this.scene.restart();
+      },
+    };
+    this.scene.launch('ShopScene', data);
+    this.scene.pause();
   }
 
   /** A small button that starts the whole game over. It asks first! */

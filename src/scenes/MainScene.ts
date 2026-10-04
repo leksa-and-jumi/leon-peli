@@ -96,7 +96,8 @@ import {
   withWeapons,
   writeSave,
 } from '../logic/save';
-import { buy, type ShopItem } from '../logic/shop';
+import type { ShopItem } from '../logic/shop';
+import { hasNeededItem, ownsItem, purchaseItem, wearItem, type Loadout } from '../logic/loadout';
 import { enemyFor, type Difficulty } from '../logic/difficulty';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Sfx } from '../audio/Sfx';
@@ -281,8 +282,11 @@ export class MainScene extends Phaser.Scene {
     if (run) {
       this.player.setX(clampToWorld(run.playerX, this.bounds, WORLD.wallMargin));
       const worn = run.wornOutfit in OUTFITS ? (run.wornOutfit as OutfitId) : 'black';
-      if (this.ownedOutfits.has(worn))
-        this.wear({ id: worn, emoji: '', name: '', price: 0, outfit: worn });
+      if (this.ownedOutfits.has(worn)) {
+        this.wornOutfit = worn;
+        this.player.setOutfit(OUTFITS[worn]);
+        this.player.setWeapon(this.weaponFor(worn));
+      }
     }
     // The camera keeps you in the middle as you walk through the endless ruins
     this.cameras.main.scrollX = clampCamera(
@@ -1080,51 +1084,61 @@ export class MainScene extends Phaser.Scene {
     this.scene.pause();
   }
 
-  private purchase(item: ShopItem): boolean {
-    const result = buy(this.score, item, this.owns(item), this.hasNeeded(item));
-    if (!result.ok) return false;
-    this.score = result.score;
+  /** What the shop sees: points, lives, guns, clothes and bullets right now. */
+  private loadout(): Loadout {
+    return {
+      score: this.score,
+      lives: this.lives,
+      rifle: this.gun === 'rifle',
+      rifleUpgrade: this.rifleUpgrade,
+      outfits: [...this.ownedOutfits],
+      worn: this.wornOutfit,
+      items: [...this.ownedItems],
+      crown: this.hasCrown(),
+    };
+  }
+
+  /** Take on the shop's changes: update the texts, the clothes and the gun, and save guns. */
+  private applyLoadout(l: Loadout): void {
+    this.score = l.score;
     this.scoreText.setText(formatScore(this.score));
-    this.sfx.buy();
-    if (item.id === 'life') {
-      this.lives += 1;
-      this.livesText.setText(this.livesLabel());
-    }
-    if (item.id === 'rifle') {
+    this.lives = l.lives;
+    this.livesText.setText(this.livesLabel());
+    if (l.rifle && this.gun !== 'rifle') {
       this.gun = 'rifle';
-      this.player.setWeapon(this.weaponFor(this.wornOutfit));
       const save = loadSave(browserStorage());
       writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifle: true, deaths: 0 }));
     }
-    if (item.id === 'poison' || item.id === 'explosive') this.ownedItems.add(item.id);
-    if (item.id === 'rifleUpgrade') {
+    if (l.rifleUpgrade && !this.rifleUpgrade) {
       this.rifleUpgrade = true;
       const save = loadSave(browserStorage());
       writeSave(browserStorage(), withWeapons(save, this.difficulty, { rifleUpgrade: true }));
     }
-    const outfit = outfitOf(item);
-    if (outfit) {
-      this.ownedOutfits.add(outfit);
-      this.wear(item);
+    this.ownedItems = new Set(l.items);
+    for (const o of l.outfits) if (o in OUTFITS) this.ownedOutfits.add(o as OutfitId);
+    if (l.worn in OUTFITS) {
+      this.wornOutfit = l.worn as OutfitId;
+      this.player.setOutfit(OUTFITS[this.wornOutfit]);
     }
+    this.player.setWeapon(this.weaponFor(this.wornOutfit));
+  }
+
+  private purchase(item: ShopItem): boolean {
+    const next = purchaseItem(this.loadout(), item);
+    if (!next) return false;
+    this.sfx.buy();
+    this.applyLoadout(next);
     return true;
   }
 
   /** Does the player already have this one-time item? */
   private owns(item: ShopItem): boolean {
-    if (item.id === 'rifle') return this.gun === 'rifle';
-    if (item.id === 'poison' || item.id === 'explosive') return this.ownedItems.has(item.id);
-    if (item.id === 'rifleUpgrade') return this.rifleUpgrade;
-    const outfit = outfitOf(item);
-    return outfit !== null && this.ownedOutfits.has(outfit);
+    return ownsItem(this.loadout(), item);
   }
 
   /** Does the player have what this item needs first (like the rifle for its upgrade)? */
   private hasNeeded(item: ShopItem): boolean {
-    if (item.needs === undefined) return true;
-    // The golden suit comes from the treasure behind door 10
-    if (item.needs === 'crown') return this.hasCrown();
-    return this.owns({ ...item, id: item.needs });
+    return hasNeededItem(this.loadout(), item);
   }
 
   /** Has the treasure behind door 10 been found on this level? */
@@ -1134,11 +1148,7 @@ export class MainScene extends Phaser.Scene {
 
   /** Put on clothes the player owns. */
   private wear(item: ShopItem): void {
-    const outfit = outfitOf(item);
-    if (!outfit || !this.ownedOutfits.has(outfit)) return;
-    this.wornOutfit = outfit;
-    this.player.setOutfit(OUTFITS[outfit]);
-    this.player.setWeapon(this.weaponFor(outfit));
+    this.applyLoadout(wearItem(this.loadout(), item));
   }
 
   /**
@@ -1380,9 +1390,4 @@ export class MainScene extends Phaser.Scene {
     // Flash, smoke and a brass shell flying out
     this.gunFx.shot(muzzle, gun.handPosition(), direction, PLAYER.feetY);
   }
-}
-
-/** Which outfit a shop item gives, or null if it isn't clothes. */
-function outfitOf(item: ShopItem): OutfitId | null {
-  return item.outfit !== undefined && item.outfit in OUTFITS ? (item.outfit as OutfitId) : null;
 }
