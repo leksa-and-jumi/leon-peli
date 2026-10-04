@@ -442,9 +442,6 @@ export const PIG_AXE = {
 /** How often an unfinished game is saved while playing. */
 export const RUN_SAVE_EVERY_MS = 2000;
 
-/** After this many deaths on a level, the rifle bought there is gone. */
-export const RIFLE_DEATHS = 5;
-
 /** The guns. `muzzleX` is how far in front of the hand the bullet comes out. */
 export const WEAPONS = {
   pistol: { muzzleX: 30, cooldownMs: BULLET.cooldownMs },

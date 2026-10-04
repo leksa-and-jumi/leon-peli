@@ -25,7 +25,6 @@ import {
   LIANAS,
   PLAYER,
   RELOAD_BAR,
-  RIFLE_DEATHS,
   RUN_SAVE_EVERY_MS,
   START_POINTS,
   WEAPONS,
@@ -78,7 +77,6 @@ import {
 } from '../logic/world';
 import { smoothingStep } from '../logic/pose';
 import {
-  afterDeath,
   loadSave,
   type RunState,
   stageFor,
@@ -260,7 +258,7 @@ export class MainScene extends Phaser.Scene {
       this.sfx.footstep();
       this.dustAt(this.player.getX());
     });
-    // A bought rifle is saved for this level, so it's still yours after dying (up to 5 times)
+    // A bought rifle is saved for this level: it's yours for good (until starting over)
     const levelWeapons = weaponsFor(loadSave(browserStorage()), this.difficulty);
     this.gun = levelWeapons.rifle ? 'rifle' : 'pistol';
     this.chopping = false;
@@ -1245,11 +1243,10 @@ export class MainScene extends Phaser.Scene {
 
     // Save the best score of this level
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
-    // With the rifle, every death counts: after 5 it's gone from this level
-    const death = afterDeath(record.save, this.difficulty, RIFLE_DEATHS);
-    // Your things are kept and you go on with full lives, but the points start over
+    // Your things (the rifle too, forever) are kept and you go on with full lives,
+    // but the points start over
     const revived = revivedRun(this.runState(), PLAYER.lives, PLAYER.x, START_POINTS);
-    writeSave(browserStorage(), withRun(death.save, this.difficulty, revived));
+    writeSave(browserStorage(), withRun(record.save, this.difficulty, revived));
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
       showGameOverSign(
@@ -1259,7 +1256,6 @@ export class MainScene extends Phaser.Scene {
           this.scene.start('MenuScene');
         },
         record.newRecord ? this.earned : null,
-        death.lostRifle ? 0 : death.deathsLeft,
         GAME_OVER.savedNote,
       );
     });
