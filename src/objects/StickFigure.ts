@@ -355,6 +355,8 @@ export class StickFigure {
     this.g.clear();
     // Edge first, then the figure on top of it
     const lineWidth = lookLineWidth(this.look);
+    // Wings, a tail or a cape go behind the body
+    drawBackParts(this.g, pose, lookOutfit(this.look), this.scene.time.now);
     drawSegments(this.g, segments, lineWidth + 3, outlineColor, outlineAlpha, lineWidth);
     drawHead(this.g, pose, lineWidth + 3, outlineColor, outlineAlpha, lineWidth);
     const outfit: OutfitLook =
@@ -395,7 +397,9 @@ export function drawOutfit(
       outfit.kind === 'pig' ||
       outfit.kind === 'troll' ||
       outfit.kind === 'gold' ||
-      outfit.kind === 'beret'
+      outfit.kind === 'beret' ||
+      outfit.kind === 'dragon' ||
+      outfit.kind === 'king'
         ? OUTFIT_PIECE_LENGTH
         : RAINBOW_PIECE_LENGTH;
     for (const { from, to } of splitSegment(segment, pieceLength)) {
@@ -495,6 +499,58 @@ export function drawOutfit(
     g.fillCircle(c.x + facing * r * 0.3, c.y - r * 0.3, r * 0.14);
     g.fillStyle(0xffffff, 1);
     g.fillCircle(c.x + facing * r * 0.34, c.y - r * 0.34, r * 0.05);
+  } else if (outfit.kind === 'dragon') {
+    // A long snout, two horns and a glowing yellow eye
+    const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
+    g.fillStyle(outfit.horn, 1);
+    g.fillTriangle(
+      c.x - r * 0.5,
+      c.y - r * 0.6,
+      c.x - r * 0.15,
+      c.y - r * 0.85,
+      c.x - r * 0.75 - facing * r * 0.3,
+      c.y - r * 1.7,
+    );
+    g.fillTriangle(
+      c.x + r * 0.15,
+      c.y - r * 0.85,
+      c.x + r * 0.5,
+      c.y - r * 0.6,
+      c.x + r * 0.2 - facing * r * 0.3,
+      c.y - r * 1.75,
+    );
+    g.fillStyle(outfit.color, 1);
+    g.fillCircle(c.x, c.y, r);
+    g.fillEllipse(c.x + facing * r * 0.95, c.y + r * 0.2, r * 1.4, r * 0.85);
+    g.fillStyle(outfit.belly, 1);
+    g.fillEllipse(c.x + facing * r * 1.0, c.y + r * 0.45, r * 1.1, r * 0.3);
+    g.fillStyle(0x3e2723, 1);
+    g.fillCircle(c.x + facing * r * 1.5, c.y + r * 0.05, r * 0.08);
+    g.fillStyle(outfit.eye, 1);
+    g.fillCircle(c.x + facing * r * 0.3, c.y - r * 0.25, r * 0.22);
+    g.fillStyle(0x000000, 1);
+    g.fillEllipse(c.x + facing * r * 0.33, c.y - r * 0.25, r * 0.08, r * 0.3);
+  } else if (outfit.kind === 'king') {
+    // A beard, and a golden crown with a red jewel
+    g.fillStyle(outfit.color, 1);
+    g.fillCircle(c.x, c.y, r);
+    g.fillStyle(0x3e2723, 1);
+    g.fillEllipse(c.x, c.y + r * 0.55, r * 1.3, r * 0.8);
+    g.fillStyle(outfit.crown, 1);
+    g.fillPoints(
+      [
+        new Phaser.Math.Vector2(c.x - r * 0.85, c.y - r * 0.55),
+        new Phaser.Math.Vector2(c.x - r * 0.95, c.y - r * 1.45),
+        new Phaser.Math.Vector2(c.x - r * 0.45, c.y - r * 1.0),
+        new Phaser.Math.Vector2(c.x, c.y - r * 1.6),
+        new Phaser.Math.Vector2(c.x + r * 0.45, c.y - r * 1.0),
+        new Phaser.Math.Vector2(c.x + r * 0.95, c.y - r * 1.45),
+        new Phaser.Math.Vector2(c.x + r * 0.85, c.y - r * 0.55),
+      ],
+      true,
+    );
+    g.fillStyle(outfit.jewel, 1);
+    g.fillCircle(c.x, c.y - r * 0.85, r * 0.17);
   } else if (outfit.kind === 'beret') {
     // A tough face: dark sunglasses and a red beret with a gold badge, tilted to one side
     const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
@@ -556,6 +612,66 @@ export function drawOutfit(
     g.fillRect(c.x - r * 1.3, c.y - r * 0.2, r * 2.6, r * 0.22);
     g.fillStyle(shine, 0.35);
     g.fillEllipse(c.x + r * 0.3, c.y - r * 0.85, r * 0.6, r * 0.25);
+  }
+}
+
+/**
+ * Things that hang behind the body: a dragon's flapping wings and tail,
+ * or the king's cape. `timeMs` makes the wings flap.
+ */
+export function drawBackParts(
+  g: Phaser.GameObjects.Graphics,
+  pose: Pose,
+  outfit: OutfitLook,
+  timeMs: number,
+): void {
+  const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
+  const back = -facing;
+  const sh = pose.shoulder;
+  if (outfit.kind === 'dragon') {
+    const flap = Math.sin(timeMs / 180) * 0.35;
+    const span = Math.abs(pose.neck.y) * 0.75;
+    const wing = (lift: number): Phaser.Math.Vector2[] => [
+      new Phaser.Math.Vector2(sh.x, sh.y),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.45, sh.y - span * (0.75 + lift)),
+      new Phaser.Math.Vector2(sh.x + back * span * 1.05, sh.y - span * (0.55 + lift)),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.8, sh.y - span * (0.15 + lift / 2)),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.95, sh.y + span * 0.05),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.5, sh.y + span * 0.12),
+    ];
+    g.fillStyle(outfit.wing, 0.95);
+    g.fillPoints(wing(flap), true);
+    g.lineStyle(2, 0x3e0e05, 1);
+    g.strokePoints(wing(flap), true);
+    // A long tail curling out behind, with a spiky tip
+    const hip = pose.hip;
+    const tail = [0, 0.33, 0.66, 1].map(
+      (t) =>
+        new Phaser.Math.Vector2(
+          hip.x + back * span * 1.1 * t,
+          hip.y + span * 0.55 * t - Math.sin(t * Math.PI) * span * 0.25,
+        ),
+    );
+    g.lineStyle(Math.max(span * 0.09, 4), outfit.color, 1);
+    g.strokePoints(tail, false);
+    const tip = tail[3];
+    if (tip) {
+      g.fillStyle(outfit.wing, 1);
+      g.fillTriangle(tip.x, tip.y - 8, tip.x + back * 14, tip.y, tip.x, tip.y + 8);
+    }
+  } else if (outfit.kind === 'king') {
+    // A purple cape from the shoulders down past the knees, with a gold edge
+    const knee = pose.backKnee;
+    const cape = [
+      new Phaser.Math.Vector2(sh.x - 6, sh.y),
+      new Phaser.Math.Vector2(sh.x + 6, sh.y),
+      new Phaser.Math.Vector2(knee.x + back * 22, knee.y + 8),
+      new Phaser.Math.Vector2(knee.x + back * 40, knee.y + 4),
+    ];
+    g.fillStyle(outfit.cape, 1);
+    g.fillPoints(cape, true);
+    g.lineStyle(3, outfit.crown, 1);
+    g.strokePoints(cape, true);
   }
 }
 
@@ -720,6 +836,34 @@ function weaponParts(weapon: Weapon): GunPart[] {
           [23, -39],
         ],
         color: edge,
+      },
+    ];
+  }
+
+  if (weapon === 'fireBreath') {
+    const { outer, inner } = WEAPONS.fireBreath.colors;
+    // A ball of fire flickering in the claw
+    return [
+      {
+        points: [
+          [-2, 2],
+          [6, -14],
+          [10, -4],
+          [16, -10],
+          [14, 4],
+          [6, 8],
+        ],
+        color: outer,
+      },
+      {
+        points: [
+          [2, 2],
+          [7, -8],
+          [10, -1],
+          [12, 4],
+          [6, 6],
+        ],
+        color: inner,
       },
     ];
   }

@@ -17,6 +17,8 @@ import {
   withCrown,
   newRun,
   withStory,
+  withStoryScore,
+  storyStartScore,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -38,6 +40,7 @@ const fresh: SaveData = {
   stages: {},
   crowns: {},
   story: 0,
+  storyScore: null,
 };
 
 describe('save', () => {
@@ -212,6 +215,7 @@ describe('starting over', () => {
       stages: { normal: 6 },
       crowns: { normal: 1 },
       story: 3,
+      storyScore: 40,
     };
     expect(resetSave(played)).toEqual({ ...fresh, muted: true });
   });
@@ -283,5 +287,19 @@ describe('the story', () => {
     writeSave(storage, withStory(fresh, 3));
     expect(loadSave(storage).story).toBe(3);
     expect(resetSave(loadSave(storage)).story).toBe(0);
+  });
+});
+
+describe('story points', () => {
+  it('start with the start points, then go on from chapter to chapter', () => {
+    expect(storyStartScore(fresh, 3)).toBe(3);
+    const storage = memoryStorage();
+    writeSave(storage, withStoryScore(fresh, 57));
+    expect(storyStartScore(loadSave(storage), 3)).toBe(57);
+  });
+
+  it('never go below zero and are forgotten when starting over', () => {
+    expect(withStoryScore(fresh, -5).storyScore).toBe(0);
+    expect(resetSave(withStoryScore(fresh, 20)).storyScore).toBeNull();
   });
 });

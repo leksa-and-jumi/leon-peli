@@ -16,6 +16,8 @@ import {
   GAME_WIDTH,
   GIANT,
   GRENADE,
+  DRAGON,
+  KING,
   GUNNER,
   GUNNER_FIERCE,
   KNOCKDOWN,
@@ -94,6 +96,8 @@ import {
   stageFor,
   withCrown,
   withStory,
+  withStoryScore,
+  storyStartScore,
   withStage,
   recordScore,
   weaponsFor,
@@ -272,6 +276,8 @@ export class MainScene extends Phaser.Scene {
       this.stageSeed = run.stageSeed;
       this.keysFound = [...run.keysFound];
     }
+    // In the story, your points go with you from chapter to chapter
+    if (this.story()) this.score = storyStartScore(loadSave(browserStorage()), START_POINTS);
 
     // The treasure's golden suit is yours on this level for good
     if (this.hasCrown()) this.ownedOutfits.add('gold');
@@ -582,8 +588,12 @@ export class MainScene extends Phaser.Scene {
     for (const enemy of this.enemies) enemy.stopShooting();
     this.sfx.buy();
     const next = nextChapter(this.chapter, STORY.chapters.length);
-    // When the story is over it starts again from the first chapter next time
-    writeSave(browserStorage(), withStory(loadSave(browserStorage()), next ?? 0));
+    // When the story is over it starts again from the first chapter next time.
+    // Your points go on to the next chapter.
+    writeSave(
+      browserStorage(),
+      withStoryScore(withStory(loadSave(browserStorage()), next ?? 0), this.score),
+    );
     const banner = this.add
       .text(GAME_WIDTH / 2, 230, '✅ Chapter done! / Luku läpi!', {
         fontSize: '40px',
@@ -599,6 +609,7 @@ export class MainScene extends Phaser.Scene {
       banner.destroy();
       if (next === null) {
         this.gainPoints(STORY.reward);
+        writeSave(browserStorage(), withStoryScore(loadSave(browserStorage()), this.score));
         showTreasure(this, STORY.reward);
         this.time.delayedCall(TREASURE.showMs, () => {
           this.showStoryCard('🏆 👑 🏆', STORY.endText, '🏠 Menu / Valikko', () => {
@@ -1371,12 +1382,13 @@ export class MainScene extends Phaser.Scene {
     return this.gun;
   }
 
-  /** Send in another enemy when it's time, as long as there are fewer than three. */
+  /** Send in another enemy when it's time, as long as there aren't too many already. */
   private spawnWhenThereIsRoom(): void {
     // On the test level enemies only come when you call them with the buttons
     if (!this.playerAlive || !autoSpawns(this.rules())) return;
     const alive = this.enemies.filter((e) => e.isAlive()).length;
-    if (!canSpawn(alive, ENEMY.maxAtOnce, this.time.now, this.nextSpawnAt)) return;
+    const atOnce = this.rules().maxAtOnce ?? ENEMY.maxAtOnce;
+    if (!canSpawn(alive, atOnce, this.time.now, this.nextSpawnAt)) return;
     this.spawnEnemy();
     const { min, max } = ENEMY.spawnGapMs;
     this.nextSpawnAt = this.time.now + min + Math.random() * (max - min);
@@ -1407,13 +1419,22 @@ export class MainScene extends Phaser.Scene {
       WORLD.wallMargin,
     );
     let enemy: Foe;
-    if (next.kind !== 'white' && next.kind !== 'gunner') {
-      const base = next.kind === 'giant' ? GIANT : next.kind === 'brute' ? BRUTE : BOSS;
+    if (next.kind !== 'white' && next.kind !== 'gunner' && next.kind !== 'dragon') {
+      const base =
+        next.kind === 'giant'
+          ? GIANT
+          : next.kind === 'brute'
+            ? BRUTE
+            : next.kind === 'king'
+              ? KING
+              : BOSS;
       enemy = this.addBigFoe(base, startX, next.lives);
     } else {
-      const gunner = next.kind === 'gunner';
+      const dragon = next.kind === 'dragon';
+      // The dragon and the machine-gun boss are shooters with their own ways
+      const gunner = next.kind === 'gunner' || dragon;
       // The fierce boss on Hard and Super hard, the calmer one on Normal
-      const gunnerStyle = rules.fierceGunner === true ? GUNNER_FIERCE : GUNNER;
+      const gunnerStyle = dragon ? DRAGON : rules.fierceGunner === true ? GUNNER_FIERCE : GUNNER;
       // On most levels the white ones aim at the middle of you, wherever you are
       // ...but not while you crouch: then they just shoot straight ahead.
       // The machine-gun boss isn't fooled by crouching.
@@ -1431,7 +1452,11 @@ export class MainScene extends Phaser.Scene {
       const white: Enemy = new Enemy(
         this,
         (muzzle, slope, direction) => {
-          this.shoot(muzzle, direction, white.figure, slope);
+          // The dragon breathes fireballs (orange trails)
+          this.shoot(muzzle, direction, white.figure, slope, {
+            poison: false,
+            explosive: dragon,
+          });
           shots += 1;
           // Every 10th shot it throws a grenade too (the boss much more often)
           if (grenadeAfterShots(shots, grenadeEvery)) this.enemyThrowsGrenade(white);
@@ -1541,8 +1566,12 @@ export class MainScene extends Phaser.Scene {
     );
     p.destroy();
 
-    // In the story: try the same chapter again
+    // In the story: try the same chapter again, only 3 points lighter
     if (this.story()) {
+      writeSave(
+        browserStorage(),
+        withStoryScore(loadSave(browserStorage()), this.score - STORY.deathPenalty),
+      );
       this.time.delayedCall(GAME_OVER.delayMs, () => {
         showGameOverSign(
           this,

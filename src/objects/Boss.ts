@@ -57,6 +57,7 @@ export class Boss implements Foe {
         facing: startX !== null && startX < getPlayerX() ? 1 : -1,
         height: this.kind.height,
         thickness: 'thickness' in kind ? kind.thickness : 1,
+        ...('outfit' in kind ? { outfit: kind.outfit } : {}),
       },
       'raise',
     );

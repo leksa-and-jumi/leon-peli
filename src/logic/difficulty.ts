@@ -33,6 +33,8 @@ export interface DifficultyRules {
   manualSpawns?: boolean;
   /** No treasure behind the last door. */
   noTreasure?: boolean;
+  /** At most this many enemies at once (fewer for a duel). */
+  maxAtOnce?: number;
 }
 
 /** Which enemy number `enemyNumber` (counted from 1) is in this difficulty. */

@@ -30,7 +30,7 @@ export function addSpawnPanel(scene: Phaser.Scene, onPick: (kind: EnemyKind) => 
 function drawIcon(
   g: Phaser.GameObjects.Graphics,
   color: number,
-  weapon: 'gun' | 'axe' | 'club' | 'beret',
+  weapon: 'gun' | 'axe' | 'club' | 'beret' | 'fire' | 'crown',
   thick: boolean,
 ): void {
   const line = thick ? 5 : 3;
@@ -63,6 +63,22 @@ function drawIcon(
     g.lineBetween(10, -2, 13, -20);
     g.fillStyle(0xbdbdbd, 1);
     g.fillTriangle(13, -20, 21, -24, 20, -12);
+  }
+  if (weapon === 'fire') {
+    // Wings and a puff of fire
+    g.fillStyle(0x8d1f0a, 1);
+    g.fillTriangle(-2, -6, -18, -20, -16, 0);
+    g.fillStyle(0xff6f00, 1);
+    g.fillTriangle(8, -4, 20, -10, 20, 2);
+    g.fillStyle(0xffeb3b, 1);
+    g.fillCircle(12, -4, 3);
+  }
+  if (weapon === 'crown') {
+    g.fillStyle(0xffd54f, 1);
+    g.fillTriangle(-7, -18, -7, -26, -3, -20);
+    g.fillTriangle(-3, -20, 0, -28, 3, -20);
+    g.fillTriangle(3, -20, 7, -26, 7, -18);
+    g.fillRect(-7, -20, 14, 3);
   }
   if (weapon === 'club') {
     g.lineStyle(5, 0x7a5233, 1);
