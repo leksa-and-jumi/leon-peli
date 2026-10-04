@@ -495,8 +495,9 @@ export const GAME_OVER = {
   /** Drawn above the game and its texts. */
   depth: 200,
   text: 'You died!\nSinä kuolit!',
-  /** Dying keeps your things, but the points start over. */
-  savedNote: '💾 Things saved, points start over\nTavarat tallessa, pisteet alusta',
+  /** Dying keeps everything except a few points. */
+  deathPenalty: 10,
+  savedNote: '💾 Everything saved, only −10 ⭐\nKaikki tallessa, vain −10 ⭐',
   textColor: '#ffffff',
   recordColor: '#ffd54f',
   dimAlpha: 0.35,
@@ -711,6 +712,14 @@ export const MINIMAP = {
     green: 0x7cb342,
     brown: 0x8d6e63,
   },
+} as const;
+
+/** The treasure behind door 10: lots of points and a crown 👑 for this level. */
+export const TREASURE = {
+  points: 500,
+  /** How long the chest shows before the game starts again from stage 1. */
+  showMs: 3200,
+  colors: { wood: 0x8d5a2b, woodDark: 0x5d3a1a, gold: 0xffd54f, glow: 0xfff59d },
 } as const;
 
 /** Bullets from the shop. */

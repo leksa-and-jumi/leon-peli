@@ -50,6 +50,11 @@ export function doorReward(stage: number): number {
   return stage * 10;
 }
 
+/** Getting through the last door finds the treasure. */
+export function findsTreasure(stage: number, last: number): boolean {
+  return stage === last;
+}
+
 /** Can the door be opened with the keys found? */
 export function canOpen(found: number, stage: number): boolean {
   return found >= keysNeeded(stage);

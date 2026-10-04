@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom } from './ruins';
-import { canOpen, doorReward, keysNeeded, nextStage, stageLayout, stageOnlyKind } from './stage';
+import {
+  canOpen,
+  doorReward,
+  findsTreasure,
+  keysNeeded,
+  nextStage,
+  stageLayout,
+  stageOnlyKind,
+} from './stage';
 
 const rules = {
   last: 10,
@@ -32,6 +40,11 @@ describe('stages', () => {
     expect(stageOnlyKind(10)).toBe('brute');
     expect(stageOnlyKind(7)).toBeNull();
     expect(stageOnlyKind(1)).toBeNull();
+  });
+
+  it('hide a treasure behind the last door only', () => {
+    expect(findsTreasure(10, 10)).toBe(true);
+    expect(findsTreasure(9, 10)).toBe(false);
   });
 
   it('give 10 more points for every door', () => {
