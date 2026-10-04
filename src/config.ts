@@ -315,6 +315,31 @@ export const BRUTE = {
   healthBar: { width: 80, height: 9, gap: 14, back: 0x3a332b, fill: 0x8d6e63 },
 } as const;
 
+/**
+ * The machine-gun boss: big, in a red beret. He keeps his distance, aims at you
+ * and fires bursts of three bullets.
+ */
+export const GUNNER = {
+  color: 0x263238,
+  outlineColor: 0xf3e6c4,
+  outlineAlpha: 0.6,
+  height: 165,
+  thickness: 1.5,
+  outfit: { kind: 'beret', color: 0x263238, beret: 0xc62828, badge: 0xffd54f },
+  weapon: 'minigun',
+  voice: 'boss',
+  lives: 18,
+  points: 12,
+  shootIntervalMs: 2400,
+  firstShotMs: 900,
+  /** Bullets in each burst, and the time between them. */
+  burst: 3,
+  burstGapMs: 130,
+  /** Too big to jump over your shots. */
+  dodges: false,
+  healthBar: { width: 80, height: 9, gap: 14, back: 0x3a332b, fill: 0xff7043 },
+} as const;
+
 /** Crashing into someone after letting go of a vine: fall on your back, then get up. */
 export const KNOCKDOWN = {
   fallMs: 320,
@@ -465,6 +490,12 @@ export const WEAPONS = {
     cooldownMs: 0,
     colors: { body: 0x3949ab, dark: 0x1a237e, shine: 0x9fa8da },
   },
+  /** The machine-gun boss's big gun with a bunch of barrels and a belt of bullets. */
+  minigun: {
+    muzzleX: 52,
+    cooldownMs: 0,
+    colors: { body: 0x37474f, dark: 0x1c262b, metal: 0x90a4ae, brass: 0xc9a227 },
+  },
   /** The golden gun from the treasure: shoots any time, always exploding bullets. */
   goldGun: {
     muzzleX: 38,
@@ -528,6 +559,8 @@ export const OUTFITS = {
   pig: { kind: 'pig', color: 0xf48fb1, snout: 0xec6f9c, ear: 0xe57399 },
   /** A mossy forest troll with a big nose, pointy ears and a hair tuft. */
   troll: { kind: 'troll', color: 0x8d9a7a, nose: 0x6f7d5e, hair: 0x3e4a2f },
+  /** The machine-gun boss (not for sale). */
+  beret: { kind: 'beret', color: 0x263238, beret: 0xc62828, badge: 0xffd54f },
   /** From the treasure behind door 10. */
   gold: { kind: 'gold', color: 0xffca28, dark: 0xffa000, shine: 0xfff59d },
   rainbow: {
@@ -744,7 +777,7 @@ export const TREASURE = {
 /** Bullets from the shop. */
 export const SPECIAL_BULLETS = {
   /** A poisoned enemy loses a life this often, until it breaks. */
-  poisonEveryMs: 10000,
+  poisonEveryMs: 3000,
   poisonColor: 0x7cb342,
   /** An exploding bullet takes this many lives at once. */
   explosiveDamage: 3,
@@ -794,6 +827,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
       { kind: 'white', lives: 1 },
       { kind: 'boss', lives: 1 },
       { kind: 'giant', lives: 1 },
+      { kind: 'gunner', lives: 1 },
     ],
     invincible: true,
     aimAtPlayer: true,
@@ -811,6 +845,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     label: 'Normal\nNormaali',
     emoji: '🙂',
     specials: [
+      { every: 20, kind: 'gunner' },
       { every: 10, kind: 'giant' },
       { every: 5, kind: 'boss' },
     ],
@@ -824,6 +859,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     emoji: '😈',
     specials: [
       { every: 30, kind: 'giant' },
+      { every: 20, kind: 'gunner' },
       { every: 10, kind: 'boss', lives: 10 },
       { every: 5, kind: 'boss', lives: 5 },
     ],
@@ -837,6 +873,7 @@ export const DIFFICULTIES: Record<Difficulty, Level> = {
     emoji: '🔥',
     specials: [
       { every: 30, kind: 'giant' },
+      { every: 20, kind: 'gunner' },
       { every: 15, kind: 'brute' },
       { every: 10, kind: 'white', lives: 3 },
     ],

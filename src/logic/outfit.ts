@@ -9,6 +9,8 @@ export type OutfitLook =
   | { kind: 'pig'; color: number; snout: number; ear: number }
   /** A forest troll suit: mossy body, and a troll face with a big nose and pointy ears. */
   | { kind: 'troll'; color: number; nose: number; hair: number }
+  /** The machine-gun boss: one colour, and a red beret with a badge. */
+  | { kind: 'beret'; color: number; beret: number; badge: number }
   /** The golden suit from the treasure: shiny gold that glints. */
   | { kind: 'gold'; color: number; dark: number; shine: number };
 
@@ -44,6 +46,7 @@ export function outfitColor(outfit: OutfitLook, index: number): number {
     case 'solid':
     case 'pig':
     case 'troll':
+    case 'beret':
       return outfit.color;
     case 'gold':
       // Light and darker gold pieces in turn, so it looks like shiny metal

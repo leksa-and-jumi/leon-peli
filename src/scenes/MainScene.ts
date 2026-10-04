@@ -16,6 +16,7 @@ import {
   GAME_WIDTH,
   GIANT,
   GRENADE,
+  GUNNER,
   KNOCKDOWN,
   OUTFITS,
   PIG_AXE,
@@ -1175,7 +1176,7 @@ export class MainScene extends Phaser.Scene {
       WORLD.wallMargin,
     );
     let enemy: Foe;
-    if (next.kind !== 'white') {
+    if (next.kind !== 'white' && next.kind !== 'gunner') {
       const base = next.kind === 'giant' ? GIANT : next.kind === 'brute' ? BRUTE : BOSS;
       const boss = new Boss(
         this,
@@ -1214,7 +1215,7 @@ export class MainScene extends Phaser.Scene {
           // Every 10th shot it throws a grenade too
           if (grenadeAfterShots(shots, GRENADE.enemyEveryShots)) this.enemyThrowsGrenade(white);
         },
-        next.lives ?? ENEMY.lives,
+        next.lives ?? (next.kind === 'gunner' ? GUNNER.lives : ENEMY.lives),
         aimAt,
         {
           startX,
@@ -1222,6 +1223,8 @@ export class MainScene extends Phaser.Scene {
           playerX: () => this.player.getX(),
           bounds: this.bounds,
         },
+        // The machine-gun boss is a shooter too, just bigger and meaner
+        next.kind === 'gunner' ? GUNNER : null,
       );
       white.figure.setOnStep(() => {
         this.sfx.footstep(false, true);

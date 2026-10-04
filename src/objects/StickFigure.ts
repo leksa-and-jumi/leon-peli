@@ -394,7 +394,8 @@ export function drawOutfit(
       outfit.kind === 'solid' ||
       outfit.kind === 'pig' ||
       outfit.kind === 'troll' ||
-      outfit.kind === 'gold'
+      outfit.kind === 'gold' ||
+      outfit.kind === 'beret'
         ? OUTFIT_PIECE_LENGTH
         : RAINBOW_PIECE_LENGTH;
     for (const { from, to } of splitSegment(segment, pieceLength)) {
@@ -494,6 +495,18 @@ export function drawOutfit(
     g.fillCircle(c.x + facing * r * 0.3, c.y - r * 0.3, r * 0.14);
     g.fillStyle(0xffffff, 1);
     g.fillCircle(c.x + facing * r * 0.34, c.y - r * 0.34, r * 0.05);
+  } else if (outfit.kind === 'beret') {
+    // A tough face: dark sunglasses and a red beret with a gold badge, tilted to one side
+    const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
+    g.fillStyle(outfit.color, 1);
+    g.fillCircle(c.x, c.y, r);
+    g.fillStyle(0x0d0d0d, 1);
+    g.fillRoundedRect(c.x - r * 0.3 + facing * r * 0.25, c.y - r * 0.25, r * 0.95, r * 0.32, 3);
+    g.fillStyle(outfit.beret, 1);
+    g.fillEllipse(c.x - facing * r * 0.15, c.y - r * 0.72, r * 2.3, r * 0.9);
+    g.fillCircle(c.x - facing * r * 0.75, c.y - r * 0.55, r * 0.35);
+    g.fillStyle(outfit.badge, 1);
+    g.fillCircle(c.x + facing * r * 0.45, c.y - r * 0.75, r * 0.18);
   } else if (outfit.kind === 'gold') {
     // A shiny gold head with a bright glint and a little crown
     g.fillStyle(outfit.dark, 1);
@@ -708,6 +721,38 @@ function weaponParts(weapon: Weapon): GunPart[] {
         ],
         color: edge,
       },
+    ];
+  }
+
+  if (weapon === 'minigun') {
+    const { body, dark, metal, brass } = WEAPONS.minigun.colors;
+    return [
+      // A bunch of barrels held together by rings
+      box(10, -14, 42, 4, metal),
+      box(10, -9, 42, 4, metal),
+      box(10, -4, 42, 4, metal),
+      box(20, -16, 4, 18, dark),
+      box(40, -16, 4, 18, dark),
+      box(50, -15, 4, 16, dark),
+      // The big body, a carry handle on top and a grip
+      box(-18, -18, 30, 22, body),
+      box(-12, -24, 18, 4, dark),
+      box(-12, -22, 3, 6, dark),
+      box(3, -22, 3, 6, dark),
+      {
+        points: [
+          [-4, 4],
+          [5, 4],
+          [3, 15],
+          [-6, 14],
+        ],
+        color: dark,
+      },
+      // A belt of brass bullets hanging down
+      box(-16, 4, 5, 8, brass),
+      box(-10, 6, 5, 8, brass),
+      box(-22, 2, 5, 8, brass),
+      box(-18, -18, 30, 1.5, metal),
     ];
   }
 

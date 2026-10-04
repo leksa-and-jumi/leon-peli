@@ -4,6 +4,7 @@ import { enemyFor, type DifficultyRules } from './difficulty';
 const easy: DifficultyRules = { specials: [], regular: { kind: 'white', lives: 2 } };
 const normal: DifficultyRules = {
   specials: [
+    { every: 20, kind: 'gunner' },
     { every: 10, kind: 'giant' },
     { every: 5, kind: 'boss' },
   ],
@@ -27,7 +28,12 @@ describe('enemyFor', () => {
     expect(enemyFor(normal, 5)).toEqual({ kind: 'boss' });
     expect(enemyFor(normal, 15)).toEqual({ kind: 'boss' });
     expect(enemyFor(normal, 10)).toEqual({ kind: 'giant' });
-    expect(enemyFor(normal, 20)).toEqual({ kind: 'giant' });
+    expect(enemyFor(normal, 30)).toEqual({ kind: 'giant' });
+  });
+
+  it('normal has the machine-gun boss every 20th', () => {
+    expect(enemyFor(normal, 20)).toEqual({ kind: 'gunner' });
+    expect(enemyFor(normal, 40)).toEqual({ kind: 'gunner' });
     for (const n of [1, 2, 3, 4, 6, 7])
       expect(enemyFor(normal, n)).toEqual({ kind: 'white', lives: 3 });
   });
