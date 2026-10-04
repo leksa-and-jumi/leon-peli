@@ -1059,7 +1059,7 @@ export const STORY: {
         'Kuninkaan kenraali on kaikista raivokkain konekivääripomo: hän juoksee, näkee kyykkysi ja heittää kranaatteja!\nHajota kenraali, niin armeija pakenee lopullisesti!',
       goal: { type: 'break', kind: 'gunner', count: 1 },
       rules: {
-        specials: [{ every: 3, kind: 'gunner', lives: 15 }],
+        specials: [{ every: 3, kind: 'gunner', lives: 10 }],
         regular: { kind: 'white', lives: 3 },
         aimAtPlayer: true,
         fierceGunner: true,
