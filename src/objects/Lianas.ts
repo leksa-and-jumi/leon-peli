@@ -19,12 +19,17 @@ export class Lianas {
   private readonly g: Phaser.GameObjects.Graphics;
   private timeMs = 0;
 
-  constructor(private readonly scene: Phaser.Scene) {
+  constructor(
+    private readonly scene: Phaser.Scene,
+    /** No vines at all (inside the king's castle). */
+    private readonly enabled = true,
+  ) {
     this.g = scene.add.graphics();
   }
 
   /** The vines hanging between `fromX` and `toX`, from whichever tree stands there. */
   near(fromX: number, toX: number): RepeatedSpot[] {
+    if (!this.enabled) return [];
     return tiledSpots((tile) => treeAt(tile).anchors, GAME_WIDTH, fromX, toX, VINES_PER_TREE);
   }
 

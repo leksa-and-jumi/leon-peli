@@ -4,7 +4,8 @@ import { MainScene } from './scenes/MainScene';
 import { MenuScene } from './scenes/MenuScene';
 import { ShopScene } from './scenes/ShopScene';
 
-new Phaser.Game({
+(window as unknown as { g: Phaser.Game }).g = new Phaser.Game({
+  // TEMP TEST
   type: Phaser.AUTO,
   parent: 'game',
   width: GAME_WIDTH,

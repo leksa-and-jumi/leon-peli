@@ -52,6 +52,11 @@ export const SWING = {
 
 /** Sounds, all made with code. */
 export const SOUND = {
+  /** The background music is quieter than the sounds. */
+  musicVolume: 0.22,
+  /** Music speed: normal fights, and faster for the big duel. */
+  musicBpm: 116,
+  duelMusicBpm: 140,
   volume: 0.6,
   /** The white ones' guns are a bit quieter than yours. */
   enemyGunVolume: 0.55,
@@ -926,6 +931,8 @@ export interface StoryChapter {
   rules: DifficultyRules;
   /** For a door chapter: how many keys (it plays like that stage). */
   keys?: number;
+  /** Where it happens: the ruins (with vines), or inside the king's castle. */
+  scene?: 'castle';
 }
 
 /** Leo's story mode: chapters to win back the village's golden crown and keep it safe. */
@@ -1098,9 +1105,11 @@ export const STORY: {
         'Siinä hän on: ruskeiden kuningas kultaisine kirveineen. Vain sinä ja hän!\nVoita kaksintaistelu kuningasta vastaan!',
       goal: { type: 'break', kind: 'king', count: 1 },
       rules: { specials: [], regular: { kind: 'king' }, aimAtPlayer: true, maxAtOnce: 1 },
+      scene: 'castle',
     },
   ],
   endText:
+    '🏅 You got a medal! / Sait mitalin! 🏅\n\n' +
     '🎉 THE END! 🎉\nThe king lost the duel and promised never to come back. The golden crown is safe and the village is saved!\n\n' +
     '🎉 LOPPU! 🎉\nKuningas hävisi kaksintaistelun ja lupasi, ettei koskaan palaa. Kultainen kruunu on turvassa ja kylä on pelastettu!',
   /** Points for finishing the whole story. */
