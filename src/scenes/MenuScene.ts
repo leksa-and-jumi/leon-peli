@@ -14,6 +14,7 @@ import { RuinsBackground } from '../objects/RuinsBackground';
 export class MenuScene extends Phaser.Scene {
   private best: Record<string, number> = {};
   private stages: Record<string, number> = {};
+  private crowns: Record<string, number> = {};
   private unfinished = new Set<string>();
 
   constructor() {
@@ -24,6 +25,7 @@ export class MenuScene extends Phaser.Scene {
     const save = loadSave(browserStorage());
     this.best = save.best;
     this.stages = save.stages;
+    this.crowns = save.crowns;
     this.unfinished = new Set(Object.keys(save.runs));
     const atmosphere = new Atmosphere(this);
     new RuinsBackground(this, atmosphere);
@@ -162,22 +164,31 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(MENU.depth);
-    // This level's best score
+    // This level's best score, in the button
     this.add
-      .text(
-        x + width / 2 - 12,
-        y,
-        // ▶️ means a game here is waiting to be continued
-        // 🚪 shows the stage reached through the doors on this level
-        `${this.unfinished.has(level) ? '▶️ ' : ''}${
-          (this.stages[level] ?? 1) > 1 ? `🚪${String(this.stages[level])} ` : ''
-        }🏆 ${String(this.best[level] ?? 0)}`,
-        {
-          fontSize: '16px',
-          color: MENU.textColor,
-        },
-      )
+      .text(x + width / 2 - 12, y, `🏆 ${String(this.best[level] ?? 0)}`, {
+        fontSize: '16px',
+        color: MENU.textColor,
+      })
       .setOrigin(1, 0.5)
+      .setDepth(MENU.depth);
+    // Next to the button: ▶️ a game waiting to be continued, 🚪 the stage reached,
+    // 👑 treasures found behind door 10
+    const extras = [
+      this.unfinished.has(level) ? '▶️' : '',
+      (this.stages[level] ?? 1) > 1 ? `🚪${String(this.stages[level])}` : '',
+      (this.crowns[level] ?? 0) > 0 ? `👑${String(this.crowns[level])}` : '',
+    ]
+      .filter((t) => t !== '')
+      .join(' ');
+    this.add
+      .text(x + width / 2 + 12, y, extras, {
+        fontSize: '18px',
+        color: MENU.textColor,
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0, 0.5)
       .setDepth(MENU.depth);
     button.setInteractive({ useHandCursor: true });
     button.on('pointerover', () => button.setFillStyle(hoverColor, 0.92));

@@ -37,6 +37,8 @@ export interface SaveData {
   best: Record<string, number>;
   /** The stage (door) reached on each level. Kept even after dying. */
   stages: Record<string, number>;
+  /** Treasures found (all 10 doors done) on each level. */
+  crowns: Record<string, number>;
 }
 
 /** The bit of browser storage the save needs (localStorage fits). */
@@ -49,7 +51,7 @@ const SAVE_KEY = 'leon-peli-save';
 const NO_WEAPONS: LevelWeapons = { rifle: false, rifleUpgrade: false, deaths: 0 };
 /** A brand new save with nothing in it. */
 function fresh(): SaveData {
-  return { runs: {}, weapons: {}, muted: false, best: {}, stages: {} };
+  return { runs: {}, weapons: {}, muted: false, best: {}, stages: {}, crowns: {} };
 }
 
 /** Reads the save. Anything broken or missing means a fresh save. */
@@ -75,6 +77,14 @@ export function loadSave(storage: SaveStorage | null): SaveData {
         }
       }
     }
+    const crowns: Record<string, number> = {};
+    if ('crowns' in parsed && typeof parsed.crowns === 'object' && parsed.crowns !== null) {
+      for (const [level, count] of Object.entries(parsed.crowns)) {
+        if (typeof count === 'number' && Number.isFinite(count) && count >= 1) {
+          crowns[level] = Math.floor(count);
+        }
+      }
+    }
     const weapons: Record<string, LevelWeapons> = {};
     if ('weapons' in parsed && typeof parsed.weapons === 'object' && parsed.weapons !== null) {
       for (const [level, w] of Object.entries(parsed.weapons)) {
@@ -94,7 +104,7 @@ export function loadSave(storage: SaveStorage | null): SaveData {
         if (checked) runs[level] = checked;
       }
     }
-    return { runs, weapons, muted, best, stages };
+    return { runs, weapons, muted, best, stages, crowns };
   } catch {
     return fresh();
   }
@@ -216,14 +226,19 @@ export function resetSave(save: SaveData): SaveData {
 }
 
 /**
- * After dying the game goes on: your things, stage and keys are kept, with full lives,
- * back at the start. The points start over from `startPoints`.
+ * After dying the game goes on: everything is kept, with full lives, back at the start.
+ * Dying only costs `penalty` points (never going below zero).
  */
 export function revivedRun(
   run: RunState,
   lives: number,
   startX: number,
-  startPoints: number,
+  penalty: number,
 ): RunState {
-  return { ...run, lives, playerX: startX, score: startPoints, earned: 0 };
+  return { ...run, lives, playerX: startX, score: Math.max(run.score - penalty, 0) };
+}
+
+/** One more treasure found on `level`. */
+export function withCrown(save: SaveData, level: string): SaveData {
+  return { ...save, crowns: { ...save.crowns, [level]: (save.crowns[level] ?? 0) + 1 } };
 }

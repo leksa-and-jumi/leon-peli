@@ -14,6 +14,7 @@ import {
   withStage,
   resetSave,
   revivedRun,
+  withCrown,
 } from './save';
 
 function memoryStorage(): SaveStorage & { data: Map<string, string> } {
@@ -27,7 +28,14 @@ function memoryStorage(): SaveStorage & { data: Map<string, string> } {
   };
 }
 
-const fresh: SaveData = { runs: {}, weapons: {}, muted: false, best: {}, stages: {} };
+const fresh: SaveData = {
+  runs: {},
+  weapons: {},
+  muted: false,
+  best: {},
+  stages: {},
+  crowns: {},
+};
 
 describe('save', () => {
   it('starts empty', () => {
@@ -199,13 +207,14 @@ describe('starting over', () => {
       muted: true,
       best: { normal: 40 },
       stages: { normal: 6 },
+      crowns: { normal: 1 },
     };
     expect(resetSave(played)).toEqual({ ...fresh, muted: true });
   });
 });
 
 describe('after dying', () => {
-  it('keeps your things, with full lives at the start, but the points start over', () => {
+  it('keeps everything, with full lives at the start, and costs only 10 points', () => {
     const run: RunState = {
       score: 50,
       earned: 70,
@@ -219,12 +228,33 @@ describe('after dying', () => {
       stageSeed: 9,
       keysFound: [1, 3],
     };
-    expect(revivedRun(run, 4, 70, 3)).toEqual({
-      ...run,
-      lives: 4,
-      playerX: 70,
-      score: 3,
-      earned: 0,
-    });
+    expect(revivedRun(run, 4, 70, 10)).toEqual({ ...run, lives: 4, playerX: 70, score: 40 });
+  });
+
+  it('never takes the points below zero', () => {
+    const run: RunState = {
+      score: 6,
+      earned: 6,
+      lives: 0,
+      enemyCount: 3,
+      playerX: 300,
+      ownedOutfits: ['black'],
+      wornOutfit: 'black',
+      ownedItems: [],
+      stage: 1,
+      stageSeed: 1,
+      keysFound: [],
+    };
+    expect(revivedRun(run, 4, 70, 10).score).toBe(0);
+  });
+});
+
+describe('treasures', () => {
+  it('count up for each level on its own and are saved', () => {
+    const storage = memoryStorage();
+    writeSave(storage, withCrown(withCrown(fresh, 'hard'), 'hard'));
+    const save = loadSave(storage);
+    expect(save.crowns).toEqual({ hard: 2 });
+    expect(resetSave(save).crowns).toEqual({});
   });
 });

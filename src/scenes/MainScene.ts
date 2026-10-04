@@ -22,6 +22,7 @@ import {
   SPECIAL_BULLETS,
   STAGES,
   SWING,
+  TREASURE,
   LIANAS,
   PLAYER,
   RELOAD_BAR,
@@ -58,10 +59,12 @@ import {
   keysNeeded,
   nextStage,
   stageOnlyKind,
+  findsTreasure,
   stageLayout,
 } from '../logic/stage';
 import { drawWorldWall } from '../objects/WorldWall';
 import { MiniMap } from '../objects/MiniMap';
+import { showTreasure } from '../objects/TreasureChest';
 import { createRandom } from '../logic/ruins';
 import { HiddenKeys } from '../objects/HiddenKeys';
 import { StageDoor } from '../objects/StageDoor';
@@ -80,6 +83,7 @@ import {
   loadSave,
   type RunState,
   stageFor,
+  withCrown,
   withStage,
   recordScore,
   weaponsFor,
@@ -537,7 +541,14 @@ export class MainScene extends Phaser.Scene {
     // Points for getting through: 10 for the first door, 20 for the second...
     const reward = doorReward(this.stage);
     this.gainPoints(reward);
-    this.showReward(reward);
+    // ...and behind the last door, the treasure!
+    const treasure = findsTreasure(this.stage, STAGES.last);
+    if (treasure) {
+      this.gainPoints(TREASURE.points);
+      showTreasure(this, TREASURE.points);
+    } else {
+      this.showReward(reward);
+    }
     for (const enemy of this.enemies) enemy.stopShooting();
     const next: RunState = {
       ...this.runState(),
@@ -546,9 +557,11 @@ export class MainScene extends Phaser.Scene {
       keysFound: [],
       playerX: PLAYER.x,
     };
-    const save = withRun(loadSave(browserStorage()), this.difficulty, next);
-    writeSave(browserStorage(), withStage(save, this.difficulty, next.stage));
-    this.time.delayedCall(700, () => {
+    let save = withRun(loadSave(browserStorage()), this.difficulty, next);
+    save = withStage(save, this.difficulty, next.stage);
+    if (treasure) save = withCrown(save, this.difficulty);
+    writeSave(browserStorage(), save);
+    this.time.delayedCall(treasure ? TREASURE.showMs : 700, () => {
       this.cameras.main.fadeOut(400);
       this.cameras.main.once('camerafadeoutcomplete', () => {
         this.scene.restart({ difficulty: this.difficulty });
@@ -1243,9 +1256,9 @@ export class MainScene extends Phaser.Scene {
 
     // Save the best score of this level
     const record = recordScore(loadSave(browserStorage()), this.difficulty, this.earned);
-    // Your things (the rifle too, forever) are kept and you go on with full lives,
-    // but the points start over
-    const revived = revivedRun(this.runState(), PLAYER.lives, PLAYER.x, START_POINTS);
+    // Everything (the rifle too, forever) is kept and you go on with full lives:
+    // dying only costs 10 points
+    const revived = revivedRun(this.runState(), PLAYER.lives, PLAYER.x, GAME_OVER.deathPenalty);
     writeSave(browserStorage(), withRun(record.save, this.difficulty, revived));
 
     this.time.delayedCall(GAME_OVER.delayMs, () => {
