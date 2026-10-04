@@ -1,6 +1,14 @@
 import Phaser from 'phaser';
 import { browserStorage } from '../browserStorage';
-import { DIFFICULTIES, GAME_HEIGHT, GAME_WIDTH, MENU, PLAYER, START_POINTS } from '../config';
+import {
+  DIFFICULTIES,
+  GAME_HEIGHT,
+  GAME_WIDTH,
+  MENU,
+  PLAYER,
+  START_POINTS,
+  STORY,
+} from '../config';
 
 import type { Difficulty } from '../logic/difficulty';
 import {
@@ -31,13 +39,14 @@ import { RuinsBackground } from '../objects/RuinsBackground';
 const SHOP_LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard', 'superHard', 'test'];
 
 /**
- * The start menu: pick Easy, Normal, Hard, Super hard or Test (or press 1–5).
+ * The start menu: pick Easy, Normal, Hard, Super hard, Test or Story (or press 1–6).
  * Behind it a battle plays by itself, like a video of the game.
  */
 export class MenuScene extends Phaser.Scene {
   private best: Record<string, number> = {};
   private stages: Record<string, number> = {};
   private crowns: Record<string, number> = {};
+  private storyChapter = 0;
   private unfinished = new Set<string>();
 
   constructor() {
@@ -49,6 +58,7 @@ export class MenuScene extends Phaser.Scene {
     this.best = save.best;
     this.stages = save.stages;
     this.crowns = save.crowns;
+    this.storyChapter = save.story;
     this.unfinished = new Set(Object.keys(save.runs));
     const atmosphere = new Atmosphere(this);
     new RuinsBackground(this, atmosphere);
@@ -79,7 +89,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(MENU.depth);
 
-    const levels: Difficulty[] = ['easy', 'normal', 'hard', 'superHard', 'test'];
+    const levels: Difficulty[] = ['easy', 'normal', 'hard', 'superHard', 'test', 'story'];
     const { height, gap } = MENU.button;
     levels.forEach((level, i) => {
       this.addLevelButton(level, cx, 200 + i * (height + gap));
@@ -90,7 +100,7 @@ export class MenuScene extends Phaser.Scene {
 
     const keyboard = this.input.keyboard;
     levels.forEach((level, i) => {
-      keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE'][i] ?? ''}`, () => {
+      keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'][i] ?? ''}`, () => {
         this.start(level);
       });
     });
@@ -315,9 +325,13 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(MENU.depth);
-    // This level's best score, in the button
+    // This level's best score in the button (the story shows its chapter instead)
+    const score =
+      level === 'story'
+        ? `📖 ${String(this.storyChapter + 1)}/${String(STORY.chapters.length)}`
+        : `🏆 ${String(this.best[level] ?? 0)}`;
     this.add
-      .text(x + width / 2 - 12, y, `🏆 ${String(this.best[level] ?? 0)}`, {
+      .text(x + width / 2 - 12, y, score, {
         fontSize: '16px',
         color: MENU.textColor,
       })
