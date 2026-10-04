@@ -1477,6 +1477,11 @@ export class MainScene extends Phaser.Scene {
         this.dustAt(white.figure.getX());
       });
       enemy = white;
+      // The dragon arrives with a roar that shakes the ground
+      if (dragon) {
+        this.sfx.scream('giant');
+        this.cameras.main.shake(600, 0.01);
+      }
       // Only the fierce one lets loose the brutes when he breaks
       if (gunner && gunnerStyle.swarm > 0) this.gunners.add(white);
     }
