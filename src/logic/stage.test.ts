@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom } from './ruins';
-import { canOpen, keysNeeded, nextStage, onlyGiants, stageLayout } from './stage';
+import { canOpen, doorReward, keysNeeded, nextStage, onlyGiants, stageLayout } from './stage';
 
 const rules = {
   last: 10,
-  doorDistance: { min: 900, max: 1500 },
-  keyDistance: { min: 400, max: 1400, morePerStage: 150 },
+  doorDistance: { min: 700, max: 1400 },
+  keyDistance: { min: 300, max: 1500 },
   keyY: { min: 370, max: 500 },
   minGap: 150,
 };
@@ -27,6 +27,12 @@ describe('stages', () => {
     expect(onlyGiants(9, 10)).toBe(false);
   });
 
+  it('give 10 more points for every door', () => {
+    expect(doorReward(1)).toBe(10);
+    expect(doorReward(2)).toBe(20);
+    expect(doorReward(10)).toBe(100);
+  });
+
   it('open the door only with all the keys', () => {
     expect(canOpen(1, 2)).toBe(false);
     expect(canOpen(2, 2)).toBe(true);
@@ -38,7 +44,11 @@ describe('stageLayout', () => {
     for (let stage = 1; stage <= 10; stage++) {
       const layout = stageLayout(createRandom(stage), stage, 100, rules);
       expect(layout.keys).toHaveLength(stage);
-      expect(Math.abs(layout.doorX - 100)).toBeGreaterThanOrEqual(900);
+      expect(Math.abs(layout.doorX - 100)).toBeGreaterThanOrEqual(700);
+      // Everything fits between the walls of the world
+      for (const x of [layout.doorX, ...layout.keys.map((k) => k.x)]) {
+        expect(Math.abs(x - 100)).toBeLessThanOrEqual(1500);
+      }
       const spots = [layout.doorX, ...layout.keys.map((k) => k.x)].sort((a, b) => a - b);
       for (let i = 1; i < spots.length; i++) {
         expect((spots[i] ?? 0) - (spots[i - 1] ?? 0)).toBeGreaterThanOrEqual(rules.minGap - 0.001);

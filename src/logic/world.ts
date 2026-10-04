@@ -64,3 +64,39 @@ export function followCamera(
   const target = playerX - screenWidth / 2;
   return scrollX + (target - scrollX) * Math.min(Math.max(step, 0), 1);
 }
+
+/** The part of the world you can walk in, between the two big ruin walls. */
+export interface WorldBounds {
+  left: number;
+  right: number;
+}
+
+/** Keeps `x` inside the walls, `margin` away from them. */
+export function clampToWorld(x: number, bounds: WorldBounds, margin: number): number {
+  return Math.min(Math.max(x, bounds.left + margin), bounds.right - margin);
+}
+
+/** Keeps the camera from showing more than `overshoot` pixels past a wall. */
+export function clampCamera(
+  scrollX: number,
+  bounds: WorldBounds,
+  screenWidth: number,
+  overshoot: number,
+): number {
+  const min = bounds.left - overshoot;
+  const max = bounds.right + overshoot - screenWidth;
+  return Math.min(Math.max(scrollX, min), max);
+}
+
+/** Where a new enemy can come in: just off the screen, but never behind a wall. */
+export function spawnX(
+  side: 1 | -1,
+  scrollX: number,
+  screenWidth: number,
+  offscreen: number,
+  bounds: WorldBounds,
+  margin: number,
+): number {
+  const x = side === 1 ? scrollX + screenWidth + offscreen : scrollX - offscreen;
+  return clampToWorld(x, bounds, margin);
+}

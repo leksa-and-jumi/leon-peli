@@ -194,6 +194,8 @@ export const POINTS_PER_KILL = 1;
 export const ENEMY = {
   /** In the endless world: a white one stands this far from you (somewhere in between)... */
   standOff: { min: 230, max: 360 },
+  /** Enemies stay this far in front of the walls at the ends of the world. */
+  wallMargin: 50,
   /** Never more than this many enemies at once. */
   maxAtOnce: 3,
   /** Random wait before the next one comes in (while there's room). */
@@ -635,6 +637,23 @@ export const WORLD = {
   cameraSpeed: 6,
   /** New enemies start this far outside the screen. */
   spawnOffscreen: 40,
+  /**
+   * The world isn't endless: big ruin walls stand this far left and right of the start,
+   * so walking from one wall to the other takes about 15 seconds.
+   */
+  halfWidth: 1650,
+  /** You stop this far in front of a wall. */
+  wallMargin: 70,
+  /** The camera shows at most this much past a wall. */
+  cameraOvershoot: 170,
+  wall: {
+    width: 150,
+    height: 470,
+    stone: 0x8d8576,
+    dark: 0x5e574c,
+    light: 0xb3aa98,
+    moss: 0x5f8034,
+  },
   /** Bullets fly a little past the screen edge before they're gone. */
   bulletMargin: 60,
 } as const;
@@ -642,8 +661,8 @@ export const WORLD = {
 /** Doors and hidden keys: stage 1 needs one key, stage 2 two keys... up to 10, then again from 1. */
 export const STAGES = {
   last: 10,
-  doorDistance: { min: 900, max: 1500 },
-  keyDistance: { min: 400, max: 1400, morePerStage: 150 },
+  doorDistance: { min: 700, max: 1400 },
+  keyDistance: { min: 300, max: 1500 },
   keyY: { min: 370, max: 500 },
   minGap: 150,
   /** How close you must be to the door to try it. */

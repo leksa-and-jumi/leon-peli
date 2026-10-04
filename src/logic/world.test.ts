@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { canSpawn, followCamera, spawnSide, standSpot, tiledSpots, tileVariant } from './world';
+import {
+  canSpawn,
+  clampCamera,
+  clampToWorld,
+  followCamera,
+  spawnSide,
+  spawnX,
+  standSpot,
+  tiledSpots,
+  tileVariant,
+} from './world';
 
 describe('tiledSpots', () => {
   const vines = [
@@ -76,5 +86,27 @@ describe('followCamera', () => {
     expect(followCamera(0, 1000, 800, 1)).toBe(600);
     expect(followCamera(0, 1000, 800, 0.5)).toBe(300);
     expect(followCamera(600, 1000, 800, 0.5)).toBe(600);
+  });
+});
+
+describe('world walls', () => {
+  const bounds = { left: -1500, right: 1700 };
+
+  it('keep you between the walls', () => {
+    expect(clampToWorld(0, bounds, 40)).toBe(0);
+    expect(clampToWorld(-3000, bounds, 40)).toBe(-1460);
+    expect(clampToWorld(3000, bounds, 40)).toBe(1660);
+  });
+
+  it('stop the camera just past a wall', () => {
+    expect(clampCamera(0, bounds, 800, 60)).toBe(0);
+    expect(clampCamera(-2000, bounds, 800, 60)).toBe(-1560);
+    expect(clampCamera(2000, bounds, 800, 60)).toBe(960);
+  });
+
+  it('let enemies come in only on this side of a wall', () => {
+    expect(spawnX(1, 0, 800, 40, bounds, 30)).toBe(840);
+    expect(spawnX(1, 900, 800, 40, bounds, 30)).toBe(1670);
+    expect(spawnX(-1, -1500, 800, 40, bounds, 30)).toBe(-1470);
   });
 });
