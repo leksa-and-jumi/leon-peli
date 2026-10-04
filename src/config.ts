@@ -665,7 +665,13 @@ export const STAGES = {
   last: 10,
   doorDistance: { min: 700, max: 1400 },
   keyDistance: { min: 300, max: 1500 },
-  keyY: { min: 370, max: 500 },
+  /** Keys out in the open: you have to jump to reach them. */
+  jumpKeyY: { min: 335, max: 395 },
+  /** About half the keys hang high beside a vine: swing or flip to grab them. */
+  vineKeyShare: 0.5,
+  vineReach: { min: 90, max: 190 },
+  vineLength: LIANAS.length,
+  vineKeyMaxY: 310,
   minGap: 150,
   /** How close you must be to the door to try it. */
   doorReach: 40,
