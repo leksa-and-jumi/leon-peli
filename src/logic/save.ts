@@ -232,3 +232,13 @@ export function stageFor(save: SaveData, level: string): number {
 export function withStage(save: SaveData, level: string, stage: number): SaveData {
   return { ...save, stages: { ...save.stages, [level]: stage } };
 }
+
+/** Start the whole game over: everything is forgotten except whether the sound is off. */
+export function resetSave(save: SaveData): SaveData {
+  return { ...fresh(), muted: save.muted };
+}
+
+/** After dying the game goes on: everything is kept, with full lives, back at the start. */
+export function revivedRun(run: RunState, lives: number, startX: number): RunState {
+  return { ...run, lives, playerX: startX };
+}

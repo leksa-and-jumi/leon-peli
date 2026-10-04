@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom } from './ruins';
-import { canOpen, doorReward, keysNeeded, nextStage, onlyGiants, stageLayout } from './stage';
+import { canOpen, doorReward, keysNeeded, nextStage, stageLayout, stageOnlyKind } from './stage';
 
 const rules = {
   last: 10,
@@ -22,9 +22,12 @@ describe('stages', () => {
     expect(nextStage(10, 10)).toBe(1);
   });
 
-  it('have only giants on the last stage', () => {
-    expect(onlyGiants(10, 10)).toBe(true);
-    expect(onlyGiants(9, 10)).toBe(false);
+  it('have only one kind of enemy on the last three stages', () => {
+    expect(stageOnlyKind(8)).toBe('boss');
+    expect(stageOnlyKind(9)).toBe('giant');
+    expect(stageOnlyKind(10)).toBe('brute');
+    expect(stageOnlyKind(7)).toBeNull();
+    expect(stageOnlyKind(1)).toBeNull();
   });
 
   it('give 10 more points for every door', () => {

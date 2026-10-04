@@ -498,6 +498,8 @@ export const GAME_OVER = {
   /** Drawn above the game and its texts. */
   depth: 200,
   text: 'You died!\nSinä kuolit!',
+  /** Dying doesn't lose anything: you go on from here next time. */
+  savedNote: '💾 Everything is saved / Kaikki on tallessa',
   textColor: '#ffffff',
   recordColor: '#ffd54f',
   dimAlpha: 0.35,
@@ -689,6 +691,25 @@ export const STAGES = {
   signMs: 2000,
 } as const;
 
+/** The little map at the bottom of the screen. */
+export const MINIMAP = {
+  width: 320,
+  height: 22,
+  y: 584,
+  colors: {
+    back: 0x1b1533,
+    wall: 0x8d8576,
+    screen: 0xffffff,
+    door: 0x6d4c2f,
+    doorFrame: 0xb3aa98,
+    player: 0x80deea,
+    white: 0xffffff,
+    red: 0xe53935,
+    green: 0x7cb342,
+    brown: 0x8d6e63,
+  },
+} as const;
+
 /** Bullets from the shop. */
 export const SPECIAL_BULLETS = {
   /** A poisoned enemy loses a life this often, until it breaks. */
@@ -821,6 +842,8 @@ export const MENU = {
     hoverColor: 0x43a047,
     locked: 0x555555,
   },
+  /** The "start over" button in the bottom corner. */
+  reset: { x: 672, y: 572, width: 220, height: 36, color: 0x8e2a2a, hoverColor: 0xc62828 },
   textColor: '#ffffff',
 } as const;
 
