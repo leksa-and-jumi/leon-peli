@@ -21,6 +21,12 @@ describe('splitSegment', () => {
 });
 
 describe('outfitColor', () => {
+  it('a golden suit glints with light and dark gold', () => {
+    const gold: OutfitLook = { kind: 'gold', color: 0xffca28, dark: 0xffa000, shine: 0xfff59d };
+    const colors = new Set([0, 1, 2, 3].map((i) => outfitColor(gold, i)));
+    expect(colors).toEqual(new Set([0xffca28, 0xffa000, 0xfff59d]));
+  });
+
   it('a troll suit is its body color everywhere', () => {
     const troll: OutfitLook = { kind: 'troll', color: 0x8d9a7a, nose: 0x6f7d5e, hair: 0x3e4a2f };
     expect(outfitColor(troll, 0)).toBe(0x8d9a7a);

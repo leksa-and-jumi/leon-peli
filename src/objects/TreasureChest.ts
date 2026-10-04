@@ -106,9 +106,10 @@ export function showTreasure(scene: Phaser.Scene, points: number): void {
   );
   const reward = fixed(
     scene.add
-      .text(cx, cy + 90, `+${String(points)} ⭐   👑`, {
-        fontSize: '36px',
+      .text(cx, cy + 110, `+${String(points)} ⭐   👑\n🥇 Golden suit + gun / Kultapuku + ase`, {
+        fontSize: '28px',
         color: '#fff59d',
+        align: 'center',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 6,

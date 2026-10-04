@@ -12,6 +12,8 @@ export interface BulletPowers {
 const POISON_GUNS: readonly Weapon[] = ['pistol', 'rifle'];
 /** Exploding bullets fit the rifle and the troll's small gun. */
 const EXPLOSIVE_GUNS: readonly Weapon[] = ['rifle', 'smallGun'];
+/** The golden gun from the treasure always shoots exploding bullets. */
+const ALWAYS_EXPLOSIVE: readonly Weapon[] = ['goldGun'];
 
 /** What the bullets from `weapon` do, with the bullets you've bought. */
 export function bulletPowers(
@@ -20,7 +22,8 @@ export function bulletPowers(
 ): BulletPowers {
   return {
     poison: owned.poison && POISON_GUNS.includes(weapon),
-    explosive: owned.explosive && EXPLOSIVE_GUNS.includes(weapon),
+    explosive:
+      ALWAYS_EXPLOSIVE.includes(weapon) || (owned.explosive && EXPLOSIVE_GUNS.includes(weapon)),
   };
 }
 

@@ -13,6 +13,8 @@ export interface ShopItem {
   outfit?: string;
   /** Only for sale when you already own this other item (by id). */
   needs?: string;
+  /** What to show when the needed thing is missing (like 🔫 for the rifle). */
+  needsEmoji?: string;
 }
 
 export type BuyResult =
