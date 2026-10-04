@@ -104,7 +104,8 @@ import {
 } from '../logic/save';
 import type { ShopItem } from '../logic/shop';
 import { hasNeededItem, ownsItem, purchaseItem, wearItem, type Loadout } from '../logic/loadout';
-import { enemyFor, type Difficulty } from '../logic/difficulty';
+import { autoSpawns, enemyFor, hasTreasure, type Difficulty } from '../logic/difficulty';
+import { addSpawnPanel } from '../objects/SpawnPanel';
 import { BrokenFigure } from '../objects/BrokenFigure';
 import { Sfx } from '../audio/Sfx';
 import { Atmosphere } from '../objects/Atmosphere';
@@ -424,6 +425,12 @@ export class MainScene extends Phaser.Scene {
     // Every level has a button back to the menu (the game is saved, so you can go on later)
     this.addMenuButton();
     if (this.door) this.addStageHud();
+    // The test level: buttons to call in any enemy
+    if (this.rules().manualSpawns === true) {
+      addSpawnPanel(this, (kind) => {
+        if (this.playerAlive) this.spawnEnemy(kind);
+      });
+    }
     if (this.story()) {
       this.addStoryHud();
       this.showStoryIntro();
@@ -754,7 +761,7 @@ export class MainScene extends Phaser.Scene {
     const reward = doorReward(this.stage);
     this.gainPoints(reward);
     // ...and behind the last door, the treasure!
-    const treasure = findsTreasure(this.stage, STAGES.last);
+    const treasure = findsTreasure(this.stage, STAGES.last) && hasTreasure(this.rules());
     if (treasure) {
       this.gainPoints(TREASURE.points);
       showTreasure(this, TREASURE.points);
@@ -1366,7 +1373,8 @@ export class MainScene extends Phaser.Scene {
 
   /** Send in another enemy when it's time, as long as there are fewer than three. */
   private spawnWhenThereIsRoom(): void {
-    if (!this.playerAlive) return;
+    // On the test level enemies only come when you call them with the buttons
+    if (!this.playerAlive || !autoSpawns(this.rules())) return;
     const alive = this.enemies.filter((e) => e.isAlive()).length;
     if (!canSpawn(alive, ENEMY.maxAtOnce, this.time.now, this.nextSpawnAt)) return;
     this.spawnEnemy();
@@ -1378,12 +1386,16 @@ export class MainScene extends Phaser.Scene {
    * A new enemy walks in from just off the screen, on the left or the right.
    * Which kind depends on the level and how many have come so far.
    */
-  private spawnEnemy(): void {
+  private spawnEnemy(forced?: EnemyKind): void {
     this.enemyCount += 1;
     const rules = this.rules();
     // The last stages behind the doors have only one kind: red, then green, then brown
     const only = rules.stages === true ? stageOnlyKind(this.stage) : null;
-    const next = only ? { kind: only } : enemyFor(rules, this.enemyCount);
+    const next = forced
+      ? { kind: forced }
+      : only
+        ? { kind: only }
+        : enemyFor(rules, this.enemyCount);
     const side = spawnSide(Math.random());
     // Just off the screen, but never behind one of the big walls
     const startX = spawnX(
