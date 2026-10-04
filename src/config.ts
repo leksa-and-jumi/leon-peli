@@ -857,7 +857,7 @@ export interface StoryChapter {
   keys?: number;
 }
 
-/** Leo's story mode: five chapters to win back the village's golden crown. */
+/** Leo's story mode: ten chapters to win back the village's golden crown and keep it safe. */
 export const STORY: { chapters: readonly StoryChapter[]; endText: string; reward: number } = {
   chapters: [
     {
@@ -918,15 +918,79 @@ export const STORY: { chapters: readonly StoryChapter[]; endText: string; reward
         'Punabaskerinen pomo pitää kruunua!\nHajota konekivääripomo ja voita kruunu takaisin!',
       goal: { type: 'break', kind: 'gunner', count: 1 },
       rules: {
-        specials: [{ every: 3, kind: 'gunner' }],
+        specials: [{ every: 3, kind: 'gunner', lives: 10 }],
         regular: { kind: 'white', lives: 3 },
         aimAtPlayer: true,
       },
     },
+    {
+      emoji: '🌿',
+      title: 'The vine forest / Liaanimetsä',
+      text:
+        'You got the crown back! 🎉 But the brown brute king wants it for himself.\nRun through the vine forest: find 3 keys and go through the door!\n\n' +
+        'Sait kruunun takaisin! 🎉 Mutta ruskeiden kuningas haluaa sen itselleen.\nJuokse liaanimetsän läpi: etsi 3 avainta ja mene ovesta!',
+      goal: { type: 'door' },
+      rules: {
+        specials: [],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+        stages: true,
+      },
+      keys: 3,
+    },
+    {
+      emoji: '💪',
+      title: 'The brown brute / Ruskea jässikkä',
+      text:
+        "The king's strongest brute blocks the path. One smash and you're out!\nBreak the brown brute!\n\n" +
+        'Kuninkaan vahvin jässikkä tukkii polun. Yksi isku ja olet ulkona!\nHajota ruskea jässikkä!',
+      goal: { type: 'break', kind: 'brute', count: 1 },
+      rules: {
+        specials: [{ every: 3, kind: 'brute', lives: 12 }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '🌙',
+      title: 'The night attack / Yöhyökkäys',
+      text:
+        'In the middle of the night the white army attacks from both sides!\nBreak 8 white guys!\n\n' +
+        'Keskellä yötä valkoinen armeija hyökkää molemmilta puolilta!\nHajota 8 valkoista!',
+      goal: { type: 'break', kind: 'white', count: 8 },
+      rules: { specials: [], regular: { kind: 'white', lives: 2 }, aimAtPlayer: true },
+    },
+    {
+      emoji: '🟢',
+      title: 'Two giants / Kaksi jättiläistä',
+      text:
+        'The king sends his two biggest giants after you.\nBreak 2 green giants!\n\n' +
+        'Kuningas lähettää kaksi suurinta jättiläistään perääsi.\nHajota 2 vihreää jättiläistä!',
+      goal: { type: 'break', kind: 'giant', count: 2 },
+      rules: {
+        specials: [{ every: 2, kind: 'giant', lives: 12 }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '🎖️',
+      title: 'The general / Kenraali',
+      text:
+        "The king's general is the fiercest machine-gun boss of all: he runs, he sees you crouch and he throws grenades!\nBreak the general and the army runs away for good!\n\n" +
+        'Kuninkaan kenraali on kaikista raivokkain konekivääripomo: hän juoksee, näkee kyykkysi ja heittää kranaatteja!\nHajota kenraali, niin armeija pakenee lopullisesti!',
+      goal: { type: 'break', kind: 'gunner', count: 1 },
+      rules: {
+        specials: [{ every: 3, kind: 'gunner', lives: 15 }],
+        regular: { kind: 'white', lives: 3 },
+        aimAtPlayer: true,
+        fierceGunner: true,
+      },
+    },
   ],
   endText:
-    '🎉 THE END! 🎉\nYou won the golden crown back. The village is saved!\n\n' +
-    '🎉 LOPPU! 🎉\nVoitit kultaisen kruunun takaisin. Kylä on pelastettu!',
+    '🎉 THE END! 🎉\nThe army ran away for good, and the golden crown is safe. The village is saved!\n\n' +
+    '🎉 LOPPU! 🎉\nArmeija pakeni lopullisesti, ja kultainen kruunu on turvassa. Kylä on pelastettu!',
   /** Points for finishing the whole story. */
   reward: 100,
 };
