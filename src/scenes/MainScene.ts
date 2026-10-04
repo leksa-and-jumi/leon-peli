@@ -53,11 +53,28 @@ import {
 } from '../logic/liana';
 import { bumps, knockdownAt } from '../logic/knockdown';
 import { bulletPowers, poisonStep, type BulletPowers } from '../logic/ammo';
-import { canOpen, keysNeeded, nextStage, onlyGiants, stageLayout } from '../logic/stage';
+import {
+  canOpen,
+  doorReward,
+  keysNeeded,
+  nextStage,
+  onlyGiants,
+  stageLayout,
+} from '../logic/stage';
+import { drawWorldWall } from '../objects/WorldWall';
 import { createRandom } from '../logic/ruins';
 import { HiddenKeys } from '../objects/HiddenKeys';
 import { StageDoor } from '../objects/StageDoor';
-import { canSpawn, followCamera, spawnSide, type RepeatedSpot } from '../logic/world';
+import {
+  canSpawn,
+  clampCamera,
+  clampToWorld,
+  followCamera,
+  spawnSide,
+  spawnX,
+  type RepeatedSpot,
+  type WorldBounds,
+} from '../logic/world';
 import { smoothingStep } from '../logic/pose';
 import {
   afterDeath,
@@ -91,6 +108,11 @@ import type { ShopData } from './ShopScene';
 /** Leo's game: the black stick figure in the ruins against the white ones. */
 export class MainScene extends Phaser.Scene {
   private player!: StickFigure;
+  /** The walkable world, between the two big ruin walls. */
+  private readonly bounds: WorldBounds = {
+    left: PLAYER.x - WORLD.halfWidth,
+    right: PLAYER.x + WORLD.halfWidth,
+  };
   /** Everyone fighting you right now: up to three, from both sides. */
   private enemies: Foe[] = [];
   /** When the next enemy may come in. */
@@ -222,6 +244,9 @@ export class MainScene extends Phaser.Scene {
     new RuinsBackground(this, atmosphere);
     atmosphere.addVignette(ATMOSPHERE.vignette.depth);
     this.lianas = new Lianas(this);
+    // The world ends at a huge ruin wall on each side
+    drawWorldWall(this, this.bounds.left, -1);
+    drawWorldWall(this, this.bounds.right, 1);
     if (DIFFICULTIES[this.difficulty].stages === true) this.buildStage();
     this.player = new StickFigure(this, PLAYER.x, PLAYER.feetY, {
       color: PLAYER.color,
@@ -240,13 +265,18 @@ export class MainScene extends Phaser.Scene {
     this.player.setWeapon(this.gun);
     this.rifleUpgrade = levelWeapons.rifleUpgrade;
     if (run) {
-      this.player.setX(run.playerX);
+      this.player.setX(clampToWorld(run.playerX, this.bounds, WORLD.wallMargin));
       const worn = run.wornOutfit in OUTFITS ? (run.wornOutfit as OutfitId) : 'black';
       if (this.ownedOutfits.has(worn))
         this.wear({ id: worn, emoji: '', name: '', price: 0, outfit: worn });
     }
     // The camera keeps you in the middle as you walk through the endless ruins
-    this.cameras.main.scrollX = this.player.getX() - GAME_WIDTH / 2;
+    this.cameras.main.scrollX = clampCamera(
+      this.player.getX() - GAME_WIDTH / 2,
+      this.bounds,
+      GAME_WIDTH,
+      WORLD.cameraOvershoot,
+    );
 
     // Keep saving while playing, so closing the page doesn't lose the game
     this.time.addEvent({
@@ -477,11 +507,31 @@ export class MainScene extends Phaser.Scene {
     else arrow.setVisible(false);
   }
 
+  /** Big "+20 ⭐" rising over the door. */
+  private showReward(points: number): void {
+    const text = this.add
+      .text(GAME_WIDTH / 2, 260, `+${String(points)} ⭐`, {
+        fontSize: '48px',
+        color: '#fff59d',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(ATMOSPHERE.hudDepth)
+      .setScrollFactor(0);
+    this.tweens.add({ targets: text, y: 200, scale: 1.3, duration: 900, ease: 'Quad.easeOut' });
+  }
+
   /** All the keys: the door swings open, and the next stage starts. */
   private goToNextStage(): void {
     this.leaving = true;
     this.door?.swingOpen();
     this.sfx.buy();
+    // Points for getting through: 10 for the first door, 20 for the second...
+    const reward = doorReward(this.stage);
+    this.gainPoints(reward);
+    this.showReward(reward);
     for (const enemy of this.enemies) enemy.stopShooting();
     const next: RunState = {
       ...this.runState(),
@@ -549,11 +599,16 @@ export class MainScene extends Phaser.Scene {
     if (this.playerAlive) this.movePlayer(delta);
     // The camera glides along to keep you in the middle
     const camera = this.cameras.main;
-    camera.scrollX = followCamera(
-      camera.scrollX,
-      this.player.getX(),
+    camera.scrollX = clampCamera(
+      followCamera(
+        camera.scrollX,
+        this.player.getX(),
+        GAME_WIDTH,
+        smoothingStep(delta, WORLD.cameraSpeed),
+      ),
+      this.bounds,
       GAME_WIDTH,
-      smoothingStep(delta, WORLD.cameraSpeed),
+      WORLD.cameraOvershoot,
     );
     this.spawnWhenThereIsRoom();
     this.updateStage();
@@ -641,8 +696,15 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
-    // The ruins go on forever: walk as far as you like either way
-    const x = moveX(this.player.getX(), direction, PLAYER.walkSpeed, delta, -Infinity, Infinity);
+    // Walk as far as the big ruin walls at the ends of the world
+    const x = moveX(
+      this.player.getX(),
+      direction,
+      PLAYER.walkSpeed,
+      delta,
+      this.bounds.left + WORLD.wallMargin,
+      this.bounds.right - WORLD.wallMargin,
+    );
     this.player.setX(x);
 
     // In the air: fly up and come back down, and grab a vine if you reach one
@@ -744,6 +806,7 @@ export class MainScene extends Phaser.Scene {
     const f = this.flight;
     f.elapsed += delta / 1000;
     f.drop = stepDrop(f.drop, delta, PLAYER.gravity);
+    f.drop.x = clampToWorld(f.drop.x, this.bounds, WORLD.wallMargin);
     this.player.setX(f.drop.x);
     const lift = PLAYER.feetY - f.drop.y;
     if (lift <= 0) {
@@ -803,7 +866,8 @@ export class MainScene extends Phaser.Scene {
     if (state.phase === 'fall') {
       lift = k.startLift * (1 - state.tip) + lyingLift * state.tip;
       // Bounce back off the one you hit
-      this.player.setX(this.player.getX() + (k.back * KNOCKDOWN.bounceBack * delta) / 1000);
+      const x = this.player.getX() + (k.back * KNOCKDOWN.bounceBack * delta) / 1000;
+      this.player.setX(clampToWorld(x, this.bounds, WORLD.wallMargin));
     }
     if (state.phase === 'lie' && k.elapsed - delta < KNOCKDOWN.fallMs) {
       // Thud!
@@ -1059,9 +1123,15 @@ export class MainScene extends Phaser.Scene {
         ? { kind: 'giant' as const }
         : enemyFor(rules, this.enemyCount);
     const side = spawnSide(Math.random());
-    const left = this.cameras.main.scrollX;
-    const startX =
-      side === 1 ? left + GAME_WIDTH + WORLD.spawnOffscreen : left - WORLD.spawnOffscreen;
+    // Just off the screen, but never behind one of the big walls
+    const startX = spawnX(
+      side,
+      this.cameras.main.scrollX,
+      GAME_WIDTH,
+      WORLD.spawnOffscreen,
+      this.bounds,
+      WORLD.wallMargin,
+    );
     let enemy: Foe;
     if (next.kind !== 'white') {
       const base = next.kind === 'giant' ? GIANT : next.kind === 'brute' ? BRUTE : BOSS;
@@ -1075,6 +1145,7 @@ export class MainScene extends Phaser.Scene {
         () => this.player.getX(),
         next.lives,
         startX,
+        this.bounds,
       );
       boss.figure.setOnStep(() => {
         this.sfx.footstep(true);
@@ -1103,7 +1174,12 @@ export class MainScene extends Phaser.Scene {
         },
         next.lives ?? ENEMY.lives,
         aimAt,
-        { startX, standOff: min + Math.random() * (max - min), playerX: () => this.player.getX() },
+        {
+          startX,
+          standOff: min + Math.random() * (max - min),
+          playerX: () => this.player.getX(),
+          bounds: this.bounds,
+        },
       );
       white.figure.setOnStep(() => {
         this.sfx.footstep(false, true);

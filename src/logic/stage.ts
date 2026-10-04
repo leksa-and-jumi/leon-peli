@@ -9,8 +9,8 @@ export interface StageRules {
   last: number;
   /** How far from the start the door is. */
   doorDistance: { min: number; max: number };
-  /** How far from the start keys are hidden (further on later stages). */
-  keyDistance: { min: number; max: number; morePerStage: number };
+  /** How far from the start keys are hidden. */
+  keyDistance: { min: number; max: number };
   /** How high keys float (screen y): some you can just walk into, some need a jump. */
   keyY: { min: number; max: number };
   /** Keys and the door are at least this far apart. */
@@ -32,6 +32,11 @@ export function onlyGiants(stage: number, last: number): boolean {
   return stage === last;
 }
 
+/** Points for getting through the door: 10 on stage 1, 20 on stage 2... 100 on stage 10. */
+export function doorReward(stage: number): number {
+  return stage * 10;
+}
+
 /** Can the door be opened with the keys found? */
 export function canOpen(found: number, stage: number): boolean {
   return found >= keysNeeded(stage);
@@ -49,7 +54,7 @@ export function stageLayout(
   const doorX = startX + side() * pick(rules.doorDistance.min, rules.doorDistance.max);
   const taken = [doorX];
   const keys: { x: number; y: number }[] = [];
-  const far = rules.keyDistance.max + rules.keyDistance.morePerStage * (stage - 1);
+  const far = rules.keyDistance.max;
   for (let i = 0; i < keysNeeded(stage); i++) {
     let x = startX + side() * pick(rules.keyDistance.min, far);
     // Try a few spots so keys don't sit on the door or on each other

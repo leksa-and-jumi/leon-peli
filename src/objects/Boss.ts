@@ -5,6 +5,7 @@ import { healthFraction } from '../logic/health';
 import { loseLife } from '../logic/lives';
 import { canShoot } from '../logic/reload';
 import { facingToward, followTarget, walkTowards } from '../logic/walk';
+import type { WorldBounds } from '../logic/world';
 import { BrokenFigure } from './BrokenFigure';
 import type { Foe } from './Enemy';
 import { StickFigure } from './StickFigure';
@@ -37,8 +38,10 @@ export class Boss implements Foe {
     private readonly getPlayerX: () => number,
     /** How many hits he takes, if different from `kind.lives` (like on Hard). */
     private readonly maxLives: number = kind.lives,
-    /** In the endless world: where he comes in. He can then follow you anywhere. */
+    /** In the big world: where he comes in. He can then follow you anywhere... */
     private readonly startX: number | null = null,
+    /** ...up to the walls at the ends of the world. */
+    private readonly bounds: WorldBounds | null = null,
   ) {
     this.points = kind.points;
     this.voice = kind.voice;
@@ -112,8 +115,8 @@ export class Boss implements Foe {
       oldX,
       playerX,
       this.kind.reach,
-      free ? -Infinity : this.kind.minX,
-      free ? Infinity : this.kind.maxX,
+      free ? (this.bounds?.left ?? -Infinity) + ENEMY.wallMargin : this.kind.minX,
+      free ? (this.bounds?.right ?? Infinity) - ENEMY.wallMargin : this.kind.maxX,
     );
     const x = walkTowards(oldX, target, this.kind.walkSpeed, deltaMs);
     this.figure.setX(x);

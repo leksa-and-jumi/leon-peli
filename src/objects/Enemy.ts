@@ -4,7 +4,7 @@ import { dodgeWindow, nextLift, wantsToBeUp, type JumpWindow } from '../logic/ju
 import { loseLife } from '../logic/lives';
 import { walkTowards } from '../logic/walk';
 import { aimAngle, turnToward } from '../logic/aim';
-import { standSpot } from '../logic/world';
+import { clampToWorld, standSpot, type WorldBounds } from '../logic/world';
 import type { Voice } from '../audio/Sfx';
 import { BrokenFigure } from './BrokenFigure';
 import { StickFigure } from './StickFigure';
@@ -73,6 +73,8 @@ export class Enemy implements Foe {
       startX: number;
       standOff: number;
       playerX: () => number;
+      /** It never walks past the big walls at the ends of the world. */
+      bounds?: WorldBounds;
     } | null = null,
   ) {
     this.lives = lives;
@@ -226,6 +228,7 @@ export class Enemy implements Foe {
     const side = x < playerX ? -1 : 1;
     // Always face the player, even if they jump over to the other side
     this.figure.setFacing(side === 1 ? -1 : 1);
-    return standSpot(playerX, side, this.place.standOff);
+    const spot = standSpot(playerX, side, this.place.standOff);
+    return this.place.bounds ? clampToWorld(spot, this.place.bounds, ENEMY.wallMargin) : spot;
   }
 }
