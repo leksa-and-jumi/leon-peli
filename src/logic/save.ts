@@ -141,29 +141,6 @@ export function withWeapons(
   };
 }
 
-/**
- * You died on a level. With the rifle, it counts toward losing it: after
- * `maxDeaths` deaths the rifle and its upgrade are gone. Returns the new save,
- * whether the rifle was lost, and how many deaths are left before it would be.
- */
-export function afterDeath(
-  save: SaveData,
-  level: string,
-  maxDeaths: number,
-): { save: SaveData; lostRifle: boolean; deathsLeft: number | null } {
-  const w = weaponsFor(save, level);
-  if (!w.rifle) return { save, lostRifle: false, deathsLeft: null };
-  const deaths = w.deaths + 1;
-  if (deaths >= maxDeaths) {
-    return { save: withWeapons(save, level, { ...NO_WEAPONS }), lostRifle: true, deathsLeft: 0 };
-  }
-  return {
-    save: withWeapons(save, level, { deaths }),
-    lostRifle: false,
-    deathsLeft: maxDeaths - deaths,
-  };
-}
-
 /** A saved run, if it looks right; anything strange means no run. */
 function checkRun(run: unknown): RunState | null {
   if (typeof run !== 'object' || run === null) return null;

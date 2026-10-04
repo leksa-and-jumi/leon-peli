@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  afterDeath,
   loadSave,
   recordScore,
   weaponsFor,
@@ -84,33 +83,10 @@ describe('rifle per level', () => {
     expect(weaponsFor(save, 'normal').rifle).toBe(false);
   });
 
-  it('counts deaths and loses the rifle and upgrade on the 5th', () => {
-    let save = withWeapons(fresh, 'hard', { rifle: true, rifleUpgrade: true });
-    for (let i = 1; i <= 4; i++) {
-      const result = afterDeath(save, 'hard', 5);
-      expect(result.lostRifle).toBe(false);
-      expect(result.deathsLeft).toBe(5 - i);
-      save = result.save;
-    }
-    const last = afterDeath(save, 'hard', 5);
-    expect(last.lostRifle).toBe(true);
-    expect(weaponsFor(last.save, 'hard')).toEqual({ rifle: false, rifleUpgrade: false, deaths: 0 });
-  });
-
-  it('dying without the rifle counts nothing', () => {
-    const result = afterDeath(fresh, 'easy', 5);
-    expect(result.deathsLeft).toBeNull();
-    expect(result.save).toEqual(fresh);
-  });
-
-  it('dying on one level does not touch the rifle on another', () => {
-    const save = withWeapons(fresh, 'easy', { rifle: true });
-    const result = afterDeath(save, 'normal', 5);
-    expect(weaponsFor(result.save, 'easy')).toEqual({
-      rifle: true,
-      rifleUpgrade: false,
-      deaths: 0,
-    });
+  it('keeps the rifle forever, until the game is started over', () => {
+    const save = withWeapons(fresh, 'hard', { rifle: true, rifleUpgrade: true });
+    expect(weaponsFor(save, 'hard').rifle).toBe(true);
+    expect(weaponsFor(resetSave(save), 'hard').rifle).toBe(false);
   });
 });
 

@@ -7,8 +7,6 @@ export function showGameOverSign(
   onOk: () => void,
   /** The score, if it was a new record for this level. */
   newRecord: number | null = null,
-  /** With the rifle: deaths left before it's gone (0 = it's gone now), or null without one. */
-  rifleDeathsLeft: number | null = null,
   /** A short line at the top, like "everything is saved". */
   note: string | null = null,
 ): void {
@@ -51,21 +49,6 @@ export function showGameOverSign(
           fontSize: '18px',
           color: GAME_OVER.recordColor,
           fontStyle: 'bold',
-        })
-        .setOrigin(0.5),
-    );
-  }
-
-  if (rifleDeathsLeft !== null) {
-    const rifleText =
-      rifleDeathsLeft === 0
-        ? '🔫 Rifle lost! / Kivääri meni!'
-        : `🔫 Rifle lasts ${String(rifleDeathsLeft)} more / Kivääri kestää vielä ${String(rifleDeathsLeft)}`;
-    extras.push(
-      scene.add
-        .text(cx, cy + (newRecord !== null ? 82 : 60), rifleText, {
-          fontSize: '16px',
-          color: GAME_OVER.textColor,
         })
         .setOrigin(0.5),
     );
