@@ -41,6 +41,8 @@ export interface SaveData {
   crowns: Record<string, number>;
   /** The story chapter you've got to (0 = the first). */
   story: number;
+  /** Points you have in the story; they go with you from chapter to chapter. */
+  storyScore: number | null;
 }
 
 /** The bit of browser storage the save needs (localStorage fits). */
@@ -53,7 +55,16 @@ const SAVE_KEY = 'leon-peli-save';
 const NO_WEAPONS: LevelWeapons = { rifle: false, rifleUpgrade: false, deaths: 0 };
 /** A brand new save with nothing in it. */
 function fresh(): SaveData {
-  return { runs: {}, weapons: {}, muted: false, best: {}, stages: {}, crowns: {}, story: 0 };
+  return {
+    runs: {},
+    weapons: {},
+    muted: false,
+    best: {},
+    stages: {},
+    crowns: {},
+    story: 0,
+    storyScore: null,
+  };
 }
 
 /** Reads the save. Anything broken or missing means a fresh save. */
@@ -110,7 +121,14 @@ export function loadSave(storage: SaveStorage | null): SaveData {
       'story' in parsed && typeof parsed.story === 'number' && parsed.story >= 0
         ? Math.floor(parsed.story)
         : 0;
-    return { runs, weapons, muted, best, stages, crowns, story };
+    const storyScore =
+      'storyScore' in parsed &&
+      typeof parsed.storyScore === 'number' &&
+      Number.isFinite(parsed.storyScore) &&
+      parsed.storyScore >= 0
+        ? Math.floor(parsed.storyScore)
+        : null;
+    return { runs, weapons, muted, best, stages, crowns, story, storyScore };
   } catch {
     return fresh();
   }
@@ -275,4 +293,14 @@ export function newRun(
 /** Remember how far the story has got. */
 export function withStory(save: SaveData, chapter: number): SaveData {
   return { ...save, story: chapter };
+}
+
+/** Remember the story's points (and the chapter you're on). */
+export function withStoryScore(save: SaveData, score: number): SaveData {
+  return { ...save, storyScore: Math.max(Math.floor(score), 0) };
+}
+
+/** Points at the start of a story chapter: what you had, or `startPoints` the first time. */
+export function storyStartScore(save: SaveData, startPoints: number): number {
+  return save.storyScore ?? startPoints;
 }

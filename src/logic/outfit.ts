@@ -11,6 +11,10 @@ export type OutfitLook =
   | { kind: 'troll'; color: number; nose: number; hair: number }
   /** The machine-gun boss: one colour, and a red beret with a badge. */
   | { kind: 'beret'; color: number; beret: number; badge: number }
+  /** The dragon boss: scaly body, horns, wings and a tail. */
+  | { kind: 'dragon'; color: number; belly: number; wing: number; horn: number; eye: number }
+  /** The king: a golden crown with a jewel, and a purple cape. */
+  | { kind: 'king'; color: number; crown: number; jewel: number; cape: number }
   /** The golden suit from the treasure: shiny gold that glints. */
   | { kind: 'gold'; color: number; dark: number; shine: number };
 
@@ -47,7 +51,11 @@ export function outfitColor(outfit: OutfitLook, index: number): number {
     case 'pig':
     case 'troll':
     case 'beret':
+    case 'king':
       return outfit.color;
+    case 'dragon':
+      // Scales: the body colour with a lighter piece here and there
+      return index % 4 === 0 ? outfit.belly : outfit.color;
     case 'gold':
       // Light and darker gold pieces in turn, so it looks like shiny metal
       return index % 3 === 0 ? outfit.dark : index % 3 === 1 ? outfit.color : outfit.shine;

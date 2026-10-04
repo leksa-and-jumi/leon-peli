@@ -21,6 +21,19 @@ describe('splitSegment', () => {
 });
 
 describe('outfitColor', () => {
+  it('a dragon is scaly: mostly its colour with lighter scales', () => {
+    const dragon: OutfitLook = {
+      kind: 'dragon',
+      color: 0xd84315,
+      belly: 0xffcc80,
+      wing: 0x8d1f0a,
+      horn: 0xfff3e0,
+      eye: 0xffeb3b,
+    };
+    expect(outfitColor(dragon, 0)).toBe(0xffcc80);
+    expect(outfitColor(dragon, 1)).toBe(0xd84315);
+  });
+
   it('a golden suit glints with light and dark gold', () => {
     const gold: OutfitLook = { kind: 'gold', color: 0xffca28, dark: 0xffa000, shine: 0xfff59d };
     const colors = new Set([0, 1, 2, 3].map((i) => outfitColor(gold, i)));

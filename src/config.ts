@@ -370,6 +370,71 @@ export const GUNNER_FIERCE = {
   swarm: 10,
 } as const;
 
+/**
+ * The dragon: big, scaly and orange, with wings and a tail. It hovers a little off
+ * the ground and breathes bursts of fire at you.
+ */
+export const DRAGON = {
+  color: 0xd84315,
+  outlineColor: 0x000000,
+  outlineAlpha: 0.5,
+  height: 190,
+  thickness: 2,
+  outfit: {
+    kind: 'dragon',
+    color: 0xd84315,
+    belly: 0xffcc80,
+    wing: 0x8d1f0a,
+    horn: 0xfff3e0,
+    eye: 0xffeb3b,
+  },
+  weapon: 'fireBreath',
+  voice: 'giant',
+  lives: 25,
+  points: 20,
+  shootIntervalMs: 2600,
+  firstShotMs: 1000,
+  /** A breath of fire: five fireballs in a row. */
+  burst: 5,
+  burstGapMs: 90,
+  dodges: false,
+  aimsAtCrouch: true,
+  walkSpeed: 70,
+  stepMs: 260,
+  standOff: { min: 260, max: 340 },
+  followSlack: 60,
+  grenadeEveryShots: 999,
+  swarm: 0,
+  swarmGapMs: 0,
+  /** It flies a little off the ground, bobbing up and down. */
+  hover: { height: 55, bob: 18, speed: 2.2 },
+  healthBar: { width: 90, height: 10, gap: 14, back: 0x3a332b, fill: 0xff6f00 },
+} as const;
+
+/** The brown brute king: big, with a crown and a cape, and a golden axe. A duel! */
+export const KING = {
+  weapon: 'axe',
+  voice: 'giant',
+  /** Hearts one chop takes. */
+  damage: 2,
+  height: 185,
+  thickness: 2,
+  color: 0x5d4037,
+  outlineColor: 0xffd54f,
+  outlineAlpha: 0.6,
+  outfit: { kind: 'king', color: 0x5d4037, crown: 0xffd54f, jewel: 0xe53935, cape: 0x6a1b9a },
+  walkSpeed: 65,
+  stepMs: 260,
+  lives: 30,
+  points: 30,
+  reach: 100,
+  minX: 40,
+  maxX: 740,
+  chopIntervalMs: 1300,
+  chopDownMs: 300,
+  healthBar: { width: 100, height: 10, gap: 14, back: 0x3a332b, fill: 0xffd54f },
+} as const;
+
 /** Crashing into someone after letting go of a vine: fall on your back, then get up. */
 export const KNOCKDOWN = {
   fallMs: 320,
@@ -382,7 +447,7 @@ export const KNOCKDOWN = {
 } as const;
 
 /** Everything that's different between the axe guy, the giant and the brute. */
-export type BigFoeKind = typeof BOSS | typeof GIANT | typeof BRUTE;
+export type BigFoeKind = typeof BOSS | typeof GIANT | typeof BRUTE | typeof KING;
 
 /** How a hit white stick figure breaks in two. */
 export const BREAK = {
@@ -520,6 +585,12 @@ export const WEAPONS = {
     cooldownMs: 0,
     colors: { body: 0x3949ab, dark: 0x1a237e, shine: 0x9fa8da },
   },
+  /** The dragon's fire, held in its claw. */
+  fireBreath: {
+    muzzleX: 18,
+    cooldownMs: 0,
+    colors: { outer: 0xff6f00, inner: 0xffeb3b },
+  },
   /** The machine-gun boss's big gun with a bunch of barrels and a belt of bullets. */
   minigun: {
     muzzleX: 52,
@@ -566,7 +637,7 @@ export const GAME_OVER = {
   deathPenalty: 10,
   savedNote: '💾 Everything saved, only −10 ⭐\nKaikki tallessa, vain −10 ⭐',
   /** In the story you just try the chapter again. */
-  storyNote: '📖 OK = try the chapter again\nOK = yritä lukua uudestaan',
+  storyNote: '📖 −3 ⭐  OK = try the chapter again\nOK = yritä lukua uudestaan',
   textColor: '#ffffff',
   recordColor: '#ffd54f',
   dimAlpha: 0.35,
@@ -857,8 +928,15 @@ export interface StoryChapter {
   keys?: number;
 }
 
-/** Leo's story mode: ten chapters to win back the village's golden crown and keep it safe. */
-export const STORY: { chapters: readonly StoryChapter[]; endText: string; reward: number } = {
+/** Leo's story mode: chapters to win back the village's golden crown and keep it safe. */
+export const STORY: {
+  chapters: readonly StoryChapter[];
+  endText: string;
+  reward: number;
+  deathPenalty: number;
+} = {
+  /** Dying in the story only costs this many points. */
+  deathPenalty: 3,
   chapters: [
     {
       emoji: '👑',
@@ -987,20 +1065,57 @@ export const STORY: { chapters: readonly StoryChapter[]; endText: string; reward
         fierceGunner: true,
       },
     },
+    {
+      emoji: '🐉',
+      title: 'The dragon / Lohikäärme',
+      text:
+        'The army ran away, but the angry king woke up his dragon!\nIt flies and breathes fire. Break the dragon!\n\n' +
+        'Armeija pakeni, mutta vihainen kuningas herätti lohikäärmeensä!\nSe lentää ja syöksee tulta. Hajota lohikäärme!',
+      goal: { type: 'break', kind: 'dragon', count: 1 },
+      rules: {
+        specials: [{ every: 2, kind: 'dragon' }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+      },
+    },
+    {
+      emoji: '🏰',
+      title: "The king's castle / Kuninkaan linna",
+      text:
+        "Now it's time to visit the king. His castle gate is locked and red axe guys guard it.\nFind 4 keys and open the castle gate!\n\n" +
+        'Nyt on aika käydä kuninkaan luona. Linnan portti on lukossa, ja punaiset kirvesmiehet vartioivat sitä.\nEtsi 4 avainta ja avaa linnan portti!',
+      goal: { type: 'door' },
+      rules: {
+        specials: [{ every: 3, kind: 'boss', lives: 5 }],
+        regular: { kind: 'white', lives: 2 },
+        aimAtPlayer: true,
+        stages: true,
+      },
+      keys: 4,
+    },
+    {
+      emoji: '👑',
+      title: 'Duel with the king / Kaksintaistelu kuninkaan kanssa',
+      text:
+        'There he is: the brown brute king with his golden axe. Just you and him!\nWin the duel against the king!\n\n' +
+        'Siinä hän on: ruskeiden kuningas kultaisine kirveineen. Vain sinä ja hän!\nVoita kaksintaistelu kuningasta vastaan!',
+      goal: { type: 'break', kind: 'king', count: 1 },
+      rules: { specials: [], regular: { kind: 'king' }, aimAtPlayer: true, maxAtOnce: 1 },
+    },
   ],
   endText:
-    '🎉 THE END! 🎉\nThe army ran away for good, and the golden crown is safe. The village is saved!\n\n' +
-    '🎉 LOPPU! 🎉\nArmeija pakeni lopullisesti, ja kultainen kruunu on turvassa. Kylä on pelastettu!',
+    '🎉 THE END! 🎉\nThe king lost the duel and promised never to come back. The golden crown is safe and the village is saved!\n\n' +
+    '🎉 LOPPU! 🎉\nKuningas hävisi kaksintaistelun ja lupasi, ettei koskaan palaa. Kultainen kruunu on turvassa ja kylä on pelastettu!',
   /** Points for finishing the whole story. */
   reward: 100,
 };
 
 /** The test level's buttons for calling in enemies, one for each kind. */
 export const SPAWN_PANEL = {
-  x: 34,
-  y: 260,
-  size: 50,
-  gap: 8,
+  x: 30,
+  y: 250,
+  size: 44,
+  gap: 6,
   back: 0x1b1533,
   border: 0xffd54f,
   kinds: [
@@ -1009,6 +1124,8 @@ export const SPAWN_PANEL = {
     { kind: 'giant', color: 0x33402c, weapon: 'club' },
     { kind: 'brute', color: 0x6d4c41, weapon: 'club' },
     { kind: 'gunner', color: 0x263238, weapon: 'beret' },
+    { kind: 'dragon', color: 0xd84315, weapon: 'fire' },
+    { kind: 'king', color: 0x5d4037, weapon: 'crown' },
   ],
 } as const;
 

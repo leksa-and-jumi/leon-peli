@@ -55,6 +55,8 @@ export interface ShooterStyle {
   stepMs: number;
   followSlack: number;
   healthBar: { width: number; height: number; gap: number; back: number; fill: number };
+  /** Flies a little off the ground, bobbing up and down (the dragon). */
+  hover?: { height: number; bob: number; speed: number };
 }
 
 export class Enemy implements Foe {
@@ -192,6 +194,14 @@ export class Enemy implements Foe {
     else this.figure.setStance('aim');
   }
 
+  /** A flying one stays up in the air, bobbing gently. */
+  private updateHover(): void {
+    const hover = this.style?.hover;
+    if (!hover) return;
+    const t = this.scene.time.now / 1000;
+    this.figure.setLift(hover.height + Math.sin(t * hover.speed) * hover.bob);
+  }
+
   /** Turn the gun arm, little by little, toward wherever the player is. */
   private updateAim(deltaMs: number): void {
     if (!this.aimAt) return;
@@ -246,6 +256,7 @@ export class Enemy implements Foe {
   update(deltaMs: number): void {
     if (!this.alive) return;
     this.updateJump(deltaMs);
+    this.updateHover();
     this.updateAim(deltaMs);
     this.drawHealthBar();
     const stop = this.stopX();
