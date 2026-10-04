@@ -500,36 +500,51 @@ export function drawOutfit(
     g.fillStyle(0xffffff, 1);
     g.fillCircle(c.x + facing * r * 0.34, c.y - r * 0.34, r * 0.05);
   } else if (outfit.kind === 'dragon') {
-    // A long snout, two horns and a glowing yellow eye
+    // A long snout with an open jaw full of sharp teeth, big curved horns,
+    // and a glowing red eye
     const facing = pose.gunHand.x >= pose.neck.x ? 1 : -1;
+    const f = facing;
     g.fillStyle(outfit.horn, 1);
-    g.fillTriangle(
-      c.x - r * 0.5,
-      c.y - r * 0.6,
-      c.x - r * 0.15,
-      c.y - r * 0.85,
-      c.x - r * 0.75 - facing * r * 0.3,
-      c.y - r * 1.7,
-    );
-    g.fillTriangle(
-      c.x + r * 0.15,
-      c.y - r * 0.85,
-      c.x + r * 0.5,
-      c.y - r * 0.6,
-      c.x + r * 0.2 - facing * r * 0.3,
-      c.y - r * 1.75,
-    );
+    for (const [base, tipX, tipY] of [
+      [-0.45, -1.35, -1.95],
+      [0.1, -0.7, -2.1],
+    ] as const) {
+      g.fillTriangle(
+        c.x + f * (base - 0.2) * r,
+        c.y - r * 0.6,
+        c.x + f * (base + 0.25) * r,
+        c.y - r * 0.8,
+        c.x + f * tipX * r,
+        c.y + tipY * r,
+      );
+    }
     g.fillStyle(outfit.color, 1);
-    g.fillCircle(c.x, c.y, r);
-    g.fillEllipse(c.x + facing * r * 0.95, c.y + r * 0.2, r * 1.4, r * 0.85);
+    g.fillCircle(c.x, c.y, r * 1.05);
+    // Upper jaw and lower jaw, a little open
+    g.fillEllipse(c.x + f * r * 1.05, c.y - r * 0.05, r * 1.6, r * 0.7);
+    g.fillEllipse(c.x + f * r * 0.95, c.y + r * 0.55, r * 1.3, r * 0.45);
+    // Fire glowing inside the mouth
     g.fillStyle(outfit.belly, 1);
-    g.fillEllipse(c.x + facing * r * 1.0, c.y + r * 0.45, r * 1.1, r * 0.3);
-    g.fillStyle(0x3e2723, 1);
-    g.fillCircle(c.x + facing * r * 1.5, c.y + r * 0.05, r * 0.08);
-    g.fillStyle(outfit.eye, 1);
-    g.fillCircle(c.x + facing * r * 0.3, c.y - r * 0.25, r * 0.22);
+    g.fillEllipse(c.x + f * r * 1.05, c.y + r * 0.28, r * 1.1, r * 0.22);
+    // Sharp white teeth
+    g.fillStyle(0xffffff, 1);
+    for (let k = 0; k < 4; k++) {
+      const tx = c.x + f * r * (0.6 + k * 0.28);
+      g.fillTriangle(tx - 3, c.y + r * 0.2, tx + 3, c.y + r * 0.2, tx, c.y + r * 0.42);
+      g.fillTriangle(tx - 3, c.y + r * 0.4, tx + 3, c.y + r * 0.4, tx, c.y + r * 0.22);
+    }
+    // Smoking nostril
     g.fillStyle(0x000000, 1);
-    g.fillEllipse(c.x + facing * r * 0.33, c.y - r * 0.25, r * 0.08, r * 0.3);
+    g.fillCircle(c.x + f * r * 1.7, c.y - r * 0.15, r * 0.09);
+    // A glowing red eye under an angry brow
+    g.fillStyle(outfit.eye, 0.35);
+    g.fillCircle(c.x + f * r * 0.3, c.y - r * 0.3, r * 0.45);
+    g.fillStyle(outfit.eye, 1);
+    g.fillCircle(c.x + f * r * 0.3, c.y - r * 0.3, r * 0.22);
+    g.fillStyle(0x000000, 1);
+    g.fillEllipse(c.x + f * r * 0.33, c.y - r * 0.3, r * 0.07, r * 0.32);
+    g.lineStyle(3, 0x000000, 1);
+    g.lineBetween(c.x - f * r * 0.1, c.y - r * 0.7, c.x + f * r * 0.65, c.y - r * 0.45);
   } else if (outfit.kind === 'king') {
     // A beard, and a golden crown with a red jewel
     g.fillStyle(outfit.color, 1);
@@ -629,35 +644,54 @@ export function drawBackParts(
   const back = -facing;
   const sh = pose.shoulder;
   if (outfit.kind === 'dragon') {
-    const flap = Math.sin(timeMs / 180) * 0.35;
-    const span = Math.abs(pose.neck.y) * 0.75;
+    const flap = Math.sin(timeMs / 160) * 0.4;
+    const span = Math.abs(pose.neck.y) * 0.95;
+    // Huge bat wings with bony fingers and a ragged edge
     const wing = (lift: number): Phaser.Math.Vector2[] => [
       new Phaser.Math.Vector2(sh.x, sh.y),
-      new Phaser.Math.Vector2(sh.x + back * span * 0.45, sh.y - span * (0.75 + lift)),
-      new Phaser.Math.Vector2(sh.x + back * span * 1.05, sh.y - span * (0.55 + lift)),
-      new Phaser.Math.Vector2(sh.x + back * span * 0.8, sh.y - span * (0.15 + lift / 2)),
-      new Phaser.Math.Vector2(sh.x + back * span * 0.95, sh.y + span * 0.05),
-      new Phaser.Math.Vector2(sh.x + back * span * 0.5, sh.y + span * 0.12),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.4, sh.y - span * (0.85 + lift)),
+      new Phaser.Math.Vector2(sh.x + back * span * 1.15, sh.y - span * (0.7 + lift)),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.95, sh.y - span * (0.35 + lift / 2)),
+      new Phaser.Math.Vector2(sh.x + back * span * 1.2, sh.y - span * (0.2 + lift / 3)),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.9, sh.y),
+      new Phaser.Math.Vector2(sh.x + back * span * 1.05, sh.y + span * 0.15),
+      new Phaser.Math.Vector2(sh.x + back * span * 0.55, sh.y + span * 0.12),
     ];
-    g.fillStyle(outfit.wing, 0.95);
-    g.fillPoints(wing(flap), true);
-    g.lineStyle(2, 0x3e0e05, 1);
-    g.strokePoints(wing(flap), true);
-    // A long tail curling out behind, with a spiky tip
+    const points = wing(flap);
+    g.fillStyle(outfit.wing, 0.97);
+    g.fillPoints(points, true);
+    g.lineStyle(3, 0x000000, 1);
+    for (const p of [points[1], points[2], points[4], points[6]]) {
+      if (p) g.lineBetween(sh.x, sh.y, p.x, p.y);
+    }
+    g.strokePoints(points, true);
+    // Spikes all down the back, from the neck to the hip
+    const neck = pose.neck;
     const hip = pose.hip;
-    const tail = [0, 0.33, 0.66, 1].map(
+    g.fillStyle(outfit.horn, 1);
+    for (let k = 0; k <= 5; k++) {
+      const t = k / 5;
+      const x = neck.x + (hip.x - neck.x) * t + back * 4;
+      const y = neck.y + (hip.y - neck.y) * t;
+      g.fillTriangle(x, y - 6, x, y + 6, x + back * 16, y - 2);
+    }
+    // A long tail curling out behind, with a big spiky tip
+    const tail = [0, 0.25, 0.5, 0.75, 1].map(
       (t) =>
         new Phaser.Math.Vector2(
-          hip.x + back * span * 1.1 * t,
-          hip.y + span * 0.55 * t - Math.sin(t * Math.PI) * span * 0.25,
+          hip.x + back * span * 1.2 * t,
+          hip.y +
+            span * 0.45 * t -
+            Math.sin(t * Math.PI) * span * 0.3 +
+            Math.sin(timeMs / 300 + t * 3) * 6 * t,
         ),
     );
-    g.lineStyle(Math.max(span * 0.09, 4), outfit.color, 1);
+    g.lineStyle(Math.max(span * 0.1, 5), outfit.color, 1);
     g.strokePoints(tail, false);
-    const tip = tail[3];
+    const tip = tail[4];
     if (tip) {
-      g.fillStyle(outfit.wing, 1);
-      g.fillTriangle(tip.x, tip.y - 8, tip.x + back * 14, tip.y, tip.x, tip.y + 8);
+      g.fillStyle(outfit.horn, 1);
+      g.fillTriangle(tip.x, tip.y - 12, tip.x + back * 22, tip.y, tip.x, tip.y + 12);
     }
   } else if (outfit.kind === 'king') {
     // A purple cape from the shoulders down past the knees, with a gold edge

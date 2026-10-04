@@ -375,22 +375,22 @@ export const GUNNER_FIERCE = {
  * the ground and breathes bursts of fire at you.
  */
 export const DRAGON = {
-  color: 0xd84315,
+  color: 0x8e0000,
   outlineColor: 0x000000,
-  outlineAlpha: 0.5,
-  height: 190,
-  thickness: 2,
+  outlineAlpha: 0.75,
+  height: 215,
+  thickness: 2.2,
   outfit: {
     kind: 'dragon',
-    color: 0xd84315,
-    belly: 0xffcc80,
-    wing: 0x8d1f0a,
-    horn: 0xfff3e0,
-    eye: 0xffeb3b,
+    color: 0x8e0000,
+    belly: 0xff7043,
+    wing: 0x3b0000,
+    horn: 0xd7ccc8,
+    eye: 0xff1744,
   },
   weapon: 'fireBreath',
   voice: 'giant',
-  lives: 25,
+  lives: 15,
   points: 20,
   shootIntervalMs: 2600,
   firstShotMs: 1000,
@@ -1072,11 +1072,8 @@ export const STORY: {
         'The army ran away, but the angry king woke up his dragon!\nIt flies and breathes fire. Break the dragon!\n\n' +
         'Armeija pakeni, mutta vihainen kuningas herätti lohikäärmeensä!\nSe lentää ja syöksee tulta. Hajota lohikäärme!',
       goal: { type: 'break', kind: 'dragon', count: 1 },
-      rules: {
-        specials: [{ every: 2, kind: 'dragon' }],
-        regular: { kind: 'white', lives: 2 },
-        aimAtPlayer: true,
-      },
+      // Just you and the dragon: nobody else comes
+      rules: { specials: [], regular: { kind: 'dragon' }, aimAtPlayer: true, maxAtOnce: 1 },
     },
     {
       emoji: '🏰',
