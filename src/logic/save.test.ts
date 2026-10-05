@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  storyRun,
+  withStoryRun,
+  hasGold,
   loadSave,
   recordScore,
   weaponsFor,
@@ -313,5 +316,63 @@ describe('story medals', () => {
     writeSave(storage, withMedal(withMedal(fresh)));
     expect(loadSave(storage).medals).toBe(2);
     expect(resetSave(loadSave(storage)).medals).toBe(0);
+  });
+});
+
+describe('story things', () => {
+  const empty = loadSave(null);
+
+  it('starts with nothing but the black suit', () => {
+    const run = storyRun(empty, 10, 3, 70);
+    expect(run.ownedOutfits).toEqual(['black']);
+    expect(run.ownedItems).toEqual([]);
+    expect(run.score).toBe(10);
+    expect(run.lives).toBe(3);
+  });
+
+  it('keeps what you bought, with the story points', () => {
+    const bought = {
+      ...storyRun(empty, 10, 3, 70),
+      score: 42,
+      ownedOutfits: ['black', 'troll'],
+      wornOutfit: 'troll',
+      ownedItems: ['poison'],
+    };
+    const save = withStoryRun(empty, bought);
+    expect(save.storyScore).toBe(42);
+    const again = storyRun(withStory(save, 0), 10, 3, 70);
+    expect(again.ownedOutfits).toEqual(['black', 'troll']);
+    expect(again.wornOutfit).toBe('troll');
+    expect(again.ownedItems).toEqual(['poison']);
+    expect(again.score).toBe(42);
+  });
+
+  it('starts every chapter at the start with at least full lives', () => {
+    const save = withStoryRun(empty, { ...storyRun(empty, 10, 3, 70), lives: 1, playerX: 900 });
+    expect(storyRun(save, 10, 3, 70).lives).toBe(3);
+    expect(storyRun(save, 10, 3, 70).playerX).toBe(70);
+    const extra = withStoryRun(empty, { ...storyRun(empty, 10, 3, 70), lives: 4 });
+    expect(storyRun(extra, 10, 3, 70).lives).toBe(4);
+  });
+
+  it('is forgotten when the whole game starts over', () => {
+    const save = withStoryRun(empty, { ...storyRun(empty, 10, 3, 70), ownedItems: ['poison'] });
+    expect(storyRun(resetSave(save), 10, 3, 70).ownedItems).toEqual([]);
+  });
+});
+
+describe('the golden suit', () => {
+  const empty = loadSave(null);
+
+  it('needs the treasure of that level', () => {
+    expect(hasGold(empty, 'hard')).toBe(false);
+    expect(hasGold(withCrown(empty, 'hard'), 'hard')).toBe(true);
+    expect(hasGold(withCrown(empty, 'hard'), 'normal')).toBe(false);
+  });
+
+  it('is in the story with any treasure or a medal', () => {
+    expect(hasGold(empty, 'story')).toBe(false);
+    expect(hasGold(withCrown(empty, 'hard'), 'story')).toBe(true);
+    expect(hasGold(withMedal(empty), 'story')).toBe(true);
   });
 });

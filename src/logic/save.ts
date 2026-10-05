@@ -316,3 +316,40 @@ export function storyStartScore(save: SaveData, startPoints: number): number {
 export function withMedal(save: SaveData): SaveData {
   return { ...save, medals: save.medals + 1 };
 }
+
+/** The level name the story keeps its things under. */
+const STORY_LEVEL = 'story';
+
+/**
+ * What you have in the story: the things you bought stay with you from chapter to chapter
+ * (and when you play the story again), with the story's points and full lives.
+ */
+export function storyRun(
+  save: SaveData,
+  startPoints: number,
+  lives: number,
+  startX: number,
+): RunState {
+  const base = save.runs[STORY_LEVEL] ?? newRun(startPoints, lives, startX, 1, 1);
+  return {
+    ...base,
+    score: storyStartScore(save, startPoints),
+    // A life bought in the menu's shop is there when the chapter starts
+    lives: Math.max(base.lives, lives),
+    playerX: startX,
+  };
+}
+
+/** Remember the story's things and points. */
+export function withStoryRun(save: SaveData, run: RunState): SaveData {
+  return withStoryScore(withRun(save, STORY_LEVEL, run), run.score);
+}
+
+/**
+ * Is the golden suit yours on `level`? It comes from the treasure behind door 10.
+ * In the story any treasure counts, and so does a medal for finishing the story.
+ */
+export function hasGold(save: SaveData, level: string): boolean {
+  if (level !== STORY_LEVEL) return (save.crowns[level] ?? 0) > 0;
+  return save.medals > 0 || Object.values(save.crowns).some((count) => count > 0);
+}

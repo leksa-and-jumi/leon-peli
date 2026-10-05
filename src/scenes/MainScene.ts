@@ -100,9 +100,10 @@ import {
   stageFor,
   withCrown,
   withStory,
-  withStoryScore,
+  withStoryRun,
+  storyRun,
+  hasGold,
   withMedal,
-  storyStartScore,
   withStage,
   recordScore,
   weaponsFor,
@@ -270,8 +271,18 @@ export class MainScene extends Phaser.Scene {
     this.atDoor = false;
     this.leaving = false;
     // An unfinished game on this level continues where it was left
-    // The story has no saved game: each chapter starts fresh
+    // The story starts each chapter fresh, but the things you bought come along
     const run = this.story() ? undefined : loadSave(browserStorage()).runs[this.difficulty];
+    const gear = this.story()
+      ? storyRun(loadSave(browserStorage()), START_POINTS, PLAYER.lives, PLAYER.x)
+      : undefined;
+    if (gear) {
+      // In the story, your points go with you from chapter to chapter
+      this.score = gear.score;
+      this.lives = gear.lives;
+      for (const o of gear.ownedOutfits) if (o in OUTFITS) this.ownedOutfits.add(o as OutfitId);
+      for (const item of gear.ownedItems) this.ownedItems.add(item);
+    }
     if (run) {
       this.score = run.score;
       this.earned = run.earned;
@@ -284,8 +295,6 @@ export class MainScene extends Phaser.Scene {
       this.stageSeed = run.stageSeed;
       this.keysFound = [...run.keysFound];
     }
-    // In the story, your points go with you from chapter to chapter
-    if (this.story()) this.score = storyStartScore(loadSave(browserStorage()), START_POINTS);
 
     // The treasure's golden suit is yours on this level for good
     if (this.hasCrown()) this.ownedOutfits.add('gold');
@@ -336,9 +345,10 @@ export class MainScene extends Phaser.Scene {
     this.chopping = false;
     this.player.setWeapon(this.gun);
     this.rifleUpgrade = levelWeapons.rifleUpgrade;
-    if (run) {
-      this.player.setX(clampToWorld(run.playerX, this.bounds, WORLD.wallMargin));
-      const worn = run.wornOutfit in OUTFITS ? (run.wornOutfit as OutfitId) : 'black';
+    if (run) this.player.setX(clampToWorld(run.playerX, this.bounds, WORLD.wallMargin));
+    const kept = run ?? gear;
+    if (kept) {
+      const worn = kept.wornOutfit in OUTFITS ? (kept.wornOutfit as OutfitId) : 'black';
       if (this.ownedOutfits.has(worn)) {
         this.wornOutfit = worn;
         this.player.setOutfit(OUTFITS[worn]);
@@ -645,11 +655,12 @@ export class MainScene extends Phaser.Scene {
     // When the story is over it starts again from the first chapter next time.
     // Your points go on to the next chapter.
     let save = withStory(loadSave(browserStorage()), next ?? 0);
-    // The whole story done: the medal and the bonus points are saved right away
+    // The whole story done: the medal and the bonus points are saved right away.
+    // The things you bought stay yours, also when you play the story again.
     save =
       next === null
-        ? withMedal(withStoryScore(save, this.score + STORY.reward))
-        : withStoryScore(save, this.score);
+        ? withMedal(withStoryRun(save, this.storyGear(this.score + STORY.reward)))
+        : withStoryRun(save, this.storyGear(this.score));
     writeSave(browserStorage(), save);
     const banner = this.add
       .text(GAME_WIDTH / 2, 230, '✅ Chapter done! / Luku läpi!', {
@@ -687,6 +698,20 @@ export class MainScene extends Phaser.Scene {
     writeSave(
       browserStorage(),
       withRun(loadSave(browserStorage()), this.difficulty, this.runState()),
+    );
+  }
+
+  /** What goes with you through the story: your things and `score` points. */
+  private storyGear(score: number): RunState {
+    return { ...this.runState(), score: Math.max(score, 0), lives: PLAYER.lives };
+  }
+
+  /** In the story, things you buy or put on are saved at once. */
+  private saveStoryGear(): void {
+    if (!this.story() || !this.playerAlive || this.leaving) return;
+    writeSave(
+      browserStorage(),
+      withStoryRun(loadSave(browserStorage()), this.storyGear(this.score)),
     );
   }
 
@@ -1398,6 +1423,7 @@ export class MainScene extends Phaser.Scene {
       this.player.setOutfit(OUTFITS[this.wornOutfit]);
     }
     this.player.setWeapon(this.weaponFor(this.wornOutfit));
+    this.saveStoryGear();
   }
 
   private purchase(item: ShopItem): boolean {
@@ -1420,7 +1446,7 @@ export class MainScene extends Phaser.Scene {
 
   /** Has the treasure behind door 10 been found on this level? */
   private hasCrown(): boolean {
-    return (loadSave(browserStorage()).crowns[this.difficulty] ?? 0) > 0;
+    return hasGold(loadSave(browserStorage()), this.difficulty);
   }
 
   /** Put on clothes the player owns. */
@@ -1632,7 +1658,7 @@ export class MainScene extends Phaser.Scene {
     if (this.story()) {
       writeSave(
         browserStorage(),
-        withStoryScore(loadSave(browserStorage()), this.score - STORY.deathPenalty),
+        withStoryRun(loadSave(browserStorage()), this.storyGear(this.score - STORY.deathPenalty)),
       );
       this.time.delayedCall(GAME_OVER.delayMs, () => {
         showGameOverSign(
