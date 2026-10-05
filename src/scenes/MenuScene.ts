@@ -14,6 +14,9 @@ import type { Difficulty } from '../logic/difficulty';
 import {
   loadSave,
   newRun,
+  storyRun,
+  withStoryRun,
+  hasGold,
   resetSave,
   stageFor,
   weaponsFor,
@@ -193,21 +196,26 @@ export class MenuScene extends Phaser.Scene {
   private openShop(level: Difficulty): void {
     const storage = browserStorage();
     const start = loadSave(storage);
-    const run =
-      start.runs[level] ??
-      newRun(
-        START_POINTS,
-        PLAYER.lives,
-        PLAYER.x,
-        stageFor(start, level),
-        Math.floor(Math.random() * 1e9),
-      );
-    let state = loadoutOf(run, weaponsFor(start, level), (start.crowns[level] ?? 0) > 0);
+    // The story keeps its own points and things, the same in every chapter
+    const story = level === 'story';
+    const run = story
+      ? storyRun(start, START_POINTS, PLAYER.lives, PLAYER.x)
+      : (start.runs[level] ??
+        newRun(
+          START_POINTS,
+          PLAYER.lives,
+          PLAYER.x,
+          stageFor(start, level),
+          Math.floor(Math.random() * 1e9),
+        ));
+    let state = loadoutOf(run, weaponsFor(start, level), hasGold(start, level));
     // Every change is saved at once, so the game finds it when you play that level
     const keep = (next: Loadout): void => {
       state = next;
       let save = loadSave(storage);
-      save = withRun(save, level, runWithLoadout(save.runs[level] ?? run, next));
+      save = story
+        ? withStoryRun(save, runWithLoadout(run, next))
+        : withRun(save, level, runWithLoadout(save.runs[level] ?? run, next));
       save = withWeapons(save, level, { rifle: next.rifle, rifleUpgrade: next.rifleUpgrade });
       writeSave(storage, save);
     };
@@ -342,7 +350,7 @@ export class MenuScene extends Phaser.Scene {
     // Next to the button: ▶️ a game waiting to be continued, 🚪 the stage reached,
     // 👑 treasures found behind door 10
     const extras = [
-      this.unfinished.has(level) ? '▶️' : '',
+      this.unfinished.has(level) && level !== 'story' ? '▶️' : '',
       (this.stages[level] ?? 1) > 1 ? `🚪${String(this.stages[level])}` : '',
       (this.crowns[level] ?? 0) > 0 ? `👑${String(this.crowns[level])}` : '',
       // Medals for finishing the whole story
